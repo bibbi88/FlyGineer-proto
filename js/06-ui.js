@@ -368,6 +368,58 @@ function t3dDraw(cv, W, el) {
     c.beginPath(); c.moveTo(a1[0] + 4 * Math.cos(ang), a1[1] + 4 * Math.sin(ang)); c.lineTo(a1[0] - 11 * Math.cos(ang - 0.45), a1[1] - 11 * Math.sin(ang - 0.45)); c.lineTo(a1[0] - 11 * Math.cos(ang + 0.45), a1[1] - 11 * Math.sin(ang + 0.45)); c.closePath(); c.fill();
     c.font = '12px Barlow'; haloText(c, fSpd(w.spd) + (S.uSpd === 'kt' ? ' kt' : ' km/h'), a0[0], a0[1] - 6, css('--sink'), card); }
 }
+/* ----- Thermal layer view: from above, the slice of air from your height down to `depth` below ----- */
+// every logged point in that height band, where that air is now (moved on with the wind), coloured by climb;
+// shows where the lift was in the air you are flying in, relative to your position
+const DEPTH_O = [50, 100, 200, 300];
+function layerDraw(cv, W, el) {
+  const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const cfg = W.cfg, f = st.fix, alt = altNow(), w = windFromSpd(), dark = document.body.classList.contains('dark');
+  const orient = cfg.orient || 'wind', depth = clamp(+cfg.depth || 100, 20, 1000), above = clamp(+cfg.above || 0, 0, 500), hist = clamp(+cfg.hist || 600, 30, 600) * 1000;
+  let up = 0, upName = 'north'; if (orient === 'wind' && w) { up = w.from; upName = 'wind'; } else if (orient === 'track' && f && f.trk != null) { up = f.trk; upName = 'track'; }
+  const ctlL = `<button class="wcb wide" data-act="depth" aria-label="Layer depth ${depth} m. Tap to change">${depth} m</button>`;
+  const ctlR = '<button class="wcb" data-act="zin" aria-label="Zoom in">+</button><button class="wcb" data-act="zout" aria-label="Zoom out">−</button>';
+  const cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
+  if (cl._h !== ctlL) { cl.innerHTML = ctlL; cl._h = ctlL; } if (cr._h !== ctlR) { cr.innerHTML = ctlR; cr._h = ctlR; }
+  const cx = Wd / 2, cy = H / 2, R = Math.max(30, Math.min(Wd, H) / 2 - 12);
+  if (!f || alt == null) { el._sub = ''; c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('Waiting for GPS…', cx, cy); return; }
+  const now = f.t, wv = st.wind || { vx: 0, vy: 0 }, lo = alt - depth, hi = alt + above, air = cfg.frame !== 'ground';
+  el._sub = `${fAlt(lo)}–${fAlt(hi)} ${S.uAlt === 'ft' ? 'ft' : 'm'} · ${upName} up${air ? '' : ' · ground'}`;
+  const pts = st.samples.filter((s) => s.t >= now - hist && s.alt != null && s.alt >= lo && s.alt <= hi && now - s.t > 1500)
+    .map((s) => { const [x, y] = enu(f.lat, f.lon, s.lat, s.lon), dt = air ? (now - s.t) / 1000 : 0; return { x: x + wv.vx * dt, y: y + wv.vy * dt, v: s.v, dz: alt - s.alt, t: s.t }; });
+  const sc = R / clamp(+cfg.range || 200, 30, 5000) * clamp(+cfg.zoom || 1, 0.25, 8), Rm = R / sc;
+  const a = up * D2R, ca = Math.cos(a), sa = Math.sin(a), tr = (x, y) => [cx + (x * ca - y * sa) * sc, cy - (x * sa + y * ca) * sc];
+  const ink = css('--ink'), card = css('--card'), muted = css('--muted');
+  // rings
+  const RS = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000], ringM = RS.find((v) => Rm / v <= 4) || 2000;
+  c.lineWidth = 1; c.strokeStyle = css('--line'); c.font = '11px Barlow'; c.textAlign = 'left';
+  for (let k = 1; k * ringM <= Rm * 1.02; k++) { const r = k * ringM * sc; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke(); const lx = cx + r * 0.7071, ly = cy + r * 0.7071; if (lx < Wd - 34 && ly < H - 8) haloText(c, k * ringM + ' m', lx + 2, ly + 4, muted, card); }
+  // north tick, wind arrow
+  { const [nx, ny] = tr(0, Rm * 0.93); c.font = '700 13px Barlow'; c.textAlign = 'center'; c.fillStyle = '#B42318'; c.fillText('N', nx, ny + 5); }
+  if (w) { const [x0, y0] = tr(-Math.sin(w.to * D2R) * Rm * 0.9, -Math.cos(w.to * D2R) * Rm * 0.9), [x1, y1] = tr(-Math.sin(w.to * D2R) * Rm * 0.62, -Math.cos(w.to * D2R) * Rm * 0.62), ang = Math.atan2(y1 - y0, x1 - x0);
+    c.strokeStyle = css('--sink'); c.fillStyle = css('--sink'); c.lineWidth = 3; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.beginPath(); c.moveTo(x1 + 3 * Math.cos(ang), y1 + 3 * Math.sin(ang)); c.lineTo(x1 - 10 * Math.cos(ang - 0.45), y1 - 10 * Math.sin(ang - 0.45)); c.lineTo(x1 - 10 * Math.cos(ang + 0.45), y1 - 10 * Math.sin(ang + 0.45)); c.closePath(); c.fill(); }
+  // lift glow first, then dots: deeper points are fainter and smaller, points above you are hollow
+  const rr = clamp(14 * sc, 10, 40);
+  pts.forEach((p) => { if (p.v <= 0.2) return; const [x, y] = tr(p.x, p.y); if (x < -rr || x > Wd + rr || y < -rr || y > H + rr) return; c.globalAlpha = 0.25 + 0.75 * (1 - Math.max(0, p.dz) / depth); c.drawImage(heatBlob(p.v), x - rr, y - rr, 2 * rr, 2 * rr); });
+  c.globalAlpha = 1;
+  pts.forEach((p) => { const [x, y] = tr(p.x, p.y); if (x < -10 || x > Wd + 10 || y < -10 || y > H + 10) return; const k = 1 - Math.max(0, p.dz) / depth, r = clamp(2.5 + Math.abs(p.v) * 1.3, 2.5, 8) * (0.6 + 0.4 * k);
+    c.beginPath(); c.arc(x, y, r, 0, 7); if (p.dz < 0) { c.strokeStyle = rgba(heat(p.v), 1); c.lineWidth = 2; c.stroke(); return; }
+    c.fillStyle = rgba(heat(p.v), 0.35 + 0.65 * k); c.fill(); c.lineWidth = 0.8; c.strokeStyle = dark ? `rgba(230,234,238,${0.15 + 0.4 * k})` : `rgba(17,20,24,${0.15 + 0.4 * k})`; c.stroke(); });
+  // where the lift was in this layer: the strongest group of rising points (not the average of all, which can fall between two thermals)
+  const good = pts.filter((p) => p.v > 0.3), wgt = (p) => p.v * p.v * (1 - 0.5 * Math.max(0, p.dz) / depth) * Math.pow(0.5, (now - p.t) / 300000); // recent lift counts more (half after 5 min)
+  let best = null, bs = 0; good.forEach((p) => { let sc0 = 0; good.forEach((q) => { if (Math.hypot(p.x - q.x, p.y - q.y) < 60) sc0 += wgt(q); }); if (sc0 > bs) { bs = sc0; best = p; } });
+  const grp = best ? good.filter((q) => Math.hypot(best.x - q.x, best.y - q.y) < 80) : [];
+  if (grp.length >= 5) {
+    let sw = 0, sx = 0, sy = 0; grp.forEach((p) => { const k = wgt(p); sw += k; sx += p.x * k; sy += p.y * k; });
+    const lx = sx / sw, ly = sy / sw, [x, y] = tr(lx, ly), d = Math.hypot(lx, ly), b = wrap360(Math.atan2(lx, ly) * R2D);
+    c.save(); c.setLineDash([5, 5]); c.lineWidth = 1.5; c.strokeStyle = ink; c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke(); c.restore();
+    c.strokeStyle = card; c.lineWidth = 7; c.beginPath(); c.moveTo(x - 9, y - 9); c.lineTo(x + 9, y + 9); c.moveTo(x + 9, y - 9); c.lineTo(x - 9, y + 9); c.stroke();
+    c.strokeStyle = ink; c.lineWidth = 3.5; c.beginPath(); c.moveTo(x - 9, y - 9); c.lineTo(x + 9, y + 9); c.moveTo(x + 9, y - 9); c.lineTo(x - 9, y + 9); c.stroke();
+    c.font = '700 13px Barlow'; c.textAlign = 'left'; const gv = grp.reduce((q, p) => q + p.v, 0) / grp.length, age = Math.round((now - grp.reduce((q, p) => q + p.t, 0) / grp.length) / 60000);
+    haloText(c, `${fVario(gv)} ${uV()} · ${Math.round(d)} m ${pad3(b)}°${age >= 2 ? ` · ${age} min ago` : ''}`, 8, H - 10, ink, card);
+  } else { c.font = '13px Barlow'; c.textAlign = 'left'; haloText(c, pts.length ? 'no lift in this layer yet' : 'no track in this layer yet', 8, H - 10, muted, card); }
+  // you
+  c.save(); c.translate(cx, cy); c.rotate(((f.trk ?? 0) - up) * D2R); const gs = 13; c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -gs); c.lineTo(gs * 0.7, gs * 0.8); c.lineTo(0, gs * 0.4); c.lineTo(-gs * 0.7, gs * 0.8); c.closePath(); c.fill(); c.stroke(); c.restore();
+}
 /* ----- Last circle ----- */
 function turnDraw(cv, W) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const t = st.lastTurn;
@@ -480,7 +532,7 @@ function windDirBody(cv, W) {
   c.fillStyle = css('--muted'); c.font = '13px Barlow'; c.fillText(`from ${pad3(w.from)}° ${compass(w.from)}`, tx, ty + fs + 20);
   if (f && f.trk != null) c.fillText(`${comp >= 0 ? 'tailwind' : 'headwind'} ${fSpd(Math.abs(comp))} ${S.uSpd}`, tx, ty + fs + 37);
 }
-const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv), ta: taDraw, tside: sideDraw, tcross: sideDraw, t3d: t3dDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
+const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv), ta: taDraw, tside: sideDraw, tcross: sideDraw, t3d: t3dDraw, tlayer: layerDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
 
 /* ----- widget element lifecycle ----- */
 const HANDLES = '<div class="wh tl" data-c="tl"></div><div class="wh tr" data-c="tr"></div><div class="wh bl" data-c="bl"></div><div class="wh br" data-c="br"></div>';
@@ -570,6 +622,7 @@ function widgetAct(W, act) {
     case 'cam3d': { const o = Object.keys(CAM3D); D.cam = o[(o.indexOf(CAM3D[C.cam] ? C.cam : 'auto') + 1) % o.length]; D.yaw = 0; break; }
     case 'rotl': D.yaw = ((+C.yaw || 0) - 30 + 540) % 360 - 180; break;
     case 'rotr': D.yaw = ((+C.yaw || 0) + 30 + 540) % 360 - 180; break;
+    case 'depth': { const cur = +C.depth || 100; D.depth = DEPTH_O.find((v) => v > cur) ?? DEPTH_O[0]; break; }
     case 'reset3d': D.yaw = 0; D.zoom = 1; break;
     case 'mmenu': if (I) I.menu = !I.menu; renderWidgets(); return;
     case 'mlayer': D.layer = arg; if (I) I.menu = false; if (S.layer !== arg) { S.layer = arg; } break;
