@@ -117,7 +117,7 @@ function taDraw(cv, W, el) {
   const cfg = W.cfg, f = st.fix, w = windFromSpd();
   const orient = cfg.orient || S.taOrient || 'wind';
   const hist = cfg.hist === 'thermal' || cfg.hist === 'circle' ? cfg.hist : +(cfg.hist ?? 120);
-  const style = cfg.style || 'both';
+  const style = cfg.style || 'trail', trailSt = style === 'trail' || style === 'trailonly';
   const wantBg = (cfg.bgMap === true || cfg.bgMap === 'true') && hasRot();
   let up = 0, upName = 'north';
   if (orient === 'wind' && w) { up = w.from; upName = 'wind'; } else if (orient === 'track' && f && f.trk != null) { up = f.trk; upName = 'track'; }
@@ -155,17 +155,28 @@ function taDraw(cv, W, el) {
   c.lineWidth = 1; c.strokeStyle = wantBg ? 'rgba(17,20,24,.35)' : css('--line'); c.font = '11px Barlow'; c.textAlign = 'left';
   for (let k = 1; k * ringM <= Rm * 1.02; k++) { const r = k * ringM * sc; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke(); const lx = cx + r * 0.7071, ly = cy + r * 0.7071; if (lx < Wd - 34 && ly < H - 8) haloText(c, k * ringM + ' m', lx + 2, ly + 4, css('--muted'), wantBg ? 'rgba(255,255,255,.85)' : css('--card')); }
   // heat blobs
-  if (style !== 'dots') { const rr = clamp(16 * sc, 12, 46); loc.forEach((p) => { const [x, y] = tr(p.x, p.y); if (x < -rr || x > Wd + rr || y < -rr || y > H + rr) return; c.drawImage(heatBlob(p.v), x - rr, y - rr, 2 * rr, 2 * rr); }); }
+  if (style !== 'dots' && style !== 'trailonly') { const rr = clamp(16 * sc, 12, 46); loc.forEach((p) => { const [x, y] = tr(p.x, p.y); if (x < -rr || x > Wd + rr || y < -rr || y > H + rr) return; c.drawImage(heatBlob(p.v), x - rr, y - rr, 2 * rr, 2 * rr); }); }
   // track line: thin = older, thick = newest
   const newMs = clamp(st.lastTurn ? st.lastTurn.T * 1000 : 15000, 8000, 25000), ink = css('--ink'), card = css('--card');
-  if (cfg.trail !== false && cfg.trail !== 'false' && loc.length > 1) {
+  if (!trailSt && cfg.trail !== false && cfg.trail !== 'false' && loc.length > 1) {
     c.lineJoin = 'round'; c.lineCap = 'round';
     c.strokeStyle = wantBg ? 'rgba(17,20,24,.45)' : 'rgba(80,90,100,.35)'; c.lineWidth = 1.5; c.beginPath(); loc.forEach((p, i) => { const [x, y] = tr(p.x, p.y); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
     const rc = loc.filter((p) => now - p.t < newMs);
     if (rc.length > 1) { c.strokeStyle = ink; c.lineWidth = 3; c.beginPath(); rc.forEach((p, i) => { const [x, y] = tr(p.x, p.y); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); }
   }
+  // trail: a band along your path coloured by climb, with a thin outline (stronger on the last circle)
+  if (trailSt && loc.length > 1) {
+    const span = Math.max(1, now - tmin), w = 9, path = (arr) => { c.beginPath(); arr.forEach((p, i) => { const [x, y] = tr(p.x, p.y); i ? c.lineTo(x, y) : c.moveTo(x, y); }); };
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    path(loc); c.strokeStyle = wantBg ? 'rgba(17,20,24,.7)' : dark ? 'rgba(230,234,238,.5)' : 'rgba(17,20,24,.5)'; c.lineWidth = w + 2.5; c.stroke();
+    const rc = loc.filter((p) => now - p.t < newMs); if (rc.length > 1) { path(rc); c.strokeStyle = ink; c.lineWidth = w + 4; c.stroke(); }
+    c.lineWidth = w;
+    for (let i = 1; i < loc.length; i++) { const a = loc[i - 1], b = loc[i], [x0, y0] = tr(a.x, a.y), [x1, y1] = tr(b.x, b.y); if (Math.max(x0, x1) < -w || Math.min(x0, x1) > Wd + w || Math.max(y0, y1) < -w || Math.min(y0, y1) > H + w) continue;
+      c.strokeStyle = rgba(heat((a.v + b.v) / 2), 0.6 + 0.4 * clamp(1 - (now - b.t) / span, 0, 1)); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
+    const last = loc[loc.length - 1], [lx, ly] = tr(last.x, last.y); c.strokeStyle = ink; c.lineWidth = 2; c.beginPath(); c.arc(lx, ly, 15, 0, 7); c.stroke();
+  }
   // dots: outline gets thicker and darker the newer the sample
-  if (style !== 'heat') {
+  if (style === 'both' || style === 'dots') {
     const span = Math.max(1, now - tmin);
     loc.forEach((p) => {
       const [x, y] = tr(p.x, p.y); if (x < -14 || x > Wd + 14 || y < -14 || y > H + 14) return;
