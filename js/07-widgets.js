@@ -262,8 +262,25 @@ function openSheet(id) {
   q('[data-ok]', (b) => (b.onclick = () => { const raw = b.dataset.ov; D[b.dataset.ok] = raw === 'true' ? true : raw === 'false' ? false : raw !== '' && !isNaN(+raw) ? +raw : raw; saveLayout(); openSheet(W.id); }));
   q('[data-wsz]', (b) => (b.onclick = () => { const k = b.dataset.wsz; if (k === 'w+') W.w = Math.min(GC - W.x, W.w + 2); if (k === 'w-') W.w = Math.max(6, W.w - 2); if (k === 'h+') W.h = Math.min(GR - W.y, W.h + 2); if (k === 'h-') W.h = Math.max(4, W.h - 2); saveLayout(); }));
 }
+// the Add widget list, grouped by topic; thermal widgets near the top
+const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'] };
+const ADD_NEW = ['tlayer', 't3d', 'tcross'];
+const ADD_GROUPS = [
+  ['Thermal', ['ta', 'tlayer', 't3d', 'tside', 'tcross', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
+  ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'temp']],
+  ['Speed, wind & glide', ['gs', 'trk', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
+  ['Map & task', ['map', 'next', 'dist']],
+  ['Buttons', ['button:pSwitch', 'button:fullscreen', 'button']],
+  ['Weather', ['profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],
+  ['Airspace & places', ['air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],
+  ['Flight & tablet', ['flight', 'time', 'battery']]];
 function openAdd() {
-  $('dlgBody').innerHTML = `<div class="row" style="justify-content:space-between"><span class="num" style="font-size:26px">Add widget</span><button class="btn primary" id="dlgClose">Close</button></div><div class="addGrid">${[['button:pSwitch', 'Map / Thermal button', 'Switch page, hold for all pages'], ['button:fullscreen', 'Full screen button', 'Toggle full screen']].map(([k, n, d]) => `<button data-add="${k}">${n}<small>${d}</small></button>`).join('')}${Object.entries(WT).map(([k, t]) => `<button data-add="${k}">${t.n}<small>${t.d}</small></button>`).join('')}</div>`;
+  const btn = (k, n, d) => `<button data-add="${k}">${ADD_NEW.includes(k) ? '<span class="newTag">New</span>' : ''}${n}<small>${d}</small></button>`, seen = new Set();
+  const groups = ADD_GROUPS.map(([g, ks]) => [g, ks.filter((k) => WT[k.split(':')[0]])]);
+  groups.forEach(([, ks]) => ks.forEach((k) => seen.add(k)));
+  const rest = Object.keys(WT).filter((k) => !seen.has(k)); if (rest.length) groups.push(['Other', rest]);
+  $('dlgBody').innerHTML = `<div class="row" style="justify-content:space-between"><span class="num" style="font-size:26px">Add widget</span><button class="btn primary" id="dlgClose">Close</button></div>`
+    + groups.map(([g, ks]) => `<h3 class="addH">${g}</h3><div class="addGrid">${ks.map((k) => (ADD_BTN[k] ? btn(k, ...ADD_BTN[k]) : btn(k, WT[k].n, WT[k].d))).join('')}</div>`).join('');
   $('dlg').style.display = 'flex'; $('dlgClose').onclick = () => ($('dlg').style.display = 'none');
   $('dlgBody').querySelectorAll('[data-add]').forEach((b) => (b.onclick = () => { const [t, pre] = b.dataset.add.split(':'), T = WT[t]; const W = newW(t, Math.round((GC - T.w * GSC) / 2), Math.round((GR - T.h * GSC) / 2)); if (pre) W.cfg.action = pre; S.layout.push(W); saveLayout(); $('dlg').style.display = 'none'; openSheet(W.id); }));
 }
