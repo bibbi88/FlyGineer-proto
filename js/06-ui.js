@@ -208,58 +208,87 @@ function taDraw(cv, W, el) {
   }
   if (!loc.length) { c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('Lift shows here once you are flying', cx, cy + R * 0.55); }
 }
-/* ----- Thermal side view (across the wind) ----- */
-function sideSeries() {
-  const th = st.thermal, f = st.fix; if (!th || !f) return null;
-  const raw = st.samples.filter((s) => s.t >= th.t0 && s.alt != null);
-  const T = clamp(st.lastTurn ? st.lastTurn.T : 14, 8, 30) * 1000;
-  if (raw.length < 6 || raw[raw.length - 1].t - th.t0 < T) return { wait: true };
-  const xy = raw.map((s) => { const [x, y] = enu(th.lat0, th.lon0, s.lat, s.lon); return { t: s.t, x, y, alt: s.alt, v: s.v }; });
-  // Average over one full circle: that is the centre of the circle, so the wobble of the circling glider disappears
+/* ----- Thermal side views: your recent track around you, seen from the side ----- */
+// view 'along': axis = downwind (you see upwind ← → downwind, i.e. how the thermal leans with the wind)
+// view 'cross': axis = 90° right of downwind (you see the thermal from downwind, left ← → right)
+function sideAxis(view) {
+  const th = st.thermal, w = windFromSpd();
+  // keep the axis of the current thermal fixed, so a changing wind estimate cannot swing the picture around
+  if (th && th.axis == null && w) th.axis = w.to;
+  const base = th && th.axis != null ? th.axis : w ? w.to : null;
+  return { ax: wrap360((base ?? 0) + (view === 'cross' ? 90 : 0)), hasWind: base != null };
+}
+// circle-averaged centres between t0 and t1: averaging over one full turn removes the wobble of circling
+function liftCentres(t0, t1, rel) {
+  const raw = st.samples.filter((s) => s.t >= t0 && s.t <= t1 && s.alt != null); if (raw.length < 6) return [];
+  const T = clamp(st.lastTurn ? st.lastTurn.T : 14, 8, 30) * 1000; if (raw[raw.length - 1].t - raw[0].t < T * 0.95) return [];
+  const xy = raw.map((s) => { const [x, y] = rel(s); return { t: s.t, x, y, alt: s.alt, v: s.v }; });
   const out = []; let lo = 0, last = -1e18;
   for (let i = 0; i < xy.length; i++) {
-    const t = xy[i].t; if (t - th.t0 < T * 0.95) continue; if (t - last < 1400 && i < xy.length - 1) continue;
+    const t = xy[i].t; if (t - xy[0].t < T * 0.95) continue; if (t - last < 1400 && i < xy.length - 1) continue;
     while (xy[lo].t <= t - T) lo++;
     let sx = 0, sy = 0, sa = 0, sv = 0; const n = i - lo + 1; for (let k = lo; k <= i; k++) { sx += xy[k].x; sy += xy[k].y; sa += xy[k].alt; sv += xy[k].v; }
     out.push({ t, x: sx / n, y: sy / n, alt: sa / n, v: sv / n }); last = t;
   }
-  if (out.length < 3) return { wait: true };
-  // the axis is fixed when the thermal starts, so a changing wind estimate cannot swing the picture around
-  const w = windFromSpd();
-  if (th.axis == null) { if (w) th.axis = w.to; else { const a0 = out[0], b0 = out[out.length - 1]; if (Math.hypot(b0.x - a0.x, b0.y - a0.y) > 40) th.axis = wrap360(Math.atan2(b0.x - a0.x, b0.y - a0.y) * R2D); } }
-  const axis = th.axis ?? 90, ux = Math.sin(axis * D2R), uy = Math.cos(axis * D2R);
-  out.forEach((p) => (p.s = p.x * ux + p.y * uy));
-  return { P: out, axis, locked: th.axis != null, hasWind: !!w, T };
+  return out;
 }
 function steadyRange(cv, key, lo, hi) { const r = cv._rng || (cv._rng = {}); let [a, b] = r[key] || [lo, hi]; a = lo < a ? lo : a + (lo - a) * 0.08; b = hi > b ? hi : b + (hi - b) * 0.08; r[key] = [a, b]; return [a, b]; }
 function sideDraw(cv, W) {
-  const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const th = st.thermal, f = st.fix;
-  const msg = (t) => { c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText(t, Wd / 2, H / 2); };
-  if (cv._thId !== (th && th.t0)) { cv._rng = null; cv._thId = th && th.t0; }
-  if (!th || !f) { msg('Starts when you circle'); return; }
-  const ser = sideSeries(); if (!ser || ser.wait) { msg('Collecting the first circle…'); return; }
-  const P = ser.P, alt = altNow() ?? P[P.length - 1].alt;
-  const n = P.length, ma = P.reduce((q, p) => q + p.alt, 0) / n, ms = P.reduce((q, p) => q + p.s, 0) / n;
-  let num = 0, den = 0; P.forEach((p) => { num += (p.alt - ma) * (p.s - ms); den += (p.alt - ma) ** 2; }); const k = den > 1 ? num / den : 0;
-  const top = thermalTop(); const aLo = Math.min(...P.map((p) => p.alt)) - 40, aHi = Math.max(alt, ...P.map((p) => p.alt), top || 0) + 90;
-  const sAt = (a) => ms + k * (a - ma), xm = sAt(alt);
-  let sLo = Math.min(...P.map((p) => p.s), xm, sAt(aHi)) - 40, sHi = Math.max(...P.map((p) => p.s), xm, sAt(aHi)) + 40;
-  if (sHi - sLo < 200) { const mid = (sHi + sLo) / 2; sLo = mid - 100; sHi = mid + 100; }
-  const [amin, amax] = steadyRange(cv, 'a', aLo, aHi), [smin, smax] = steadyRange(cv, 's', sLo, sHi);
-  const X = (v) => 34 + (v - smin) / (smax - smin) * (Wd - 44), Y = (a) => H - 24 - (a - amin) / (amax - amin) * (H - 46);
-  c.strokeStyle = css('--line'); c.fillStyle = css('--muted'); c.font = '11px Barlow'; c.lineWidth = 1; c.textAlign = 'left';
-  const as = niceStep((amax - amin) / 5); for (let a = Math.ceil(amin / as) * as; a < amax; a += as) { c.beginPath(); c.moveTo(32, Y(a)); c.lineTo(Wd, Y(a)); c.stroke(); c.fillText(fAlt(a), 0, Y(a) + 4); }
-  const ss = niceStep((smax - smin) / 4); c.textAlign = 'center'; for (let v = Math.ceil(smin / ss) * ss; v < smax; v += ss) { c.beginPath(); c.moveTo(X(v), 14); c.lineTo(X(v), H - 24); c.stroke(); c.fillText(Math.round(v) + ' m', X(v), H - 12); }
-  // fitted column
-  c.strokeStyle = css('--climb2'); c.lineWidth = Math.max(10, (Wd - 44) / (smax - smin) * 30); c.globalAlpha = 0.2; c.lineCap = 'butt'; c.beginPath(); c.moveTo(X(sAt(amin)), Y(amin)); c.lineTo(X(sAt(amax)), Y(amax)); c.stroke(); c.globalAlpha = 1;
-  // where the core should be higher up
-  const ink = css('--ink'), card = css('--card'); c.strokeStyle = ink; c.lineWidth = 2; c.setLineDash([6, 5]); c.beginPath(); c.moveTo(X(xm), Y(alt)); c.lineTo(X(sAt(amax)), Y(amax)); c.stroke(); c.setLineDash([]);
-  const now = f.t, newMs = ser.T * 1.2;
-  P.forEach((p) => { const isNew = now - p.t < newMs; c.beginPath(); c.arc(X(p.s), Y(p.alt), clamp(3.5 + Math.abs(p.v) * 1.4, 3.5, 10), 0, 7); c.fillStyle = rgba(heat(p.v), 1); c.fill(); c.lineWidth = isNew ? 2.5 : 0.9; c.strokeStyle = isNew ? ink : 'rgba(80,90,100,.55)'; c.stroke(); });
-  if (top && top < amax) { c.strokeStyle = css('--warn'); c.lineWidth = 2; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(32, Y(top)); c.lineTo(Wd, Y(top)); c.stroke(); c.setLineDash([]); c.fillStyle = css('--warn'); c.textAlign = 'left'; c.fillText('thermal top ' + fAlt(top), 36, Y(top) - 4); }
-  c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(X(xm) - 11, Y(alt) + 5); c.lineTo(X(xm) + 11, Y(alt)); c.lineTo(X(xm) - 11, Y(alt) - 5); c.closePath(); c.fill(); c.stroke();
-  c.textAlign = 'left'; c.font = '700 12px Barlow'; haloText(c, ser.hasWind || ser.locked ? `core leans ${Math.round(k * 100)} m per 100 m climb` : 'wind not measured yet', 38, 12, css('--ink'), card);
-  c.font = '11px Barlow'; c.fillStyle = css('--muted'); c.textAlign = 'left'; c.fillText('← upwind', 36, H - 1); c.textAlign = 'right'; c.fillText(`downwind (${pad3(ser.axis)}°) →`, Wd - 4, H - 1);
+  const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const f = st.fix, alt = altNow();
+  const view = W.type === 'tcross' ? 'cross' : 'along', hist = clamp(+W.cfg.hist || 180, 30, 600) * 1000;
+  if (!f || alt == null) { c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('Waiting for GPS…', Wd / 2, H / 2); return; }
+  const { ax, hasWind } = sideAxis(view), ux = Math.sin(ax * D2R), uy = Math.cos(ax * D2R), now = f.t, th = st.thermal;
+  if (cv._ax !== ax) { cv._rng = null; cv._ax = ax; }
+  const proj = (x, y) => x * ux + y * uy, wv = st.wind || { vx: 0, vy: 0 };
+  // positions relative to you (you are at 0), in the moving air like the thermal assistant: older points move on with the wind,
+  // so a column shows its real lean in the air instead of your drift
+  const rel = (s) => { const [x, y] = enu(f.lat, f.lon, s.lat, s.lon), dt = (now - s.t) / 1000; return [x + wv.vx * dt, y + wv.vy * dt]; };
+  const P = st.samples.filter((s) => s.t >= now - hist && s.alt != null).map((s) => { const [x, y] = rel(s); return { t: s.t, s: proj(x, y), alt: s.alt, v: s.v }; });
+  // lifting sections: the current thermal and earlier ones still inside the history window
+  const r0 = clamp(st.lastTurn ? st.lastTurn.avg : 40, 20, 90), cols = [];
+  st.thermals.filter((q) => q.t1 > now - hist && !(th && q.t0 === th.t0)).forEach((q) => { const C = liftCentres(Math.max(q.t0, now - hist - 60000), q.t1, rel); if (C.length > 1) cols.push({ C, cur: false, t0: q.t0, t1: q.t1 }); });
+  if (th) { const C = liftCentres(th.t0, th.end || now, rel); if (C.length) cols.push({ C, cur: true, t0: th.t0, t1: th.end || now }); }
+  cols.forEach((col) => col.C.forEach((p) => (p.s = proj(p.x, p.y))));
+  // the current column's lean: least squares of position against height
+  let lean = null; const cur = cols.find((q) => q.cur);
+  if (cur && cur.C.length >= 4) { const C = cur.C, n = C.length, ma = C.reduce((q, p) => q + p.alt, 0) / n, ms = C.reduce((q, p) => q + p.s, 0) / n; let num = 0, den = 0; C.forEach((p) => { num += (p.alt - ma) * (p.s - ms); den += (p.alt - ma) ** 2; }); if (den > 25 && Math.abs(num / den) < 3) lean = { k: num / den, at: (a) => ms + (num / den) * (a - ma) }; }
+  const top = thermalTop(), above = cur && st.circling ? Math.min(250, top && top > alt ? top - alt : 250) : 0;
+  // ranges: you in the middle horizontally, everything shown vertically
+  let span = 150; P.forEach((p) => (span = Math.max(span, Math.abs(p.s) + 30))); cols.forEach((q) => q.C.forEach((p) => (span = Math.max(span, Math.abs(p.s) + r0 + 20))));
+  let aLo = alt - 60, aHi = alt + 60 + above; P.forEach((p) => { aLo = Math.min(aLo, p.alt - 30); aHi = Math.max(aHi, p.alt + 30); });
+  const [smin, smax] = steadyRange(cv, 's', -span, span), [amin, amax] = steadyRange(cv, 'a', aLo, aHi), sr = Math.max(-smin, smax);
+  const L0 = 34, X = (v) => L0 + (v + sr) / (2 * sr) * (Wd - L0 - 8), Y = (a) => H - 26 - (a - amin) / (amax - amin) * (H - 46), mpx = (Wd - L0 - 8) / (2 * sr);
+  const ink = css('--ink'), card = css('--card'), muted = css('--muted');
+  // grid
+  c.strokeStyle = css('--line'); c.fillStyle = muted; c.font = '11px Barlow'; c.lineWidth = 1; c.textAlign = 'left';
+  const as = niceStep((amax - amin) / 5); for (let a = Math.ceil(amin / as) * as; a < amax; a += as) { c.beginPath(); c.moveTo(L0 - 2, Y(a)); c.lineTo(Wd, Y(a)); c.stroke(); c.fillText(fAlt(a), 0, Y(a) + 4); }
+  const ss = niceStep(sr / 2); c.textAlign = 'center'; for (let v = -Math.floor(sr / ss) * ss; v <= sr; v += ss) { c.beginPath(); c.moveTo(X(v), 14); c.lineTo(X(v), H - 26); c.stroke(); if (Math.abs(X(v) - X(0)) > 4 || v === 0) c.fillText(v === 0 ? '0' : Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + ' km' : Math.round(v) + ' m', X(v), H - 14); }
+  // lifting sections, coloured by the climb in each part
+  cols.forEach(({ C, cur: isCur }) => {
+    c.globalAlpha = isCur ? 0.55 : 0.3;
+    for (let i = 0; i < C.length - 1; i++) { const a = C[i], b = C[i + 1], wa = Math.max(9, r0 * mpx), col = heat((a.v + b.v) / 2); c.fillStyle = rgba(col, 1); c.beginPath(); c.moveTo(X(a.s) - wa, Y(a.alt)); c.lineTo(X(b.s) - wa, Y(b.alt)); c.lineTo(X(b.s) + wa, Y(b.alt)); c.lineTo(X(a.s) + wa, Y(a.alt)); c.closePath(); c.fill(); }
+    if (C.length === 1) { const a = C[0]; c.fillStyle = rgba(heat(a.v), 1); c.beginPath(); c.arc(X(a.s), Y(a.alt), Math.max(9, r0 * mpx), 0, 7); c.fill(); }
+    c.globalAlpha = 1;
+    if (C.length > 1) { const wa = Math.max(9, r0 * mpx); c.strokeStyle = isCur ? css('--climb') : 'rgba(80,90,100,.5)'; c.lineWidth = isCur ? 1.5 : 1; c.beginPath(); C.forEach((p, i) => (i ? c.lineTo(X(p.s) - wa, Y(p.alt)) : c.moveTo(X(p.s) - wa, Y(p.alt)))); c.stroke(); c.beginPath(); C.forEach((p, i) => (i ? c.lineTo(X(p.s) + wa, Y(p.alt)) : c.moveTo(X(p.s) + wa, Y(p.alt)))); c.stroke(); }
+  });
+  // where the current core should be further up
+  if (cur && lean && above > 0) { const a1 = alt + above, wa = Math.max(9, r0 * mpx); c.strokeStyle = ink; c.lineWidth = 1.5; c.setLineDash([6, 5]); c.beginPath(); c.moveTo(X(lean.at(alt)) - wa, Y(alt)); c.lineTo(X(lean.at(a1)) - wa, Y(a1)); c.moveTo(X(lean.at(alt)) + wa, Y(alt)); c.lineTo(X(lean.at(a1)) + wa, Y(a1)); c.stroke(); c.setLineDash([]); }
+  if (top && top < amax && top > amin) { c.strokeStyle = css('--warn'); c.lineWidth = 2; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(L0 - 2, Y(top)); c.lineTo(Wd, Y(top)); c.stroke(); c.setLineDash([]); c.fillStyle = css('--warn'); c.textAlign = 'left'; c.fillText('thermal top ' + fAlt(top), L0 + 2, Y(top) - 4); }
+  // track: thin line, dots coloured by climb, newest emphasised
+  if (P.length > 1) { c.strokeStyle = 'rgba(80,90,100,.45)'; c.lineWidth = 1.2; c.beginPath(); P.forEach((p, i) => (i ? c.lineTo(X(p.s), Y(p.alt)) : c.moveTo(X(p.s), Y(p.alt)))); c.stroke(); }
+  const step = Math.max(1, Math.ceil(P.length / 240));
+  const inCol = (t) => cols.some((q) => t >= q.t0 && t <= q.t1);
+  P.forEach((p, i) => { if (i % step && i !== P.length - 1) return; const isNew = now - p.t < 20000, ic = !isNew && inCol(p.t); c.beginPath(); c.arc(X(p.s), Y(p.alt), ic ? 2 : clamp(2.5 + Math.abs(p.v) * 1.1, 2.5, 7), 0, 7); c.fillStyle = rgba(heat(p.v), ic ? 0.5 : 1); c.fill(); if (isNew) { c.lineWidth = 1.5; c.strokeStyle = ink; c.stroke(); } });
+  // you: a glider pointing the way you move along this axis
+  const dir = f.trk != null ? Math.cos((f.trk - ax) * D2R) : 1, gx = X(0), gy = Y(alt), sgn = dir >= 0 ? 1 : -1;
+  c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(gx + 11 * sgn, gy); c.lineTo(gx - 11 * sgn, gy + 5); c.lineTo(gx - 11 * sgn, gy - 5); c.closePath(); c.fill(); c.stroke();
+  // labels
+  c.textAlign = 'left'; c.font = '700 12px Barlow';
+  const head = cur ? (lean ? `leans ${Math.round(Math.abs(lean.k) * 100)} m/100 m ${view === 'along' ? (lean.k >= 0 ? 'downwind' : 'upwind') : (lean.k >= 0 ? 'right' : 'left')}` : 'thermal · first circles…') : hasWind ? `last ${Math.round(hist / 60000)} min` : 'no wind yet · north–south';
+  haloText(c, head, L0 + 2, 12, ink, card);
+  c.font = '11px Barlow'; c.fillStyle = muted;
+  const lt = !hasWind ? (view === 'along' ? 'S' : 'W') : view === 'along' ? 'upwind' : 'left', rt = !hasWind ? (view === 'along' ? 'N' : 'E') : view === 'along' ? 'downwind' : 'right';
+  c.textAlign = 'left'; c.fillText(`← ${lt} ${pad3(ax + 180)}°`, L0, H - 1); c.textAlign = 'right'; c.fillText(`${rt} ${pad3(ax)}° →`, Wd - 4, H - 1);
 }
 /* ----- Last circle ----- */
 function turnDraw(cv, W) {
@@ -373,7 +402,7 @@ function windDirBody(cv, W) {
   c.fillStyle = css('--muted'); c.font = '13px Barlow'; c.fillText(`from ${pad3(w.from)}° ${compass(w.from)}`, tx, ty + fs + 20);
   if (f && f.trk != null) c.fillText(`${comp >= 0 ? 'tailwind' : 'headwind'} ${fSpd(Math.abs(comp))} ${S.uSpd}`, tx, ty + fs + 37);
 }
-const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv), ta: taDraw, tside: sideDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
+const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv), ta: taDraw, tside: sideDraw, tcross: sideDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
 
 /* ----- widget element lifecycle ----- */
 const HANDLES = '<div class="wh tl" data-c="tl"></div><div class="wh tr" data-c="tr"></div><div class="wh bl" data-c="bl"></div><div class="wh br" data-c="br"></div>';
