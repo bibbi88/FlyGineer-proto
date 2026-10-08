@@ -41,7 +41,7 @@ Tablet-first (8", landscape) paragliding flight instrument that runs in the brow
 
 ## Testing (no framework yet)
 Headless Chromium with Playwright works: `/opt/pw-browsers/chromium`, `playwright` installed globally in the cloud sandbox. The sandbox cannot reach CDNs, so route the Leaflet URLs to local copies (`npm pack leaflet@1.9.4 leaflet-rotate@0.2.8`) and stub or abort other external requests. Useful checks: open `index.html?demo`, no `pageerror`s; tap/hold buttons; open the edit sheet via `enterEdit(); openSheet(id)`; hit-test overlays with real pointer events. jsdom needs many stubs (canvas, layout, `L.Browser.any3d=true`), so prefer Chromium. Headless tests cannot judge how it looks or feels on the tablet; say so honestly.
-Run `node --check js/*.js sw.js` after every edit. To test the service worker, route with `context.route` (not `page.route`) and run with `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1`, otherwise the worker's own requests bypass the stubs; stubbed tiles need an `access-control-allow-origin: *` header.
+Run `node --check js/*.js sw.js` after every edit. Responsiveness: measure taps with CPU throttling (`Emulation.setCPUThrottlingRate` 6, `deviceScaleFactor` 2) and the Event Timing API or a trace; headless draws canvases in software, so canvas timings overstate the tablet's GPU cost. To test the service worker, route with `context.route` (not `page.route`) and run with `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1`, otherwise the worker's own requests bypass the stubs; stubbed tiles need an `access-control-allow-origin: *` header.
 
 ## Product decisions and preferences (from the owner)
 - Glove-friendly: large touch targets, no tiny controls. Landscape tablet is the main layout.
@@ -52,6 +52,5 @@ Run `node --check js/*.js sw.js` after every edit. To test the service worker, r
 
 ## Known gaps / ideas
 - IGC recording and saving from this app is not built yet (would need flight start/stop detection and periodic safety saves; downloading a file is fine).
-- Replay bar covers the bottom row of widgets during replay.
 - OGN (glider) traffic: no browser-friendly feed found; would need a small relay.
 - Unverified: whether adsb.fi allows browser (CORS) requests from the hosted page; Flyk/FlyXC embedding permissions; ais.fi CORS; OpenAIP API details.

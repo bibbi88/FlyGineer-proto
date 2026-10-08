@@ -167,6 +167,8 @@ body.wedit #wBanner{display:flex}
 #warnBar{left:50%;transform:translateX(-50%);top:12px;padding:8px 14px;border-radius:10px;background:var(--warnbg);border:2px solid var(--warn);font-size:15px;display:none;max-width:60%}
 #legend{left:12px;bottom:40px;padding:6px 10px;font-size:13px;display:flex;flex-direction:column;gap:3px}
 #legend span{display:flex;align-items:center;gap:6px}
+/* replay bar / demo badge sit below the map page widgets instead of covering the bottom row */
+body.replaying #wLayer{bottom:72px}
 #demoBadge{left:50%;bottom:12px;transform:translateX(-50%);padding:6px 12px;font-weight:600;font-size:13px;display:none}
 #replayBar{left:84px;right:84px;bottom:12px;padding:6px;display:none;align-items:center;gap:6px}
 #replayBar button{height:48px;min-width:48px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:15px}

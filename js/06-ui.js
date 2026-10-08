@@ -63,7 +63,8 @@ function renderWarn() {
 
 /* ---------- canvases ---------- */
 // canvas sizes come from a ResizeObserver: measuring every canvas on every update forced a full layout each time
-const cvRO = typeof ResizeObserver === 'function' ? new ResizeObserver((es) => { let ch = false; es.forEach((e) => { const o = e.target._r, w = e.contentRect.width, h = e.contentRect.height; if (!o || o.width !== w || o.height !== h) { e.target._r = { width: w, height: h }; ch = ch || !!o; } }); if (ch) markDirty(); }) : null;
+const cvRO = typeof ResizeObserver === 'function' ? new ResizeObserver((es) => { let ch = false; es.forEach((e) => { const o = e.target._r, w = e.contentRect.width, h = e.contentRect.height; if (!o || o.width !== w || o.height !== h) { e.target._r = { width: w, height: h }; ch = ch || (!!o && o.width > 0 && w > 0); } }); if (ch) { clearTimeout(cvROT); cvROT = setTimeout(markDirty, 80); } }) : null;
+let cvROT = 0;
 function cvSize(cv) { let r = cv._r; if (!r || !r.width) { const b = cv.getBoundingClientRect(); r = { width: b.width, height: b.height }; if (cvRO && cv.closest('.wg')) { if (!cv._r) cvRO.observe(cv); cv._r = r; } } return r; }
 function fitCanvas(cv) { const r = cvSize(cv), dpr = window.devicePixelRatio || 1; const w = Math.max(10, r.width), h = Math.max(10, r.height || +cv.getAttribute('height') || 100); if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); return [c, w, h]; }
 function climbCol(v) { return v >= 2.5 ? css('--climb') : v >= 1.5 ? css('--climb2') : v >= 0.5 ? css('--climb3') : null; }
@@ -406,9 +407,10 @@ function renderWidgets() {
     if (T.canvas) {
       const wl = el.querySelector('.wl'); wl.style.display = showL ? '' : 'none';
       const cv = el.querySelector('canvas'); el._sub = '';
+      // label first: an empty label row has no height, so the canvas would be measured too tall
+      const lt = (E.cfg.label || T.n) + (W.type === 'varioDial' && +E.cfg.win ? ' · Ø ' + E.cfg.win + ' s' : ''); if (wl.children[0].textContent !== lt) wl.children[0].textContent = lt;
       const fn = DRAW[W.type]; if (fn) { try { fn(cv, E, el, b); } catch (err) { console.error(W.type, err); } }
-      wl.children[0].textContent = (E.cfg.label || T.n) + (W.type === 'varioDial' && +E.cfg.win ? ' · Ø ' + E.cfg.win + ' s' : '');
-      wl.children[1].textContent = el._sub || '';
+      if (wl.children[1].textContent !== (el._sub || '')) wl.children[1].textContent = el._sub || '';
       return;
     }
     const d = wData(E); const lab = esc(E.cfg.label || d.l || '');
@@ -417,7 +419,7 @@ function renderWidgets() {
     if (d.html) html += d.html;
     else {
       const txt = String(d.v ?? '--'); const avail = b.h - 8 - (showL ? 16 : 0) - (d.s ? 16 : 0);
-      const fs = Math.max(12, Math.min(avail * 0.95, (b.w - 18) / Math.max(2.2, txt.length * (d.btn ? 0.6 : 0.5))) * mul);
+      const fs = Math.max(12, Math.min(avail * 0.95, (b.w - 18) / Math.max(2.2, txt.length * (d.btn ? 0.68 : 0.5))) * mul);
       html += `<div class="wv" style="font-size:${fs.toFixed(0)}px;${d.col ? 'color:' + d.col : ''}${d.center ? ';justify-content:center;text-align:center' : ''}">${esc(txt)}</div>` + (d.s ? `<div class="ws">${esc(d.s)}</div>` : '');
     }
     html += HANDLES;
@@ -439,8 +441,7 @@ function updateBackOverlay(layer) {
     ov.firstChild.addEventListener('click', () => { [...MAPS].forEach((I) => { if (layer.contains(I.el)) { I.follow = true; I.panAt = 0; } }); renderWidgets(); });
     layer.appendChild(ov);
   }
-  const bars = layer.id === 'wLayer' && ($('replayBar').style.display === 'flex' || $('demoBadge').style.display === 'block');
-  ov.style.bottom = (bars ? 88 : 18) + 'px';
+  ov.style.bottom = '18px';
 }
 function saveLayout() { save(); renderWidgets(); }
 const PAGE_NAME = { map: 'map', thermal: 'Thermal page', atmos: 'Atmosphere page', air: 'Airspace page' };
@@ -643,16 +644,17 @@ function setNav(open) {
   $('navIco').innerHTML = open ? '<path d="M6 6l14 14M20 6L6 20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>' : '<path d="M4 7h18M4 13h18M4 19h18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>';
   clearTimeout(navT); if (open) navT = setTimeout(() => setNav(false), 6000);
 }
+let pageRaf = 0;
 function showPage(id) {
   if (!st.autoNav) st.autoSwitched = false;
   setNav(false); if (wEdit) exitEdit();
   curPage = id; document.querySelectorAll('.page').forEach((p) => p.classList.toggle('on', p.id === id));
   document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-current', t.dataset.page === id ? 'page' : 'false'));
   $('setBtn').setAttribute('aria-current', id === 'pSet' ? 'page' : 'false');
-  if (PAGEKEY[id]) setTimeout(() => { MAPS.forEach((I) => I.m.invalidateSize()); tick(); }, 60);
+  // draw the new page once, right after the switch has been painted, so the tap answers at once
+  cancelAnimationFrame(pageRaf); if (PAGEKEY[id]) pageRaf = requestAnimationFrame(() => setTimeout(() => { if (curPage !== id) return; MAPS.forEach((I) => I.m.invalidateSize()); loop(); }, 0));
   if (id === 'pAir') { loadPlaces(); loadNotams(); }
   if (id === 'pWeb') renderWeb(); if (id === 'pSet') renderSettings(); if (id === 'pAtmos' && !st.forecast && st.fix) loadForecast();
-  if (id === 'pThermal' || id === 'pAtmos' || id === 'pAir') { tick(); setTimeout(tick, 150); }
 }
 
 /* ================= events ================= */
@@ -669,7 +671,7 @@ $('rpPlay').onclick = () => { const r = st.replay; if (!r) return; if (r.i >= r.
 $('rpStop').onclick = () => stopReplay();
 $('rpSpeeds').onclick = (e) => { const b = e.target.closest('[data-sp]'); if (b && st.replay) { st.replay.speed = +b.dataset.sp; renderReplayBar(); } };
 $('rpSeek').oninput = () => { if (st.replay) { st.replay.dragging = true; const r = st.replay, a = r.pts[0].t, b = r.pts[r.pts.length - 1].t; const d = new Date(a + $('rpSeek').value / 1000 * (b - a)); $('rpTime').textContent = pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + 'Z'; } };
-$('rpSeek').onchange = () => { if (st.replay) { st.replay.dragging = false; seekReplay($('rpSeek').value / 1000); } };
+$('rpSeek').onchange = () => { if (st.replay) { st.replay.dragging = false; $('rpTime')._t = $('rpSeek')._v = null; seekReplay($('rpSeek').value / 1000); } };
 $('setBtn').onclick = () => openSettings(); $('statusBtn').onclick = () => openSettings('data'); $('timeBtn').onclick = showTime;
 $('dlg').onclick = (e) => { if (e.target.id === 'dlg') { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; } };
 document.querySelectorAll('[data-web]').forEach((b) => (b.onclick = () => { webCur = b.dataset.web; renderWeb(); }));

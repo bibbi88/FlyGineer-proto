@@ -9,9 +9,9 @@ function startSim() {
   st.sim = sim; st.varioSrc = 'demo'; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.tempPts = [];
   st.bora = st.bora || null;
   sim.timer = setInterval(simStep, 200);
-  $('demoBadge').style.display = 'block'; toast('Demo flight started');
+  $('demoBadge').style.display = 'block'; document.body.classList.add('replaying'); toast('Demo flight started');
 }
-function stopSim() { if (!st.sim) return; clearInterval(st.sim.timer); st.sim = null; $('demoBadge').style.display = 'none'; st.fixes = []; st.varioHist = []; st.samples = []; toast('Demo flight stopped'); }
+function stopSim() { if (!st.sim) return; clearInterval(st.sim.timer); st.sim = null; $('demoBadge').style.display = 'none'; document.body.classList.toggle('replaying', !!st.replay); st.fixes = []; st.varioHist = []; st.samples = []; toast('Demo flight stopped'); }
 function simStep() {
   const s = st.sim, dt = 0.2; s.t += 200; s.modeT += dt;
   const wTo = wrap360(s.wind.from + 180), wvx = s.wind.spd * Math.sin(wTo * D2R), wvy = s.wind.spd * Math.cos(wTo * D2R);
@@ -81,18 +81,18 @@ function demoIGC() {
 }
 const isDemo = () => !!(st.replay && st.replay.name === 'Demo flight');
 function startDemoFlight() {
-  try { const igc = demoIGC(); startReplay(igc, 'Demo flight'); st.replay.speed = 8; renderReplayBar(); }
+  try { const igc = demoIGC(); startReplay(igc, 'Demo flight'); }
   catch (e) { toast('Demo flight: ' + e.message); }
 }
 function resetFlightState() { st.log = []; st.thermals = []; st.winds = []; st.takeoffPos = null; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.thermal = null; st.lastTurn = null; st.ld = null; st.circling = false; st.tempPts = []; st.takeoffT = null; st.gpsV = null; st.fix = null; st.baro = null; }
 function startReplay(igc, name) {
   if (st.sim) stopSim(); stopReplay(true); resetFlightState();
   const pts = igc.pts;
-  st.replay = { pts, i: 0, vt: pts[0].t, speed: 4, playing: true, name, v: 0 };
+  st.replay = { pts, i: 0, vt: pts[0].t, speed: 1, playing: true, name, v: 0 };
   st.takeoffT = pts[0].t; st.autoQ = []; st.modeSince = 0; setTimeout(() => fireEvent('takeoff'), 0);
   st.replayVer = (st.replayVer || 0) + 1; MAPS.forEach((I) => (I.up = undefined));
   st.replay.timer = setInterval(replayTick, 100);
-  $('replayBar').style.display = 'flex'; $('demoBadge').style.display = 'none';
+  $('replayBar').style.display = 'flex'; $('demoBadge').style.display = 'none'; document.body.classList.add('replaying');
   renderReplayBar(); MAPS.forEach((I) => (I.follow = true)); showPage('pMap');
   const dur = (pts[pts.length - 1].t - pts[0].t) / 1000;
   toast(`Replaying ${name} · ${Math.floor(dur / 3600)} h ${pad2(Math.floor(dur / 60) % 60)} min · ${pts.length} points`);
@@ -100,7 +100,7 @@ function startReplay(igc, name) {
 function stopReplay(silent) {
   st.autoQ = []; st.modeSince = 0;
   if (!st.replay) return; clearInterval(st.replay.timer); st.replay = null; resetFlightState();
-  st.replayVer = (st.replayVer || 0) + 1; $('replayBar').style.display = 'none'; if (!silent) toast('Replay stopped · back to live GPS');
+  st.replayVer = (st.replayVer || 0) + 1; $('replayBar').style.display = 'none'; document.body.classList.toggle('replaying', !!st.sim); if (!silent) toast('Replay stopped · back to live GPS');
 }
 function feedPoint(p, prev) {
   const r = st.replay;
@@ -129,14 +129,16 @@ function seekReplay(frac) {
   st.lastPredFetch = 0; MAPS.forEach((I) => (I.up = undefined)); renderReplayBar(); tick();
 }
 function renderReplayBar() {
+  // runs 10 times a second: only touch what changed, every DOM write costs a layout
   const r = st.replay; if (!r) return;
-  $('rpPlay').textContent = r.playing ? '❚❚' : '▶'; $('rpPlay').setAttribute('aria-label', r.playing ? 'Pause' : 'Play');
-  const sp = [1, 4, 8, 16, 64].map((k) => `<button data-sp="${k}" aria-pressed="${r.speed === k}">${k}×</button>`).join('');
-  if ($('rpSpeeds')._h !== sp) { $('rpSpeeds').innerHTML = sp; $('rpSpeeds')._h = sp; }
+  const set = (id, k, v, fn) => { const e = $(id); if (e['_' + k] !== v) { e['_' + k] = v; fn(e, v); } };
+  set('rpPlay', 'pl', r.playing, (e, v) => { e.textContent = v ? '❚❚' : '▶'; e.setAttribute('aria-label', v ? 'Pause' : 'Play'); });
+  set('rpSpeeds', 'h', [1, 4, 8, 16, 64].map((k) => `<button data-sp="${k}" aria-pressed="${r.speed === k}">${k}×</button>`).join(''), (e, v) => (e.innerHTML = v));
   const a = r.pts[0].t, b = r.pts[r.pts.length - 1].t;
-  if (!r.dragging) $('rpSeek').value = Math.round((r.vt - a) / (b - a) * 1000);
-  const d = new Date(r.vt); $('rpTime').textContent = pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds()) + 'Z';
+  if (!r.dragging) set('rpSeek', 'v', Math.round((r.vt - a) / (b - a) * 1000), (e, v) => (e.value = v));
+  const d = new Date(r.vt); set('rpTime', 't', pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds()) + 'Z', (e, v) => (e.textContent = v));
 }
+
 
 /* ================= vario sound ================= */
 const beep = {
