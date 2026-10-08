@@ -291,6 +291,77 @@ function sideDraw(cv, W) {
   const nar = Wd < 300; c.textAlign = 'left'; c.fillText(nar ? `← ${pad3(ax + 180)}°` : `← ${lt} ${pad3(ax + 180)}°`, L0, H - 1); c.textAlign = 'right'; c.fillText(nar ? `${pad3(ax)}° →` : `${rt} ${pad3(ax)}° →`, Wd - 4, H - 1);
   if (nar) { c.textAlign = 'center'; c.fillText(view === 'along' ? (hasWind ? 'downwind →' : 'N →') : (hasWind ? 'right →' : 'E →'), X(0), 26); }
 }
+/* ----- Thermal 3D: perspective view of your track, the lift columns and faint height layers ----- */
+// cameras: 'behind' looks the way you fly, 'downwind' sits downwind looking upwind, 'north' sits south looking north,
+// 'auto' = behind you while gliding, from downwind while circling (so the picture doesn't spin in a thermal)
+const CAM3D = { auto: 'Auto', behind: 'Behind', downwind: 'Downwind', north: 'North' };
+function t3dDraw(cv, W, el) {
+  const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const C = W.cfg, f = st.fix, alt = altNow(), dark = document.body.classList.contains('dark');
+  const camSet = CAM3D[C.cam] ? C.cam : 'auto';
+  const ctlL = `<button class="wcb wide" data-act="cam3d" aria-label="Camera: ${CAM3D[camSet]}. Tap to change">${CAM3D[camSet]}</button><button class="wcb wide" data-act="reset3d" aria-label="Reset view">Reset</button>`;
+  const ctlR = '<button class="wcb" data-act="rotl" aria-label="Turn view left">⟲</button><button class="wcb" data-act="rotr" aria-label="Turn view right">⟳</button><button class="wcb" data-act="zin" aria-label="Zoom in">+</button><button class="wcb" data-act="zout" aria-label="Zoom out">−</button>';
+  const cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
+  if (cl._h !== ctlL) { cl.innerHTML = ctlL; cl._h = ctlL; } if (cr._h !== ctlR) { cr.innerHTML = ctlR; cr._h = ctlR; }
+  if (!f || alt == null) { c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('Waiting for GPS…', Wd / 2, H / 2); el._sub = ''; return; }
+  const now = f.t, hist = clamp(+C.hist || 300, 30, 600) * 1000, wv = st.wind || { vx: 0, vy: 0 }, w = windFromSpd();
+  const rel = (s) => { const [x, y] = enu(f.lat, f.lon, s.lat, s.lon), dt = (now - s.t) / 1000; return [x + wv.vx * dt, y + wv.vy * dt]; };
+  const P = st.samples.filter((s) => s.t >= now - hist && s.alt != null).map((s) => { const [x, y] = rel(s); return { t: s.t, x, y, z: s.alt, v: s.v }; });
+  const r0 = clamp(st.lastTurn ? st.lastTurn.avg : 40, 20, 90), th = st.thermal, cols = [];
+  st.thermals.filter((q) => q.t1 > now - hist && !(th && q.t0 === th.t0)).forEach((q) => { const L = liftCentres(Math.max(q.t0, now - hist), q.t1, rel); if (L.length > 1) cols.push({ C: L, cur: false }); });
+  if (th) { const L = liftCentres(th.t0, th.end || now, rel); if (L.length) cols.push({ C: L, cur: true }); }
+  const cur = cols.find((q) => q.cur); let lean = null;
+  if (cur && cur.C.length >= 4) { const L = cur.C, n = L.length, ma = L.reduce((q, p) => q + p.alt, 0) / n, mx = L.reduce((q, p) => q + p.x, 0) / n, my = L.reduce((q, p) => q + p.y, 0) / n; let nx = 0, ny = 0, den = 0; L.forEach((p) => { nx += (p.alt - ma) * (p.x - mx); ny += (p.alt - ma) * (p.y - my); den += (p.alt - ma) ** 2; }); if (den > 25 && Math.hypot(nx, ny) / den < 3) lean = (a) => [mx + nx / den * (a - ma), my + ny / den * (a - ma)]; }
+  const top = thermalTop(), above = cur && st.circling ? Math.min(250, top && top > alt ? top - alt : 200) : 0;
+  // what to frame: you, the last minute and the current column; older track may leave the view
+  let R = 110; P.filter((p) => now - p.t < 60000).forEach((p) => (R = Math.max(R, Math.hypot(p.x, p.y) + 20))); (cur ? cur.C : []).forEach((p) => (R = Math.max(R, Math.hypot(p.x, p.y) + r0 + 20))); R = Math.min(R, 600);
+  let zLo = alt - 60, zHi = alt + 40 + above; (cur ? cur.C : []).forEach((p) => (zLo = Math.min(zLo, p.alt - 30))); P.filter((p) => now - p.t < 90000).forEach((p) => { zLo = Math.min(zLo, p.z); zHi = Math.max(zHi, p.z); });
+  const [zl, zh] = steadyRange(cv, 'z', zLo, zHi); zLo = zl; zHi = zh;
+  const VX = 1.6, zMid = (zLo + zHi) / 2, Z = (a) => (a - zMid) * VX, ext = Math.max(R, (zHi - zLo) * VX / 2);
+  // camera direction, turned smoothly so switching cameras or following your track never jumps
+  const mode = camSet === 'auto' ? (st.circling ? 'downwind' : 'behind') : camSet;
+  const want = wrap360((mode === 'behind' ? (f.trk ?? (w ? w.from : 0)) : mode === 'downwind' ? (w ? w.from : f.trk ?? 0) : 0) + (+C.yaw || 0));
+  const tNow = performance.now(), dtc = el._yt ? Math.min(3, (tNow - el._yt) / 1000) : 10; el._yt = tNow;
+  el._yaw = el._yaw == null ? want : wrap360(el._yaw + angDiff(el._yaw, want) * (1 - Math.exp(-dtc / 1.2)));
+  el._sub = (camSet === 'auto' ? 'auto · ' : '') + (mode === 'behind' ? 'behind you' : mode === 'downwind' ? (w ? 'from downwind' : 'no wind yet') : 'from the south') + (+C.yaw ? ` ${+C.yaw > 0 ? '+' : ''}${+C.yaw}°` : '');
+  const psi = el._yaw * D2R, el3 = clamp(+C.tilt || 25, 5, 70) * D2R;
+  const fx = Math.sin(psi), fy = Math.cos(psi), rx = Math.cos(psi), ry = -Math.sin(psi);
+  const L = [fx * Math.cos(el3), fy * Math.cos(el3), -Math.sin(el3)], U = [fx * Math.sin(el3), fy * Math.sin(el3), Math.cos(el3)];
+  // fit width and height separately, so a tall narrow widget is filled by the column's height
+  const zm = clamp(+C.zoom || 1, 0.4, 4), D = ext * 3.2, C0 = [-D * L[0], -D * L[1], -D * L[2]], hz = (zHi - zLo) * VX / 2 * Math.cos(el3) + R * Math.sin(el3);
+  const F = zm * D * Math.min(0.42 * Wd / R, 0.4 * (H - 30) / hz), cx = Wd / 2, cy = 16 + (H - 16) * 0.5;
+  const pr = (x, y, a) => { const v0 = x - C0[0], v1 = y - C0[1], v2 = Z(a) - C0[2], d = Math.max(1, v0 * L[0] + v1 * L[1] + v2 * L[2]); return [cx + F * (v0 * rx + v1 * ry) / d, cy - F * (v0 * U[0] + v1 * U[1] + v2 * U[2]) / d, d]; };
+  const ring = (x0, y0, a, r, n = 24) => { const pts = []; for (let i = 0; i < n; i++) { const t = i / n * 2 * Math.PI; pts.push(pr(x0 + r * Math.sin(t), y0 + r * Math.cos(t), a)); } return pts; };
+  const poly = (pts) => { c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.closePath(); };
+  const ink = css('--ink'), muted = css('--muted'), card = css('--card');
+  // faint height layers; the one at your height is the clearest
+  const step = +C.layers > 0 ? +C.layers : niceStep((zHi - zLo) / 5), Rl = R * 0.95, zb = Math.ceil(zLo / step) * step;
+  c.font = '12px Barlow'; c.textAlign = 'left';
+  for (let a = zb; a <= zHi + step * 0.5; a += step) {
+    const k = Math.exp(-(((a - alt) / (step * 1.6)) ** 2)), pts = ring(0, 0, a, Rl, 40); poly(pts);
+    c.fillStyle = dark ? `rgba(160,190,230,${0.02 + 0.06 * k})` : `rgba(40,90,160,${0.015 + 0.05 * k})`; c.fill();
+    c.strokeStyle = dark ? `rgba(180,200,230,${0.12 + 0.3 * k})` : `rgba(40,70,120,${0.1 + 0.3 * k})`; c.lineWidth = 1; if (k < 0.5) c.setLineDash([4, 5]); c.stroke(); c.setLineDash([]);
+    const lp = pts.reduce((m, p) => (p[0] < m[0] ? p : m)); c.fillStyle = muted; c.globalAlpha = 0.45 + 0.55 * k; c.fillText(fAlt(a) + ' ' + (S.uAlt === 'ft' ? 'ft' : 'm'), clamp(lp[0] + 6, 4, Wd - 50), lp[1] - 3); c.globalAlpha = 1;
+  }
+  // shadow of the track on the lowest layer
+  c.strokeStyle = dark ? 'rgba(200,210,220,.18)' : 'rgba(30,40,50,.15)'; c.lineWidth = 2; c.beginPath(); P.forEach((p, i) => { const q = pr(p.x, p.y, zb); i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke();
+  // 3D content, drawn far to near
+  const prim = [];
+  cols.forEach(({ C: L0, cur: isCur }) => L0.forEach((p) => prim.push({ d: pr(p.x, p.y, p.alt)[2], f: () => { poly(ring(p.x, p.y, p.alt, r0)); c.fillStyle = rgba(heat(p.v), isCur ? 0.32 : 0.16); c.fill(); c.strokeStyle = rgba(heat(p.v), isCur ? 0.9 : 0.4); c.lineWidth = 1.2; c.stroke(); } })));
+  if (lean && above > 0) for (let a = alt + 40; a <= alt + above; a += 40) { const [x, y] = lean(a); prim.push({ d: pr(x, y, a)[2], f: () => { poly(ring(x, y, a, r0)); c.setLineDash([5, 4]); c.strokeStyle = ink; c.globalAlpha = 0.55; c.lineWidth = 1.2; c.stroke(); c.setLineDash([]); c.globalAlpha = 1; } }); }
+  const sk = Math.max(1, Math.ceil(P.length / 400));
+  for (let i = sk; i < P.length; i += sk) { const a = P[i - sk], b = P[i], pa = pr(a.x, a.y, a.z), pb = pr(b.x, b.y, b.z); prim.push({ d: (pa[2] + pb[2]) / 2, f: () => { c.strokeStyle = rgba(heat(b.v), 1); c.lineWidth = clamp(3.2 * D / pb[2], 1.5, 5); c.lineCap = 'round'; c.beginPath(); c.moveTo(pa[0], pa[1]); c.lineTo(pb[0], pb[1]); c.stroke(); } }); }
+  const g = pr(0, 0, alt), tr = (f.trk ?? 0) * D2R, gs = Math.max(14, R * 0.12);
+  prim.push({ d: g[2] - 1, f: () => {
+    const gb = pr(0, 0, zb); c.setLineDash([3, 4]); c.strokeStyle = muted; c.lineWidth = 1; c.beginPath(); c.moveTo(g[0], g[1]); c.lineTo(gb[0], gb[1]); c.stroke(); c.setLineDash([]);
+    const sn = Math.sin(tr), cs = Math.cos(tr); poly([pr(gs * sn, gs * cs, alt), pr(-gs * 0.6 * (sn + cs), -gs * 0.6 * (cs - sn), alt), pr(-gs * 0.6 * (sn - cs), -gs * 0.6 * (cs + sn), alt)]); c.fillStyle = ink; c.fill(); c.strokeStyle = card; c.lineWidth = 2; c.stroke(); } });
+  prim.sort((p, q) => q.d - p.d).forEach((p) => p.f());
+  // north on your layer, wind above
+  const n = pr(0, Rl, alt); c.font = '700 14px Barlow'; c.textAlign = 'center'; c.fillStyle = '#B42318'; c.fillText('N', n[0], n[1] + 5);
+  if (w) { const a0 = pr(-Rl * 0.75 * Math.sin(w.to * D2R), -Rl * 0.75 * Math.cos(w.to * D2R), zHi), a1 = pr(-Rl * 0.25 * Math.sin(w.to * D2R), -Rl * 0.25 * Math.cos(w.to * D2R), zHi), ang = Math.atan2(a1[1] - a0[1], a1[0] - a0[0]);
+    c.strokeStyle = css('--sink'); c.fillStyle = css('--sink'); c.lineWidth = 3; c.beginPath(); c.moveTo(a0[0], a0[1]); c.lineTo(a1[0], a1[1]); c.stroke();
+    c.beginPath(); c.moveTo(a1[0] + 4 * Math.cos(ang), a1[1] + 4 * Math.sin(ang)); c.lineTo(a1[0] - 11 * Math.cos(ang - 0.45), a1[1] - 11 * Math.sin(ang - 0.45)); c.lineTo(a1[0] - 11 * Math.cos(ang + 0.45), a1[1] - 11 * Math.sin(ang + 0.45)); c.closePath(); c.fill();
+    c.font = '12px Barlow'; haloText(c, fSpd(w.spd) + (S.uSpd === 'kt' ? ' kt' : ' km/h'), a0[0], a0[1] - 6, css('--sink'), card); }
+}
 /* ----- Last circle ----- */
 function turnDraw(cv, W) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const t = st.lastTurn;
@@ -403,7 +474,7 @@ function windDirBody(cv, W) {
   c.fillStyle = css('--muted'); c.font = '13px Barlow'; c.fillText(`from ${pad3(w.from)}° ${compass(w.from)}`, tx, ty + fs + 20);
   if (f && f.trk != null) c.fillText(`${comp >= 0 ? 'tailwind' : 'headwind'} ${fSpd(Math.abs(comp))} ${S.uSpd}`, tx, ty + fs + 37);
 }
-const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv), ta: taDraw, tside: sideDraw, tcross: sideDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
+const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv), ta: taDraw, tside: sideDraw, tcross: sideDraw, t3d: t3dDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
 
 /* ----- widget element lifecycle ----- */
 const HANDLES = '<div class="wh tl" data-c="tl"></div><div class="wh tr" data-c="tr"></div><div class="wh bl" data-c="bl"></div><div class="wh br" data-c="br"></div>';
@@ -490,6 +561,10 @@ function widgetAct(W, act) {
     case 'zin': D.zoom = clamp((+C.zoom || 1) * 1.4, 0.25, 8); break;
     case 'zout': D.zoom = clamp((+C.zoom || 1) / 1.4, 0.25, 8); break;
     case 'zfit': D.zoom = 1; break;
+    case 'cam3d': { const o = Object.keys(CAM3D); D.cam = o[(o.indexOf(CAM3D[C.cam] ? C.cam : 'auto') + 1) % o.length]; D.yaw = 0; break; }
+    case 'rotl': D.yaw = ((+C.yaw || 0) - 30 + 540) % 360 - 180; break;
+    case 'rotr': D.yaw = ((+C.yaw || 0) + 30 + 540) % 360 - 180; break;
+    case 'reset3d': D.yaw = 0; D.zoom = 1; break;
     case 'mmenu': if (I) I.menu = !I.menu; renderWidgets(); return;
     case 'mlayer': D.layer = arg; if (I) I.menu = false; if (S.layer !== arg) { S.layer = arg; } break;
     case 'mrot': { const o = ['north', 'track', 'bearing']; let nx = o[(o.indexOf(C.rot || 'north') + 1) % 3]; if (nx === 'bearing' && !st.task) nx = 'north'; D.rot = nx; toast(ROT[nx]); break; }

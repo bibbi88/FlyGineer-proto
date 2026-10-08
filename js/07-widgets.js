@@ -37,6 +37,7 @@ const WT = {
   button: { n: 'Button', d: 'Tap to switch mode, page and more', w: 4, h: 3, def: { action: 'thermalOn', color: 'orange', bg: 100, showLabel: false, tap: 'none' }, o: [['action', 'Action', Object.entries(BTN).map(([k, v]) => [k, v[0]])], ['color', 'Colour', [['orange', 'Orange'], ['blue', 'Blue'], ['dark', 'Dark'], ['plain', 'Plain']]]] },
   ta: { n: 'Thermal assistant', d: 'Heat map of lift around you', w: 10, h: 11, canvas: true, def: { orient: S.taOrient || 'wind', hist: 120, style: 'both', bgMap: false, trail: true, legend: true, zoom: 1, bg: 85 }, o: [['orient', 'Up is', [['wind', 'Wind'], ['north', 'North'], ['track', 'Track']]], ['hist', 'History', numOpt(10, 600, 10, 's', [30, 60, 120, 300], { def: 120, extra: [['thermal', 'This thermal'], ['circle', 'Last circle']] })], ['style', 'Colours', [['both', 'Heat + dots'], ['heat', 'Heat only'], ['dots', 'Dots only']]], ['bgMap', 'Map behind', [[false, 'Off'], [true, 'On']]], ['trail', 'Track line', [[true, 'Show'], [false, 'Hide']]], ['legend', 'Colour scale', [[true, 'Show'], [false, 'Hide']]], ['units', 'Wind units', U_S]] },
   tside: { n: 'Thermal side view', d: 'Your track and lift seen from the side: upwind ↔ downwind', w: 6, h: 11, canvas: true, def: { hist: 180 }, o: [['hist', 'History', numOpt(30, 600, 30, 's', [60, 120, 180, 300, 600], { def: 180 })]] },
+  t3d: { n: 'Thermal 3D', d: 'Perspective view: track, lift columns, height layers', w: 4, h: 11, canvas: true, def: { cam: 'auto', tilt: 25, hist: 300, layers: 'auto', zoom: 1, yaw: 0 }, o: [['cam', 'Camera', [['auto', 'Auto'], ['behind', 'Behind you'], ['downwind', 'From downwind'], ['north', 'From the south']]], ['tilt', 'Looking down', numOpt(5, 70, 5, '°', [15, 25, 35, 45], { def: 25 })], ['hist', 'History', numOpt(30, 600, 30, 's', [60, 120, 180, 300, 600], { def: 300 })], ['layers', 'Height layers every', [['auto', 'Auto'], [50, '50 m'], [100, '100 m'], [200, '200 m']]]] },
   tcross: { n: 'Thermal front view', d: 'Your track and lift seen from downwind: left ↔ right', w: 6, h: 11, canvas: true, def: { hist: 180 }, o: [['hist', 'History', numOpt(30, 600, 30, 's', [60, 120, 180, 300, 600], { def: 180 })]] },
   turn: { n: 'Turn radius', d: 'Last circle, min to max', w: 6, h: 5, canvas: true, o: [] },
   core: { n: 'Centering', d: 'Distance and direction to the core', w: 8, h: 2, o: [] },
@@ -64,7 +65,7 @@ let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
 const DEFS = {
   map: [['map', 0, 0, 24, 16]].concat(DEF_LAYOUT, [['button', 6, 14, 4, 2, { action: 'pSwitch', color: 'orange' }]]),
-  thermal: [['ta', 0, 0, 8, 11], ['tside', 8, 0, 4, 11], ['tcross', 12, 0, 4, 11], ['vario', 16, 0, 8, 3], ['avg', 16, 3, 4, 2], ['thermal', 20, 3, 4, 2], ['gain', 16, 5, 4, 2], ['ttime', 20, 5, 4, 2], ['wind', 16, 7, 4, 3], ['windDir', 20, 7, 4, 3], ['core', 16, 10, 8, 2], ['compass', 16, 12, 4, 4], ['alt', 20, 12, 4, 2], ['button', 20, 14, 4, 2, { action: 'pSwitch', color: 'orange' }], ['climb', 0, 11, 10, 5], ['turn', 10, 11, 6, 5]],
+  thermal: [['ta', 0, 0, 8, 11], ['tside', 8, 0, 4, 11], ['t3d', 12, 0, 4, 11], ['vario', 16, 0, 8, 3], ['avg', 16, 3, 4, 2], ['thermal', 20, 3, 4, 2], ['gain', 16, 5, 4, 2], ['ttime', 20, 5, 4, 2], ['wind', 16, 7, 4, 3], ['windDir', 20, 7, 4, 3], ['core', 16, 10, 8, 2], ['compass', 16, 12, 4, 4], ['alt', 20, 12, 4, 2], ['button', 20, 14, 4, 2, { action: 'pSwitch', color: 'orange' }], ['climb', 0, 11, 10, 5], ['turn', 10, 11, 6, 5]],
   atmos: [['profile', 0, 0, 11, 16], ['temp', 11, 0, 4, 3], ['groundT', 15, 0, 5, 3], ['alt', 20, 0, 4, 3], ['cbase', 11, 3, 6, 4], ['ttop', 17, 3, 7, 4], ['outlook', 11, 7, 13, 5], ['trigger', 11, 12, 13, 3]],
   air: [['asside', 0, 0, 13, 5], ['aslist', 0, 5, 13, 5], ['asmap', 0, 10, 13, 6], ['places', 13, 0, 11, 7], ['radio', 13, 7, 11, 4], ['notams', 13, 11, 11, 5]]
 };
@@ -88,7 +89,7 @@ const defLayout = (pk) => (DEFS[pk || pageKey()] || DEFS.map).map(([t, x, y, w, 
   // thermal front view (added 2026-10): put it next to the side view on the thermal page once
   if (!S.tcrossMig) {
     S.tcrossMig = true; const L = S.layouts.thermal;
-    if (!L.some((W) => W.type === 'tcross')) {
+    if (!L.some((W) => W.type === 'tcross' || W.type === 't3d')) {
       const T = L.find((W) => W.type === 'tside'), ta = T && L.find((W) => W.type === 'ta' && W.x + W.w === T.x && W.y === T.y && W.h === T.h);
       if (T) {
         if (ta && ta.w >= 8 * GSC && T.w < 8 * GSC) { const d = 8 * GSC - T.w; ta.w -= d; T.x -= d; T.w += d; } // make the column 8 wide, taken from the thermal assistant
@@ -98,6 +99,17 @@ const defLayout = (pk) => (DEFS[pk || pageKey()] || DEFS.map).map(([t, x, y, w, 
         for (let y = 0; y <= GR - h && !pos; y += GSC) for (let x = 0; x <= GC - w && !pos; x += GSC) if (!hit(x, y)) pos = [x, y];
         L.push(newW('tcross', ...(pos || [GC - w, 0]), w, h));
       }
+    }
+  }
+  // thermal 3D view (added 2026-10): takes the place of the front view on the thermal page, once
+  if (!S.t3dMig) {
+    S.t3dMig = true; const L = S.layouts.thermal;
+    if (!L.some((W) => W.type === 't3d')) {
+      const i = L.findIndex((W) => W.type === 'tcross');
+      if (i >= 0) { const X = L[i]; L[i] = newW('t3d', X.x, X.y, X.w, X.h); }
+      else { const w = 4 * GSC, h = 11 * GSC, hit = (x, y) => L.some((W) => x < W.x + W.w && x + w > W.x && y < W.y + W.h && y + h > W.y); let pos = null;
+        for (let y = 0; y <= GR - h && !pos; y += GSC) for (let x = 0; x <= GC - w && !pos; x += GSC) if (!hit(x, y)) pos = [x, y];
+        L.push(newW('t3d', ...(pos || [GC - w, 0]), w, h)); }
     }
   }
   S.layoutGrid = GSC; save();
