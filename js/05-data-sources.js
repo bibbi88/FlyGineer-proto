@@ -56,6 +56,7 @@ function airStatus() {
 /* ================= places (OpenStreetMap / Overpass) ================= */
 async function loadPlaces(force) {
   const f = st.fix; if (!f) return;
+  if (!force && Date.now() - (st.placesErrAt || 0) < 60000) return;
   if (!force && st.placesAt && dist(st.placesAt[0], st.placesAt[1], f.lat, f.lon) < 3000 && st.placesR === S.poiRadius) return;
   st.placesAt = [f.lat, f.lon]; st.placesR = S.poiRadius;
   const R = S.poiRadius * 1000, a = `(around:${R},${f.lat.toFixed(4)},${f.lon.toFixed(4)})`;
@@ -67,7 +68,7 @@ async function loadPlaces(force) {
     const j = await r.json();
     st.places = j.elements.map((e) => { const lat = e.lat ?? e.center?.lat, lon = e.lon ?? e.center?.lon; const t = e.tags || {}; const kind = t.aeroway ? 'airport' : t.natural === 'peak' ? 'peak' : 'town'; return { name: t.name || t.icao || (kind === 'peak' ? 'Peak' : 'Unnamed'), kind, sub: t.place || (t.icao ? t.icao : t.ele ? t.ele + ' m' : ''), lat, lon, rank: t.place === 'city' ? 3 : t.place === 'town' ? 2 : 1 }; }).filter((p) => p.lat != null && (p.kind !== 'peak' || p.name !== 'Peak'));
     st.placesState = 'ok'; renderPlaces();
-  } catch (e) { st.placesState = 'error: ' + e.message; markDirty(); st.placesAt = null; }
+  } catch (e) { st.placesState = 'error: ' + e.message; st.placesErrAt = Date.now(); markDirty(); st.placesAt = null; }
 }
 
 /* ================= task / FlyXC ================= */

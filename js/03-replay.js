@@ -129,7 +129,8 @@ function seekReplay(frac) {
 function renderReplayBar() {
   const r = st.replay; if (!r) return;
   $('rpPlay').textContent = r.playing ? '❚❚' : '▶'; $('rpPlay').setAttribute('aria-label', r.playing ? 'Pause' : 'Play');
-  $('rpSpeeds').innerHTML = [1, 4, 8, 16, 64].map((k) => `<button data-sp="${k}" aria-pressed="${r.speed === k}">${k}×</button>`).join('');
+  const sp = [1, 4, 8, 16, 64].map((k) => `<button data-sp="${k}" aria-pressed="${r.speed === k}">${k}×</button>`).join('');
+  if ($('rpSpeeds')._h !== sp) { $('rpSpeeds').innerHTML = sp; $('rpSpeeds')._h = sp; }
   const a = r.pts[0].t, b = r.pts[r.pts.length - 1].t;
   if (!r.dragging) $('rpSeek').value = Math.round((r.vt - a) / (b - a) * 1000);
   const d = new Date(r.vt); $('rpTime').textContent = pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ':' + pad2(d.getUTCSeconds()) + 'Z';

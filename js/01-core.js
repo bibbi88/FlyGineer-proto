@@ -12,7 +12,8 @@ function enu(lat0, lon0, lat, lon) { return [(lon - lon0) * Math.cos(lat0 * D2R)
 const PTS16 = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
 const compass = (b) => PTS16[Math.round(wrap360(b) / 22.5) % 16];
 const pad2 = (n) => String(n).padStart(2, '0');
-function css(v) { return getComputedStyle(document.body).getPropertyValue(v).trim(); }
+const cssC = {};
+function css(v) { const k = document.body.className + '|' + v; if (cssC[k]) return cssC[k]; const r = getComputedStyle(document.body).getPropertyValue(v).trim(); if (r) cssC[k] = r; return r; }
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 /* ================= settings ================= */

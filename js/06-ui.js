@@ -62,7 +62,10 @@ function renderWarn() {
 }
 
 /* ---------- canvases ---------- */
-function fitCanvas(cv) { const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; const w = Math.max(10, r.width), h = Math.max(10, r.height || +cv.getAttribute('height') || 100); if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); return [c, w, h]; }
+// canvas sizes come from a ResizeObserver: measuring every canvas on every update forced a full layout each time
+const cvRO = typeof ResizeObserver === 'function' ? new ResizeObserver((es) => { let ch = false; es.forEach((e) => { const o = e.target._r, w = e.contentRect.width, h = e.contentRect.height; if (!o || o.width !== w || o.height !== h) { e.target._r = { width: w, height: h }; ch = ch || !!o; } }); if (ch) markDirty(); }) : null;
+function cvSize(cv) { let r = cv._r; if (!r || !r.width) { const b = cv.getBoundingClientRect(); r = { width: b.width, height: b.height }; if (cvRO && cv.closest('.wg')) { if (!cv._r) cvRO.observe(cv); cv._r = r; } } return r; }
+function fitCanvas(cv) { const r = cvSize(cv), dpr = window.devicePixelRatio || 1; const w = Math.max(10, r.width), h = Math.max(10, r.height || +cv.getAttribute('height') || 100); if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); return [c, w, h]; }
 function climbCol(v) { return v >= 2.5 ? css('--climb') : v >= 1.5 ? css('--climb2') : v >= 0.5 ? css('--climb3') : null; }
 function histDraw(cv) {
   const [c, W, H] = fitCanvas(cv); c.clearRect(0, 0, W, H);
@@ -315,7 +318,9 @@ function asMapDraw(cv, W, el, b) {
   if (el._lk !== lk) { if (el._atl) m.removeLayer(el._atl); el._atl = L.tileLayer(LAYERS[lk].url, Object.assign({}, LAYERS[lk].o, { maxNativeZoom: LAYERS[lk].o.maxZoom, maxZoom: 22 })).addTo(m); el._lk = lk; }
   const f = st.fix; if (!f) return;
   const rad = +W.cfg.radius || S.poiRadius, mpp = rad * 1000 / (Math.max(40, Math.min(b.w, b.h)) / 2 * 0.92), z = clamp(Math.log2(156543.03392 * Math.cos(f.lat * D2R) / mpp), 3, 18);
-  const vk = f.lat.toFixed(5) + f.lon.toFixed(5) + z.toFixed(2); if (el._vk !== vk) { m.setView([f.lat, f.lon], z, { animate: false }); el._vk = vk; }
+  // a zoom change reloads every tile (no zoom animation), so keep the zoom until it is clearly off and only pan otherwise
+  if (el._z == null || Math.abs(z - el._z) > 0.15) el._z = z;
+  const vk = f.lat.toFixed(5) + f.lon.toFixed(5) + el._z; if (el._vk !== vk) { m.setView([f.lat, f.lon], el._z, { animate: false }); el._vk = vk; }
   el._me.setLatLng([f.lat, f.lon]); el._ring.setLatLng([f.lat, f.lon]).setRadius(rad * 1000);
   if (f.trk != null) el._hd.setLatLngs([[f.lat, f.lon], dest(f.lat, f.lon, f.trk, rad * 450)]);
   const key = [st.airVer || 0, st.ntVer || 0, st.placesVer || 0, rad, JSON.stringify(S.poiKinds), Math.round(f.lat * 200) + ',' + Math.round(f.lon * 200)].join('|');
@@ -362,9 +367,9 @@ const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv
 
 /* ----- widget element lifecycle ----- */
 const HANDLES = '<div class="wh tl" data-c="tl"></div><div class="wh tr" data-c="tr"></div><div class="wh bl" data-c="bl"></div><div class="wh br" data-c="br"></div>';
-function wBox(W, el) { const r = el.getBoundingClientRect(); return { x: W.x / GC * r.width, y: W.y / GR * r.height, w: W.w / GC * r.width, h: W.h / GR * r.height }; }
+function wBox(W, el, r) { r = r || el.getBoundingClientRect(); return { x: W.x / GC * r.width, y: W.y / GR * r.height, w: W.w / GC * r.width, h: W.h / GR * r.height }; }
 function layerEl() { return $(LAYERID[pageKey()]); }
-function disposeW(e) { if (e._mi) { MAPS.delete(e._mi); try { e._mi.m.remove(); } catch (x) { } } if (e._tm) { try { e._tm.remove(); } catch (x) { } } if (e._am) { try { e._am.remove(); } catch (x) { } } }
+function disposeW(e) { if (cvRO) e.querySelectorAll('canvas').forEach((c) => cvRO.unobserve(c)); if (e._mi) { MAPS.delete(e._mi); try { e._mi.m.remove(); } catch (x) { } } if (e._tm) { try { e._tm.remove(); } catch (x) { } } if (e._am) { try { e._am.remove(); } catch (x) { } } }
 function mkWidget(W, layer) {
   const el = document.createElement('div'); el.className = 'wg'; el.dataset.id = W.id; el.dataset.type = W.type; el.setAttribute('role', W.type === 'button' ? 'button' : 'group'); el.setAttribute('aria-label', WT[W.type].n);
   if (WT[W.type].canvas) el.innerHTML = '<div class="wl"><span></span><span></span></div><div class="wcw"><div class="wbg"></div><canvas></canvas><div class="wctl l"></div><div class="wctl r"></div><div class="wctl b"></div></div>' + HANDLES;
@@ -373,7 +378,7 @@ function mkWidget(W, layer) {
 let curBox = { x: 0, y: 0, w: 200, h: 100 };
 function renderWidgets() {
   const layer = layerEl(); if (!layer || !layer.offsetParent) return;
-  const L0 = S.layout, ids = new Set(L0.map((W) => W.id));
+  const L0 = S.layout, ids = new Set(L0.map((W) => W.id)), lr = layer.getBoundingClientRect();
   layer.querySelectorAll('.wg').forEach((e) => { if (!ids.has(e.dataset.id)) { disposeW(e); e.remove(); } });
   L0.forEach((W, zi) => {
     const T = WT[W.type]; if (!T) return; const E = effW(W), ins = W.type === 'map' ? 0 : 2;
@@ -384,8 +389,9 @@ function renderWidgets() {
     el.dataset.vis = vis; el.dataset.vd = vdl > 0 ? ' +' + vdl + ' s' : ''; el.classList.toggle('hidnow', !shown && wEdit);
     if (!shown && !wEdit) { if (el.style.display !== 'none') el.style.display = 'none'; el._gone = true; return; }
     if (el._gone || el.style.display === 'none') { el.style.display = ''; el._gone = false; el._tsz = el._sz = null; if (el._mi) el._mi.sz = null; }
-    const b = wBox(W, layer); curBox = b;
-    Object.assign(el.style, { left: b.x + ins + 'px', top: b.y + ins + 'px', width: b.w - 2 * ins + 'px', height: b.h - 2 * ins + 'px', zIndex: 1 + zi, background: `color-mix(in srgb, var(--card) ${+E.cfg.bg}%, transparent)`, borderColor: +E.cfg.bg ? 'var(--line)' : 'transparent' });
+    const b = wBox(W, layer, lr); curBox = b;
+    const sk = [b.x, b.y, b.w, b.h, zi, +E.cfg.bg].join('|');
+    if (el._sk !== sk) { el._sk = sk; el._bgc = null; Object.assign(el.style, el._st = { left: b.x + ins + 'px', top: b.y + ins + 'px', width: b.w - 2 * ins + 'px', height: b.h - 2 * ins + 'px', zIndex: 1 + zi, background: `color-mix(in srgb, var(--card) ${+E.cfg.bg}%, transparent)`, borderColor: +E.cfg.bg ? 'var(--line)' : 'transparent' }); }
     el.classList.toggle('sel', wEdit && wSel === W.id);
     const showL = E.cfg.showLabel !== false && E.cfg.showLabel !== 'false';
     if (T.canvas) {
@@ -406,7 +412,8 @@ function renderWidgets() {
       html += `<div class="wv" style="font-size:${fs.toFixed(0)}px;${d.col ? 'color:' + d.col : ''}${d.center ? ';justify-content:center;text-align:center' : ''}">${esc(txt)}</div>` + (d.s ? `<div class="ws">${esc(d.s)}</div>` : '');
     }
     html += HANDLES;
-    if (d.bgc) { el.style.background = d.bgc; el.style.borderColor = 'transparent'; el.style.color = d.col || ''; }
+    const bgc = d.bgc ? d.bgc + '|' + (d.col || '') : null;
+    if (el._bgc !== bgc) { if (d.bgc) { el.style.background = d.bgc; el.style.borderColor = 'transparent'; el.style.color = d.col || ''; } else { Object.assign(el.style, el._st); el.style.color = ''; } el._bgc = bgc; }
     if (el._last !== html) { el.innerHTML = html; el._last = html; }
   });
   updateBackOverlay(layer);
