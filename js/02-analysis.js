@@ -10,7 +10,7 @@ function analyse(f) {
   const was = st.circling;
   st.circling = Math.abs(rate) > 7 && f.spd > 2;
   if (st.circling && !was) st.thermal = { t0: now, alt0: altNow(), lat0: f.lat, lon0: f.lon };
-  if (!st.circling && was && st.thermal) { st.thermal.end = now; const dur = (now - st.thermal.t0) / 1000; const a1 = altNow(); if (dur >= 30 && a1 != null && st.thermal.alt0 != null) st.thermals.push({ t0: st.thermal.t0, t1: now, alt0: st.thermal.alt0, alt1: a1, avg: (a1 - st.thermal.alt0) / dur, lat: f.lat, lon: f.lon }); }
+  if (!st.circling && was && st.thermal) { st.thermal.end = now; const dur = (now - st.thermal.t0) / 1000; const a1 = altNow(); if (dur >= 30 && a1 != null && st.thermal.alt0 != null) { st.thermals.push({ t0: st.thermal.t0, t1: now, alt0: st.thermal.alt0, alt1: a1, avg: (a1 - st.thermal.alt0) / dur, lat: f.lat, lon: f.lon }); rememberThermal(st.thermals[st.thermals.length - 1]); } }
   if (st.thermal && !st.circling && now - (st.thermal.end || now) > 30000) st.thermal = null;
   // last full circle
   let acc = 0, i = fx.length - 1; const circ = [];
