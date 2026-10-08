@@ -262,7 +262,7 @@ function sideDraw(cv, W) {
   // grid
   c.strokeStyle = css('--line'); c.fillStyle = muted; c.font = '11px Barlow'; c.lineWidth = 1; c.textAlign = 'left';
   const as = niceStep((amax - amin) / 5); for (let a = Math.ceil(amin / as) * as; a < amax; a += as) { c.beginPath(); c.moveTo(L0 - 2, Y(a)); c.lineTo(Wd, Y(a)); c.stroke(); c.fillText(fAlt(a), 0, Y(a) + 4); }
-  const ss = niceStep(sr / 2); c.textAlign = 'center'; for (let v = -Math.floor(sr / ss) * ss; v <= sr; v += ss) { c.beginPath(); c.moveTo(X(v), 14); c.lineTo(X(v), H - 26); c.stroke(); if (Math.abs(X(v) - X(0)) > 4 || v === 0) c.fillText(v === 0 ? '0' : Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + ' km' : Math.round(v) + ' m', X(v), H - 14); }
+  const ss = niceStep(sr / Math.max(1, Math.floor((Wd - L0) / 110))); c.textAlign = 'center'; for (let v = -Math.floor(sr / ss) * ss; v <= sr; v += ss) { c.beginPath(); c.moveTo(X(v), 14); c.lineTo(X(v), H - 26); c.stroke(); if (Math.abs(X(v) - X(0)) > 4 || v === 0) c.fillText(v === 0 ? '0' : Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + ' km' : Math.round(v) + ' m', X(v), H - 14); }
   // lifting sections, coloured by the climb in each part
   cols.forEach(({ C, cur: isCur }) => {
     c.globalAlpha = isCur ? 0.55 : 0.3;
@@ -288,7 +288,8 @@ function sideDraw(cv, W) {
   haloText(c, head, L0 + 2, 12, ink, card);
   c.font = '11px Barlow'; c.fillStyle = muted;
   const lt = !hasWind ? (view === 'along' ? 'S' : 'W') : view === 'along' ? 'upwind' : 'left', rt = !hasWind ? (view === 'along' ? 'N' : 'E') : view === 'along' ? 'downwind' : 'right';
-  c.textAlign = 'left'; c.fillText(`← ${lt} ${pad3(ax + 180)}°`, L0, H - 1); c.textAlign = 'right'; c.fillText(`${rt} ${pad3(ax)}° →`, Wd - 4, H - 1);
+  const nar = Wd < 300; c.textAlign = 'left'; c.fillText(nar ? `← ${pad3(ax + 180)}°` : `← ${lt} ${pad3(ax + 180)}°`, L0, H - 1); c.textAlign = 'right'; c.fillText(nar ? `${pad3(ax)}° →` : `${rt} ${pad3(ax)}° →`, Wd - 4, H - 1);
+  if (nar) { c.textAlign = 'center'; c.fillText(view === 'along' ? (hasWind ? 'downwind →' : 'N →') : (hasWind ? 'right →' : 'E →'), X(0), 26); }
 }
 /* ----- Last circle ----- */
 function turnDraw(cv, W) {

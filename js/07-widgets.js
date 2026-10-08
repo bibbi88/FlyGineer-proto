@@ -64,7 +64,7 @@ let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
 const DEFS = {
   map: [['map', 0, 0, 24, 16]].concat(DEF_LAYOUT, [['button', 6, 14, 4, 2, { action: 'pSwitch', color: 'orange' }]]),
-  thermal: [['ta', 0, 0, 10, 11], ['tside', 10, 0, 6, 11], ['vario', 16, 0, 8, 3], ['avg', 16, 3, 4, 2], ['thermal', 20, 3, 4, 2], ['gain', 16, 5, 4, 2], ['ttime', 20, 5, 4, 2], ['wind', 16, 7, 4, 3], ['windDir', 20, 7, 4, 3], ['core', 16, 10, 8, 2], ['compass', 16, 12, 4, 4], ['alt', 20, 12, 4, 2], ['button', 20, 14, 4, 2, { action: 'pSwitch', color: 'orange' }], ['climb', 0, 11, 10, 5], ['turn', 10, 11, 6, 5]],
+  thermal: [['ta', 0, 0, 8, 11], ['tside', 8, 0, 4, 11], ['tcross', 12, 0, 4, 11], ['vario', 16, 0, 8, 3], ['avg', 16, 3, 4, 2], ['thermal', 20, 3, 4, 2], ['gain', 16, 5, 4, 2], ['ttime', 20, 5, 4, 2], ['wind', 16, 7, 4, 3], ['windDir', 20, 7, 4, 3], ['core', 16, 10, 8, 2], ['compass', 16, 12, 4, 4], ['alt', 20, 12, 4, 2], ['button', 20, 14, 4, 2, { action: 'pSwitch', color: 'orange' }], ['climb', 0, 11, 10, 5], ['turn', 10, 11, 6, 5]],
   atmos: [['profile', 0, 0, 11, 16], ['temp', 11, 0, 4, 3], ['groundT', 15, 0, 5, 3], ['alt', 20, 0, 4, 3], ['cbase', 11, 3, 6, 4], ['ttop', 17, 3, 7, 4], ['outlook', 11, 7, 13, 5], ['trigger', 11, 12, 13, 3]],
   air: [['asside', 0, 0, 13, 5], ['aslist', 0, 5, 13, 5], ['asmap', 0, 10, 13, 6], ['places', 13, 0, 11, 7], ['radio', 13, 7, 11, 4], ['notams', 13, 11, 11, 5]]
 };
@@ -84,6 +84,21 @@ const defLayout = (pk) => (DEFS[pk || pageKey()] || DEFS.map).map(([t, x, y, w, 
       const hit = (x, y) => L.some((W) => W.type !== 'map' && x < W.x + W.w && x + w > W.x && y < W.y + W.h && y + h > W.y); let pos = null;
       for (let y = GR - h; y >= 0 && !pos; y -= GSC) for (let x = 0; x <= GC - w && !pos; x += GSC) if (!hit(x, y)) pos = [x, y];
       const B = newW('button', (pos || [0, GR - h])[0], (pos || [0, GR - h])[1], w, h); Object.assign(B.cfg, { action: 'pSwitch', color: 'orange' }); L.push(B); });
+  }
+  // thermal front view (added 2026-10): put it next to the side view on the thermal page once
+  if (!S.tcrossMig) {
+    S.tcrossMig = true; const L = S.layouts.thermal;
+    if (!L.some((W) => W.type === 'tcross')) {
+      const T = L.find((W) => W.type === 'tside'), ta = T && L.find((W) => W.type === 'ta' && W.x + W.w === T.x && W.y === T.y && W.h === T.h);
+      if (T) {
+        if (ta && ta.w >= 8 * GSC && T.w < 8 * GSC) { const d = 8 * GSC - T.w; ta.w -= d; T.x -= d; T.w += d; } // make the column 8 wide, taken from the thermal assistant
+        const half = Math.round(T.w / 2 / GSC) * GSC || GSC; L.push(newW('tcross', T.x + half, T.y, T.w - half, T.h)); T.w = half;
+      } else {
+        const w = 4 * GSC, h = 11 * GSC, hit = (x, y) => L.some((W) => x < W.x + W.w && x + w > W.x && y < W.y + W.h && y + h > W.y); let pos = null;
+        for (let y = 0; y <= GR - h && !pos; y += GSC) for (let x = 0; x <= GC - w && !pos; x += GSC) if (!hit(x, y)) pos = [x, y];
+        L.push(newW('tcross', ...(pos || [GC - w, 0]), w, h));
+      }
+    }
   }
   S.layoutGrid = GSC; save();
 }
