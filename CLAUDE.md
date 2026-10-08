@@ -20,6 +20,14 @@ Tablet-first (8", landscape) paragliding flight instrument that runs in the brow
   7. `07-widgets.js` widget engine: grid, `WT` type table, `COMMON` options, `BTN` button actions, layouts per page, edit sheet (`openSheet`), pointer handling
   8. `08-actions.js` tap actions, detail popups, FlyXC "use this route", Start point, update rate and thermal mode, export/import, automatic actions
   9. `09-main.js` main loop, `boot()`
+  10. `10-offline.js` service worker registration, "new version" banner, storage persistence, Settings → App & offline maps
+- `sw.js` – service worker: app files cached per `VERSION`, Leaflet/fonts cached, map tiles cached as viewed (cache first, max `MAX_TILES`, oldest out first; fetched with CORS so the quota counts real sizes). Weather, airspace, traffic etc. are never cached.
+- `manifest.webmanifest`, `icons/` – installable app (full screen, landscape).
+
+## Releasing a change (PWA)
+- **Bump `VERSION` in `sw.js` with every change to app files** (format `YYYY.MM.DD-n`), or installed apps keep the old copy. The tablet then shows "A new version is ready · Reload"; it never reloads by itself.
+- New app files must be added to `SHELL` in `sw.js`, or they won't work offline (install fails if a listed file is missing).
+- Hosting: GitHub Pages serves the `dev` branch at https://bibbi88.github.io/FlyGineer-proto/.
 
 ## Key concepts
 - **Widgets**: every element on a page is a widget `{id,type,x,y,w,h,cfg,cfgT?}` on a grid (`GSC=4`, `GC=96`, `GR=64`). Per-page layouts in `S.layouts = {map,thermal,atmos,air}`; `S.layout` is a getter/setter for the current page. Text widgets are produced by `wData(W)`; canvas widgets by the `DRAW` table. `cfgT` holds settings used only while thermalling (`effCfg`/`cfgW`).
@@ -33,7 +41,7 @@ Tablet-first (8", landscape) paragliding flight instrument that runs in the brow
 
 ## Testing (no framework yet)
 Headless Chromium with Playwright works: `/opt/pw-browsers/chromium`, `playwright` installed globally in the cloud sandbox. The sandbox cannot reach CDNs, so route the Leaflet URLs to local copies (`npm pack leaflet@1.9.4 leaflet-rotate@0.2.8`) and stub or abort other external requests. Useful checks: open `index.html?demo`, no `pageerror`s; tap/hold buttons; open the edit sheet via `enterEdit(); openSheet(id)`; hit-test overlays with real pointer events. jsdom needs many stubs (canvas, layout, `L.Browser.any3d=true`), so prefer Chromium. Headless tests cannot judge how it looks or feels on the tablet; say so honestly.
-Run `node --check js/*.js` after every edit.
+Run `node --check js/*.js sw.js` after every edit. To test the service worker, route with `context.route` (not `page.route`) and run with `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1`, otherwise the worker's own requests bypass the stubs; stubbed tiles need an `access-control-allow-origin: *` header.
 
 ## Product decisions and preferences (from the owner)
 - Glove-friendly: large touch targets, no tiny controls. Landscape tablet is the main layout.

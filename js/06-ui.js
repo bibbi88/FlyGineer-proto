@@ -498,7 +498,7 @@ function renderWeb() {
 }
 
 /* settings */
-const SECS = [['data', 'Vario & GPS'], ['widgets', 'Map widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Update & thermal mode'], ['auto', 'Automatic actions'], ['backup', 'Export & import']];
+const SECS = [['data', 'Vario & GPS'], ['widgets', 'Map widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Update & thermal mode'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
@@ -575,9 +575,11 @@ function renderSettings() {
     <div class="field"><label for="impFile">Import a file</label><input type="file" id="impFile" accept=".json,application/json" style="min-height:48px"></div>
     <div class="muted">The file holds every widget on all four pages with its position, size and settings, including the thermal-mode settings. API keys and proxy addresses are never saved to it.</div></div>`;
   if (setSec === 'auto') h = autoSection();
+  if (setSec === 'app') h = appSection();
   $('setBody').innerHTML = h;
   const on = (id, ev, fn) => { const e = $(id); if (e) e[ev] = fn; };
   on('bleBtn', 'onclick', connectBora);
+  if (setSec === 'app') appSectionWire(on);
   on('modeTest', 'onclick', () => { st.force = !st.force; st.sheetForce = false; updateMode(); renderSettings(); });
   on('expAll', 'onclick', () => exportSettings('all')); on('expLay', 'onclick', () => exportSettings('layouts'));
   on('impFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (fl) openImport(await fl.text(), fl.name); e.target.value = ''; });
