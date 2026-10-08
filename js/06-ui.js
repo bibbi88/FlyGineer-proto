@@ -135,7 +135,8 @@ function taDraw(cv, W, el) {
   const steps = [40, 60, 100, 150, 250, 400, 700, 1000, 1500, 2500, 4000];
   const maxD = Math.max(30, ...loc.map((p) => Math.hypot(p.x, p.y)));
   const zoom = clamp(+cfg.zoom || 1, 0.25, 8);
-  const sc = R / (steps.find((s) => s >= maxD * 1.05) || 4000) * zoom, Rm = R / sc;
+  // fixed scale (default): the ring radius stays the same; Auto grows it to fit the history
+  const sc = R / (cfg.scale === 'auto' ? (steps.find((s) => s >= maxD * 1.05) || 4000) : clamp(+cfg.range || 200, 30, 5000)) * zoom, Rm = R / sc;
   // rotate so that bearing `up` points to the top of the screen
   const a = up * D2R, ca = Math.cos(a), sa = Math.sin(a);
   const tr = (x, y) => [cx + (x * ca - y * sa) * sc, cy - (x * sa + y * ca) * sc];
@@ -256,7 +257,10 @@ function sideDraw(cv, W) {
   // ranges: you in the middle horizontally, everything shown vertically
   let span = 150; P.forEach((p) => (span = Math.max(span, Math.abs(p.s) + 30))); cols.forEach((q) => q.C.forEach((p) => (span = Math.max(span, Math.abs(p.s) + r0 + 20))));
   let aLo = alt - 60, aHi = alt + 60 + above; P.forEach((p) => { aLo = Math.min(aLo, p.alt - 30); aHi = Math.max(aHi, p.alt + 30); });
-  const [smin, smax] = steadyRange(cv, 's', -span, span), [amin, amax] = steadyRange(cv, 'a', aLo, aHi), sr = Math.max(-smin, smax);
+  // fixed scale (default): metres per pixel never change, you stay at the same place and the grid moves; Auto fits everything in
+  const fixed = W.cfg.scale !== 'auto', zm = clamp(+W.cfg.zoom || 1, 0.25, 8), vs = clamp(+W.cfg.vspan || 400, 100, 3000) / zm;
+  const [smin, smax] = fixed ? [-1, 1].map((k) => k * clamp(+W.cfg.range || 300, 50, 5000) / zm) : steadyRange(cv, 's', -span, span),
+    [amin, amax] = fixed ? [alt - vs * 0.55, alt + vs * 0.45] : steadyRange(cv, 'a', aLo, aHi), sr = Math.max(-smin, smax);
   const L0 = 34, X = (v) => L0 + (v + sr) / (2 * sr) * (Wd - L0 - 8), Y = (a) => H - 26 - (a - amin) / (amax - amin) * (H - 46), mpx = (Wd - L0 - 8) / (2 * sr);
   const ink = css('--ink'), card = css('--card'), muted = css('--muted');
   // grid
@@ -315,7 +319,9 @@ function t3dDraw(cv, W, el) {
   // what to frame: you, the last minute and the current column; older track may leave the view
   let R = 110; P.filter((p) => now - p.t < 60000).forEach((p) => (R = Math.max(R, Math.hypot(p.x, p.y) + 20))); (cur ? cur.C : []).forEach((p) => (R = Math.max(R, Math.hypot(p.x, p.y) + r0 + 20))); R = Math.min(R, 600);
   let zLo = alt - 60, zHi = alt + 40 + above; (cur ? cur.C : []).forEach((p) => (zLo = Math.min(zLo, p.alt - 30))); P.filter((p) => now - p.t < 90000).forEach((p) => { zLo = Math.min(zLo, p.z); zHi = Math.max(zHi, p.z); });
-  const [zl, zh] = steadyRange(cv, 'z', zLo, zHi); zLo = zl; zHi = zh;
+  const fixed = C.scale !== 'auto';
+  if (fixed) { R = clamp(+C.range || 250, 50, 3000); const vs = clamp(+C.vspan || 400, 100, 3000); zLo = alt - vs * 0.6; zHi = alt + vs * 0.4; } // fixed scale (default): sizes never change
+  else { const [zl, zh] = steadyRange(cv, 'z', zLo, zHi); zLo = zl; zHi = zh; }
   const VX = 1.6, zMid = (zLo + zHi) / 2, Z = (a) => (a - zMid) * VX, ext = Math.max(R, (zHi - zLo) * VX / 2);
   // camera direction, turned smoothly so switching cameras or following your track never jumps
   const mode = camSet === 'auto' ? (st.circling ? 'downwind' : 'behind') : camSet;
