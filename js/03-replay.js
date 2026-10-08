@@ -109,8 +109,10 @@ function feedPoint(p, prev) {
   onFix({ t: p.t, lat: p.lat, lon: p.lon, alt: p.alt, spd: null, trk: null, replay: true });
 }
 function replayTick() {
-  const r = st.replay; if (!r || !r.playing) return;
-  r.vt += 100 * r.speed;
+  // advance by the real time passed, so a busy tablet (late timers) still plays at the chosen speed
+  const r = st.replay; if (!r) return; const t = performance.now(), el = r.wall ? Math.min(1000, t - r.wall) : 100; r.wall = t;
+  if (!r.playing) return;
+  r.vt += el * r.speed;
   while (r.i < r.pts.length && r.pts[r.i].t <= r.vt) { feedPoint(r.pts[r.i], r.pts[r.i - 1]); r.i++; }
   if (r.i >= r.pts.length) { r.playing = false; toast('End of flight', [['Restart', () => seekReplay(0)], ['Stop', () => stopReplay()]]); }
   renderReplayBar();

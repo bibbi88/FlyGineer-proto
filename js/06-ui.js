@@ -86,6 +86,15 @@ function drawNotamAreas() { st.ntVer = (st.ntVer || 0) + 1; }
 const HEAT = [[-3, [28, 52, 140]], [-1.5, [66, 120, 206]], [-0.5, [160, 196, 236]], [0.25, [240, 240, 236]], [0.9, [255, 238, 120]], [1.7, [255, 184, 48]], [2.6, [240, 104, 30]], [3.6, [206, 32, 44]], [5, [130, 0, 120]]];
 function heat(v) { if (v <= HEAT[0][0]) return HEAT[0][1]; for (let i = 1; i < HEAT.length; i++) { if (v <= HEAT[i][0]) { const [v0, c0] = HEAT[i - 1], [v1, c1] = HEAT[i]; const t = (v - v0) / (v1 - v0); return c0.map((x, k) => Math.round(x + (c1[k] - x) * t)); } } return HEAT[HEAT.length - 1][1]; }
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+// soft heat dot, pre-rendered once per colour step at the largest size and scaled when drawn (a new gradient for every sample was slow)
+const blobC = new Map();
+function heatBlob(v) {
+  const r = 46, q = Math.round(v * 10) / 10, dpr = window.devicePixelRatio || 1, k = q + '|' + dpr; let b = blobC.get(k); if (b) return b;
+  if (blobC.size > 300) blobC.clear();
+  b = document.createElement('canvas'); b.width = b.height = Math.ceil(2 * r * dpr); const g = b.getContext('2d'); g.scale(dpr, dpr);
+  const col = heat(q), gr = g.createRadialGradient(r, r, 0, r, r, r); gr.addColorStop(0, rgba(col, 0.6)); gr.addColorStop(1, rgba(col, 0)); g.fillStyle = gr; g.fillRect(0, 0, 2 * r, 2 * r);
+  blobC.set(k, b); return b;
+}
 const fmtDur = (n) => (n < 90 ? Math.round(n) + ' s' : n % 60 === 0 ? n / 60 + ' min' : (n / 60).toFixed(1) + ' min');
 const histL = (h) => (h === 'thermal' ? 'Th' : h === 'circle' ? '1c' : h < 90 ? Math.round(h) + 's' : h % 60 === 0 ? h / 60 + 'm' : (h / 60).toFixed(1) + 'm');
 const histN = (h) => (h === 'thermal' ? 'this thermal' : h === 'circle' ? 'last circle' : fmtDur(h));
@@ -144,7 +153,7 @@ function taDraw(cv, W, el) {
   c.lineWidth = 1; c.strokeStyle = wantBg ? 'rgba(17,20,24,.35)' : css('--line'); c.font = '11px Barlow'; c.textAlign = 'left';
   for (let k = 1; k * ringM <= Rm * 1.02; k++) { const r = k * ringM * sc; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke(); const lx = cx + r * 0.7071, ly = cy + r * 0.7071; if (lx < Wd - 34 && ly < H - 8) haloText(c, k * ringM + ' m', lx + 2, ly + 4, css('--muted'), wantBg ? 'rgba(255,255,255,.85)' : css('--card')); }
   // heat blobs
-  if (style !== 'dots') { const rr = clamp(16 * sc, 12, 46); loc.forEach((p) => { const [x, y] = tr(p.x, p.y); if (x < -rr || x > Wd + rr || y < -rr || y > H + rr) return; const col = heat(p.v), g = c.createRadialGradient(x, y, 0, x, y, rr); g.addColorStop(0, rgba(col, 0.6)); g.addColorStop(1, rgba(col, 0)); c.fillStyle = g; c.beginPath(); c.arc(x, y, rr, 0, 7); c.fill(); }); }
+  if (style !== 'dots') { const rr = clamp(16 * sc, 12, 46); loc.forEach((p) => { const [x, y] = tr(p.x, p.y); if (x < -rr || x > Wd + rr || y < -rr || y > H + rr) return; c.drawImage(heatBlob(p.v), x - rr, y - rr, 2 * rr, 2 * rr); }); }
   // track line: thin = older, thick = newest
   const newMs = clamp(st.lastTurn ? st.lastTurn.T * 1000 : 15000, 8000, 25000), ink = css('--ink'), card = css('--card');
   if (cfg.trail !== false && cfg.trail !== 'false' && loc.length > 1) {
