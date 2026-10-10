@@ -84,7 +84,7 @@ function startDemoFlight() {
   try { const igc = demoIGC(); startReplay(igc, 'Demo flight'); }
   catch (e) { toast('Demo flight: ' + e.message); }
 }
-function resetFlightState() { st.log = []; st.thermals = []; st.winds = []; st.takeoffPos = null; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.thermal = null; st.lastTurn = null; st.ld = null; st.circling = false; st.tempPts = []; st.takeoffT = null; st.gpsV = null; st.fix = null; st.baro = null; }
+function resetFlightState() { st.sideAx = null; st.log = []; st.thermals = []; st.winds = []; st.takeoffPos = null; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.thermal = null; st.lastTurn = null; st.ld = null; st.circling = false; st.tempPts = []; st.takeoffT = null; st.gpsV = null; st.fix = null; st.baro = null; }
 function startReplay(igc, name) {
   if (st.sim) stopSim(); stopReplay(true); resetFlightState();
   const pts = igc.pts;

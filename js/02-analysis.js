@@ -32,7 +32,11 @@ function analyse(f) {
     st.lastTurn = { min: Math.min(...rs), max: Math.max(...rs), avg: rAvg, T, tas, pts: pts.map((p) => [p[0] - cx, p[1] - cy]), bankMin: Math.atan(tas * tas / (9.81 * Math.max(...rs))) * R2D, bankMax: Math.atan(tas * tas / (9.81 * Math.max(3, Math.min(...rs)))) * R2D };
   }
   // samples for thermal assistant
-  st.samples.push({ t: now, lat: f.lat, lon: f.lon, v: st.vario, alt: altNow() });
+  // position in the moving air (ax, ay in m), built up step by step with the wind known at that moment:
+  // later wind estimates never reshape the past (the thermal views used to shift with every new wind estimate)
+  { const p = st.samples[st.samples.length - 1], s = { t: now, lat: f.lat, lon: f.lon, v: st.vario, alt: altNow(), ax: 0, ay: 0 };
+    if (p && p.ax != null) { const [dx, dy] = enu(p.lat, p.lon, f.lat, f.lon), dt = (now - p.t) / 1000, w = st.wind || { vx: 0, vy: 0 }; s.ax = p.ax + dx - w.vx * dt; s.ay = p.ay + dy - w.vy * dt; }
+    st.samples.push(s); }
   const cut = now - 600000; while (st.samples.length && st.samples[0].t < cut) st.samples.shift();
   // glide ratio when gliding
   if (!st.circling) { const a = avgVario(20, now); const gs = avgSpd(20, now); if (a != null && a < -0.2 && gs > 3) st.ld = gs / -a; }

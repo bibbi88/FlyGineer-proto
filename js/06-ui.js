@@ -103,11 +103,13 @@ const numOpt = (min, max, step, unit, presets, o) => Object.assign({ num: true, 
 const HIST_O = [30, 60, 120, 180, 300, 'thermal', 'circle'];
 function coreEstimate() {
   const f = st.fix; if (!f) return null; const now = f.t, wv = st.wind || { vx: 0, vy: 0 };
-  const pts = st.samples.filter((s) => s.t > now - 60000).map((s) => { let [x, y] = enu(f.lat, f.lon, s.lat, s.lon); const dt = (now - s.t) / 1000; x += wv.vx * dt; y += wv.vy * dt; return { x, y, v: s.v }; });
+  const ar = airRel(), pts = st.samples.filter((s) => s.t > now - 60000).map((s) => { const [x, y] = ar(s); return { x, y, v: s.v }; });
   const good = pts.filter((p) => p.v > 0.3); if (good.length < 5) return null;
   const mn = Math.min(...pts.map((p) => p.v)); let sw = 0, sx = 0, sy = 0; good.forEach((p) => { const k = (p.v - mn) ** 2; sw += k; sx += p.x * k; sy += p.y * k; }); if (!sw) return null;
   const x = sx / sw, y = sy / sw; return { x, y, d: Math.hypot(x, y), b: wrap360(Math.atan2(x, y) * R2D), v: Math.max(...good.map((p) => p.v)) };
 }
+// where a logged sample is now in the moving air, relative to you (fixed when it was logged, see ax/ay in analyse)
+function airRel() { const me = st.samples[st.samples.length - 1]; return (s) => (me && s.ax != null ? [s.ax - me.ax, s.ay - me.ay] : [0, 0]); }
 const hasRot = () => !!(window.L && L.Map && L.Map.prototype.setBearing);
 const haloText = (c, t, x, y, fill, halo) => { c.save(); c.lineWidth = 3.5; c.strokeStyle = halo; c.lineJoin = 'round'; c.strokeText(t, x, y); c.restore(); c.fillStyle = fill; c.fillText(t, x, y); };
 
@@ -131,7 +133,7 @@ function taDraw(cv, W, el) {
   const now = f.t;
   const tmin = hist === 'thermal' ? (st.thermal ? st.thermal.t0 : now - 120000) : hist === 'circle' ? now - (st.lastTurn ? st.lastTurn.T * 1000 * 1.05 : 25000) : now - hist * 1000;
   const wv = st.wind || { vx: 0, vy: 0 };
-  const loc = st.samples.filter((s) => s.t >= tmin).map((s) => { let [x, y] = enu(f.lat, f.lon, s.lat, s.lon); if (!wantBg) { const dt = (now - s.t) / 1000; x += wv.vx * dt; y += wv.vy * dt; } return { x, y, v: s.v, t: s.t }; });
+  const ar = airRel(), loc = st.samples.filter((s) => s.t >= tmin).map((s) => { let [x, y] = wantBg ? enu(f.lat, f.lon, s.lat, s.lon) : ar(s); return { x, y, v: s.v, t: s.t }; });
   const steps = [40, 60, 100, 150, 250, 400, 700, 1000, 1500, 2500, 4000];
   const maxD = Math.max(30, ...loc.map((p) => Math.hypot(p.x, p.y)));
   const zoom = clamp(+cfg.zoom || 1, 0.25, 8);
@@ -224,10 +226,10 @@ function taDraw(cv, W, el) {
 // view 'along': axis = downwind (you see upwind ← → downwind, i.e. how the thermal leans with the wind)
 // view 'cross': axis = 90° right of downwind (you see the thermal from downwind, left ← → right)
 function sideAxis(view) {
-  const th = st.thermal, w = windFromSpd();
-  // keep the axis of the current thermal fixed, so a changing wind estimate cannot swing the picture around
-  if (th && th.axis == null && w) th.axis = w.to;
-  const base = th && th.axis != null ? th.axis : w ? w.to : null;
+  const th = st.thermal, w = windFromSpd(), live = th && !th.end;
+  // the view only turns when the wind has clearly changed (> 30°) and never during a thermal, so the picture stays put
+  if (w && (st.sideAx == null || (!live && Math.abs(angDiff(st.sideAx, w.to)) > 30))) st.sideAx = w.to;
+  const base = st.sideAx ?? null;
   return { ax: wrap360((base ?? 0) + (view === 'cross' ? 90 : 0)), hasWind: base != null };
 }
 // circle-averaged centres between t0 and t1: averaging over one full turn removes the wobble of circling
@@ -247,7 +249,7 @@ function liftCentres(t0, t1, rel) {
 // a finished thermal keeps its shape (circle centres in the moving air, so the column stands as you climbed it)
 // anchored where you left it over the ground (q.lat/q.lon): it stays at that place in the side views
 function rememberThermal(q) {
-  try { const wv = st.wind || { vx: 0, vy: 0 }; q.cLL = liftCentres(q.t0, q.t1, (s) => { const [x, y] = enu(q.lat, q.lon, s.lat, s.lon), dt = (q.t1 - s.t) / 1000; return [x + wv.vx * dt, y + wv.vy * dt]; }); } catch (e) { q.cLL = []; }
+  try { const e = st.samples.filter((s) => s.t <= q.t1 && s.ax != null).pop(); q.cLL = e ? liftCentres(q.t0, q.t1, (s) => [s.ax - e.ax, s.ay - e.ay]) : []; } catch (e) { q.cLL = []; }
 }
 function leanFit(C) { const n = C.length; if (n < 3) return null; const ma = C.reduce((q, p) => q + p.alt, 0) / n, ms = C.reduce((q, p) => q + p.s, 0) / n; let num = 0, den = 0; C.forEach((p) => { num += (p.alt - ma) * (p.s - ms); den += (p.alt - ma) ** 2; }); return den > 25 && Math.abs(num / den) < 3 ? { k: num / den, at: (a) => ms + (num / den) * (a - ma) } : null; }
 function steadyRange(cv, key, lo, hi) { const r = cv._rng || (cv._rng = {}); let [a, b] = r[key] || [lo, hi]; a = lo < a ? lo : a + (lo - a) * 0.08; b = hi > b ? hi : b + (hi - b) * 0.08; r[key] = [a, b]; return [a, b]; }
@@ -260,7 +262,7 @@ function sideDraw(cv, W) {
   const proj = (x, y) => x * ux + y * uy, wv = st.wind || { vx: 0, vy: 0 };
   // positions relative to you (you are at 0), in the moving air like the thermal assistant: older points move on with the wind,
   // so a column shows its real lean in the air instead of your drift
-  const rel = (s) => { const [x, y] = enu(f.lat, f.lon, s.lat, s.lon), dt = (now - s.t) / 1000; return [x + wv.vx * dt, y + wv.vy * dt]; };
+  const rel = airRel();
   const P = st.samples.filter((s) => s.t >= now - hist && s.alt != null).map((s) => { const [x, y] = rel(s); return { t: s.t, s: proj(x, y), alt: s.alt, v: s.v }; });
   // lifting sections: the current thermal and earlier ones still inside the history window
   const r0 = clamp(st.lastTurn ? st.lastTurn.avg : 40, 20, 90), cols = [];
@@ -342,7 +344,7 @@ function t3dDraw(cv, W, el) {
   if (cl._h !== ctlL) { cl.innerHTML = ctlL; cl._h = ctlL; } if (cr._h !== ctlR) { cr.innerHTML = ctlR; cr._h = ctlR; }
   if (!f || alt == null) { c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('Waiting for GPS…', Wd / 2, H / 2); el._sub = ''; return; }
   const now = f.t, hist = clamp(+C.hist || 300, 30, 600) * 1000, wv = st.wind || { vx: 0, vy: 0 }, w = windFromSpd();
-  const rel = (s) => { const [x, y] = enu(f.lat, f.lon, s.lat, s.lon), dt = (now - s.t) / 1000; return [x + wv.vx * dt, y + wv.vy * dt]; };
+  const rel = airRel();
   const P = st.samples.filter((s) => s.t >= now - hist && s.alt != null).map((s) => { const [x, y] = rel(s); return { t: s.t, x, y, z: s.alt, v: s.v }; });
   const r0 = clamp(st.lastTurn ? st.lastTurn.avg : 40, 20, 90), th = st.thermal, cols = [];
   st.thermals.filter((q) => q.t1 > now - hist && !(th && q.t0 === th.t0)).forEach((q) => { const L = liftCentres(Math.max(q.t0, now - hist), q.t1, rel); if (L.length > 1) cols.push({ C: L, cur: false }); });
@@ -416,10 +418,10 @@ function layerDraw(cv, W, el) {
   if (cl._h !== ctlL) { cl.innerHTML = ctlL; cl._h = ctlL; } if (cr._h !== ctlR) { cr.innerHTML = ctlR; cr._h = ctlR; }
   const cx = Wd / 2, cy = H / 2, R = Math.max(30, Math.min(Wd, H) / 2 - 12);
   if (!f || alt == null) { el._sub = ''; c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('Waiting for GPS…', cx, cy); return; }
-  const now = f.t, wv = st.wind || { vx: 0, vy: 0 }, lo = alt - depth, hi = alt + above, air = cfg.frame !== 'ground';
+  const now = f.t, wv = st.wind || { vx: 0, vy: 0 }, lo = alt - depth, hi = alt + above, air = cfg.frame !== 'ground', ar = airRel();
   el._sub = `${fAlt(lo)}–${fAlt(hi)} ${S.uAlt === 'ft' ? 'ft' : 'm'} · ${upName} up${air ? '' : ' · ground'}`;
   const pts = st.samples.filter((s) => s.t >= now - hist && s.alt != null && s.alt >= lo && s.alt <= hi && now - s.t > 1500)
-    .map((s) => { const [x, y] = enu(f.lat, f.lon, s.lat, s.lon), dt = air ? (now - s.t) / 1000 : 0; return { x: x + wv.vx * dt, y: y + wv.vy * dt, v: s.v, dz: alt - s.alt, t: s.t }; });
+    .map((s) => { const [x, y] = air ? ar(s) : enu(f.lat, f.lon, s.lat, s.lon); return { x, y, v: s.v, dz: alt - s.alt, t: s.t }; });
   const sc = R / clamp(+cfg.range || 200, 30, 5000) * clamp(+cfg.zoom || 1, 0.25, 8), Rm = R / sc;
   const a = up * D2R, ca = Math.cos(a), sa = Math.sin(a), tr = (x, y) => [cx + (x * ca - y * sa) * sc, cy - (x * sa + y * ca) * sc];
   const ink = css('--ink'), card = css('--card'), muted = css('--muted');
@@ -846,7 +848,7 @@ let pageRaf = 0;
 function showPage(id) {
   if (!st.autoNav) st.autoSwitched = false;
   setNav(false); if (wEdit) exitEdit();
-  curPage = id; document.querySelectorAll('.page').forEach((p) => p.classList.toggle('on', p.id === id));
+  curPage = id; document.body.dataset.page = id; document.querySelectorAll('.page').forEach((p) => p.classList.toggle('on', p.id === id));
   document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-current', t.dataset.page === id ? 'page' : 'false'));
   $('setBtn').setAttribute('aria-current', id === 'pSet' ? 'page' : 'false');
   // draw the new page once, right after the switch has been painted, so the tap answers at once
