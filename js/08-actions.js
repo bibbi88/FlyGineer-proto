@@ -40,7 +40,7 @@ function handleTap(W) {
 }
 const GROUP = { vario: 'vario', avg: 'vario', varioDial: 'vario', thermal: 'vario', gain: 'vario', ttime: 'vario', climb: 'vario', ta: 'vario',
   alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', dist: 'task',
-  wind: 'wind', flight: 'flight', place: 'place', air: 'air', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', t3d: 'vario', tlayer: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
+  wind: 'wind', flight: 'flight', place: 'place', air: 'air', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
 function closeDetails() { clearInterval(detT); detT = null; detState = null; $('dlg').style.display = 'none'; }
 function openDetails(W, range) {
   detState = { W, range: range ?? detState?.range ?? 600 };

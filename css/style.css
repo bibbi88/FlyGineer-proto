@@ -143,6 +143,7 @@ body.wedit #wBanner{display:flex}
 #wSheet .opt{display:flex;flex-direction:column;gap:6px}
 #wSheet .opt .row{flex-wrap:wrap}
 #wSheet input[type=text],#wSheet select{height:48px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);width:100%}
+.wcbl{display:block;text-align:center;font-size:12px;font-weight:700;color:var(--muted);background:var(--card);border-radius:6px;padding:1px 4px}
 .addH{margin:6px 0 0;font-size:15px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .newTag{float:right;margin-left:6px;padding:1px 7px;border-radius:8px;background:var(--climb);color:#fff;font-size:11px;font-weight:700}
 .addGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
