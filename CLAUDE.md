@@ -22,6 +22,7 @@ Tablet-first (8", landscape) paragliding flight instrument that runs in the brow
   9. `09-main.js` main loop, `boot()`
   10. `10-offline.js` service worker registration, "new version" banner, storage persistence, Settings → App & offline maps
 - `sw.js` – service worker: app files cached per `VERSION`, Leaflet/fonts cached, map tiles cached as viewed (cache first, max `MAX_TILES`, oldest out first; fetched with CORS so the quota counts real sizes). Weather, airspace, traffic etc. are never cached.
+- `preview.html` – desk preview: the app in an iframe inside an 8" tablet frame (Galaxy Tab A 8.0 presets 962×601 and 1280×800, custom size, portrait, fit / 100 % / real size). Not part of the app; the service worker only serves the stored app page for `/` and `index.html`, other pages come from the network.
 - `manifest.webmanifest`, `icons/` – installable app (full screen, landscape).
 
 ## Releasing a change (PWA)

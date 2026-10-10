@@ -4,7 +4,7 @@
      otherwise installed apps keep running the old copy. A new version waits until the
      user taps "Reload" in the update banner (never reloads by itself mid-flight).
    - Map tiles are kept as they are viewed (cache first), up to MAX_TILES, oldest out first. */
-const VERSION = '2026.10.08-11';
+const VERSION = '2026.10.10-1';
 const APP = 'app-' + VERSION, LIBS = 'libs-v1', TILES = 'tiles-v1', MAX_TILES = 15000;
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/style.css', 'data/demo-flight.js',
   'js/01-core.js', 'js/02-analysis.js', 'js/03-replay.js', 'js/04-map.js', 'js/05-data-sources.js',
@@ -49,7 +49,9 @@ self.addEventListener('fetch', (e) => {
 
 async function appFile(q) {
   const c = await caches.open(APP);
-  const hit = q.mode === 'navigate' ? await c.match('index.html') : await c.match(q, { ignoreSearch: true });
+  // only the app's own address gets the stored app page; other pages (e.g. preview.html) come from the network
+  const p = new URL(q.url).pathname, isApp = /\/(index\.html)?$/.test(p);
+  const hit = q.mode === 'navigate' ? (isApp ? await c.match('index.html') : await c.match(q, { ignoreSearch: true })) : await c.match(q, { ignoreSearch: true });
   return hit || fetch(q);
 }
 async function lib(q) {
