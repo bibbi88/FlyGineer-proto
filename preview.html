@@ -32,8 +32,9 @@
   <b>FlyGineer · tablet preview</b>
   <label>Device
     <select id="preset">
-      <option value="962x601">Galaxy Tab A 8.0 · Chrome 962 × 601 (scaled 1.33)</option>
-      <option value="1280x800">Galaxy Tab A 8.0 · 1280 × 800 (no scaling)</option>
+      <option value="1340x800x8.7">My tablet · 1340 × 800 (Galaxy Tab A9 8.7″)</option>
+      <option value="1280x800x8">Galaxy Tab A 8.0 · 1280 × 800</option>
+      <option value="962x601x8">Galaxy Tab A 8.0 · 962 × 601 (Chrome scaled 1.33)</option>
       <option value="custom">Custom…</option>
     </select>
   </label>
@@ -44,7 +45,7 @@
     <select id="zoom">
       <option value="fit">Fit window</option>
       <option value="1">100 % (1 CSS px = 1 px)</option>
-      <option value="real">Real 8″ size (approx.)</option>
+      <option value="real">Real size (approx.)</option>
     </select>
   </label>
   <label>Page <input type="text" id="url" value="index.html?demo"></label>
@@ -55,13 +56,13 @@
 <div id="info"></div>
 <script>
 'use strict';
-// The screen of an 8" 16:10 tablet is 172 x 108 mm. The page inside sees the CSS size below (Chrome on Android scales
-// the 1280 x 800 pixels by the device's pixel ratio). Open this page on the tablet itself to read its real CSS size.
+// Presets are WxHxDiagonal(inch). The owner's tablet reports 1340 x 800 (Galaxy Tab A9, 8.7"). Chrome may scale the
+// pixels by the device's pixel ratio; open this page on the tablet itself to read the CSS size the app really gets.
 const $ = (id) => document.getElementById(id);
-const DIAG_IN = 8, BEZEL_MM = 9;
+const BEZEL_MM = 9; let DIAG_IN = 8.7;
 let portrait = false;
-try { const s = JSON.parse(localStorage.getItem('fg.preview') || '{}'); if (s.preset) $('preset').value = s.preset; if (s.w) $('w').value = s.w; if (s.h) $('h').value = s.h; if (s.zoom) $('zoom').value = s.zoom; if (s.url) $('url').value = s.url; portrait = !!s.portrait; } catch (e) {}
-function dims() { if ($('preset').value !== 'custom') { const [w, h] = $('preset').value.split('x').map(Number); $('w').value = w; $('h').value = h; } let w = +$('w').value || 962, h = +$('h').value || 601; if (w < h) [w, h] = [h, w]; return portrait ? [h, w] : [w, h]; }
+try { const s = JSON.parse(localStorage.getItem('fg.preview2') || '{}'); if (s.preset) $('preset').value = s.preset; if (s.w) $('w').value = s.w; if (s.h) $('h').value = s.h; if (s.zoom) $('zoom').value = s.zoom; if (s.url) $('url').value = s.url; portrait = !!s.portrait; } catch (e) {}
+function dims() { if ($('preset').value !== 'custom') { const [w, h, dg] = $('preset').value.split('x').map(Number); $('w').value = w; $('h').value = h; DIAG_IN = dg || 8.7; } let w = +$('w').value || 1340, h = +$('h').value || 800; if (w < h) [w, h] = [h, w]; return portrait ? [h, w] : [w, h]; }
 function layout() {
   const [w, h] = dims(), f = $('app'), d = $('device');
   f.style.width = w + 'px'; f.style.height = h + 'px';
@@ -78,7 +79,7 @@ function layout() {
   d.style.transform = `scale(${k})`; $('wrap').style.width = fw * k + 'px'; $('wrap').style.height = fh * k + 'px';
   $('rot').textContent = portrait ? '⟲ Landscape' : '⟲ Portrait';
   $('info').textContent = `Screen ${w} × ${h} CSS px · ${(DIAG_IN * 25.4 * w / Math.hypot(w, h)).toFixed(0)} × ${(DIAG_IN * 25.4 * h / Math.hypot(w, h)).toFixed(0)} mm · shown at ${Math.round(k * 100)} %` + (z === 'real' ? ' (real size assumes 96 px per inch on this monitor; hold a ruler to check)' : '') + '. The app inside is the live page; settings and layouts are shared with the app opened normally in this browser.';
-  try { localStorage.setItem('fg.preview', JSON.stringify({ preset: $('preset').value, w: $('w').value, h: $('h').value, zoom: z, url: $('url').value, portrait })); } catch (e) {}
+  try { localStorage.setItem('fg.preview2', JSON.stringify({ preset: $('preset').value, w: $('w').value, h: $('h').value, zoom: z, url: $('url').value, portrait })); } catch (e) {}
 }
 function load() { $('app').src = $('url').value || 'index.html?demo'; }
 $('preset').onchange = layout; $('zoom').onchange = layout;
