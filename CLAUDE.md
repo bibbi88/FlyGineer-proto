@@ -1,6 +1,6 @@
 # FlyGineer-proto – working notes for Claude
 
-Tablet-first (8", landscape) paragliding flight instrument that runs in the browser, a self-made XCTrack-like app for the owner's **Bora_vario** Bluetooth variometer (https://github.com/bibbi88/Bora_vario). No build step, no framework: plain HTML/CSS/JS, deployed as static files (GitHub Pages, https required for Bluetooth and GPS). Tested on an Android tablet in Chrome.
+Tablet-first (Samsung Galaxy Tab A9, 8.7", 1340 × 800, landscape) paragliding flight instrument that runs in the browser, a self-made XCTrack-like app for the owner's **Bora_vario** Bluetooth variometer (https://github.com/bibbi88/Bora_vario). No build step, no framework: plain HTML/CSS/JS, deployed as static files (GitHub Pages, https required for Bluetooth and GPS). Tested on an Android tablet in Chrome.
 
 ## Branch rules
 - Work on **`dev`**. Commit and push there.
