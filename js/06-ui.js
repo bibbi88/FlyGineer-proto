@@ -261,8 +261,10 @@ function sideDraw(cv, W, el) {
   if (el) { const cr = el.querySelector('.wctl.r'), xr = clamp(+W.cfg.range || 300, 50, 5000), h = `<span class="wcbl">±${xr >= 1000 ? (xr / 1000).toFixed(1) + ' km' : xr + ' m'}</span><button class="wcb" data-act="xin" aria-label="Narrower: show less to the sides">↔+</button><button class="wcb" data-act="xout" aria-label="Wider: show more to the sides">↔−</button>`; if (cr && cr._h !== h) { cr.innerHTML = h; cr._h = h; } }
   const view = W.type === 'tcross' ? 'cross' : W.type === 'thead' ? 'head' : 'along', hist = clamp(+W.cfg.hist || (view === 'head' ? 600 : 180), 30, 600) * 1000;
   if (!f || alt == null) { c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('Waiting for GPS…', Wd / 2, H / 2); return; }
-  // heading view: looks the way you fly; while circling it keeps the heading you had when you started, so it does not spin
-  let hd = 0; if (view === 'head') { const tk = f.trk ?? cv._hd ?? 0; hd = cv._hd == null || st.circling ? (cv._hd ?? tk) : wrap360(cv._hd + angDiff(cv._hd, tk) * 0.5); cv._hd = hd; }
+  // heading view: always looks the way you fly now (lightly smoothed), so you can steer a remembered thermal into the middle;
+  // option "Hold while circling" keeps the heading you had when you started circling
+  const hold = W.cfg.hold === true || W.cfg.hold === 'true';
+  let hd = 0; if (view === 'head') { const tk = f.trk ?? cv._hd ?? 0; hd = cv._hd == null ? tk : hold && st.circling ? cv._hd : wrap360(cv._hd + angDiff(cv._hd, tk) * 0.7); cv._hd = hd; }
   const ahead = clamp(+W.cfg.ahead || 1000, 100, 5000), fx = Math.sin(hd * D2R), fy = Math.cos(hd * D2R), fwd = (x, y) => x * fx + y * fy;
   const { ax, hasWind } = view === 'head' ? { ax: wrap360(hd + 90), hasWind: true } : sideAxis(view), ux = Math.sin(ax * D2R), uy = Math.cos(ax * D2R), now = f.t, th = st.thermal;
   if (cv._ax !== ax) { cv._rng = null; cv._ax = ax; }
@@ -335,7 +337,7 @@ function sideDraw(cv, W, el) {
   else { c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(gx + 11 * sgn, gy); c.lineTo(gx - 11 * sgn, gy + 5); c.lineTo(gx - 11 * sgn, gy - 5); c.closePath(); c.fill(); c.stroke(); }
   // labels
   c.textAlign = 'left'; c.font = '700 12px Barlow';
-  const head = cur ? (lean ? `leans ${Math.round(Math.abs(lean.k) * 100)} m/100 m ${view === 'along' ? (lean.k >= 0 ? 'downwind' : 'upwind') : (lean.k >= 0 ? 'right' : 'left')}` : 'thermal · first circles…') : view === 'head' ? `heading ${pad3(hd)}° · ${ahead >= 1000 ? (ahead / 1000).toFixed(1) + ' km' : ahead + ' m'} ahead${st.circling ? ' · held' : ''}` : hasWind ? `last ${Math.round(hist / 60000)} min` : 'no wind yet · north–south';
+  const head = cur ? (lean ? `leans ${Math.round(Math.abs(lean.k) * 100)} m/100 m ${view === 'along' ? (lean.k >= 0 ? 'downwind' : 'upwind') : (lean.k >= 0 ? 'right' : 'left')}` : 'thermal · first circles…') : view === 'head' ? `heading ${pad3(hd)}° · ${ahead >= 1000 ? (ahead / 1000).toFixed(1) + ' km' : ahead + ' m'} ahead${hold && st.circling ? ' · held' : ''}` : hasWind ? `last ${Math.round(hist / 60000)} min` : 'no wind yet · north–south';
   haloText(c, head, L0 + 2, 12, ink, card);
   c.font = '11px Barlow'; c.fillStyle = muted;
   const lt = !hasWind ? (view === 'along' ? 'S' : 'W') : view === 'along' ? 'upwind' : 'left', rt = !hasWind ? (view === 'along' ? 'N' : 'E') : view === 'along' ? 'downwind' : 'right';
