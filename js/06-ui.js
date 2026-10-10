@@ -122,9 +122,10 @@ function taDraw(cv, W, el) {
   const style = cfg.style || 'trail', trailSt = style === 'trail' || style === 'trailonly';
   const wantBg = (cfg.bgMap === true || cfg.bgMap === 'true') && hasRot();
   let up = 0, upName = 'north';
-  if (orient === 'wind' && w) { up = w.from; upName = 'wind'; } else if (orient === 'track' && f && f.trk != null) { up = f.trk; upName = 'track'; }
-  el._sub = upName + ' up · ' + histN(hist) + (orient === 'wind' && !w ? ' · no wind yet' : '');
-  const ctlL = `<button class="wcb" data-act="orient" aria-label="Up is ${orient}">${orient === 'wind' ? 'W↑' : orient === 'track' ? 'T↑' : 'N↑'}</button><button class="wcb" data-act="hist" aria-label="History ${histN(hist)}">${histL(hist)}</button><button class="wcb" data-act="bg" aria-pressed="${wantBg}" aria-label="Map behind">Map</button>`;
+  // wind up: the wind comes from the top (upwind is up); wind down: the wind comes from the bottom (upwind is down, downwind ahead)
+  if (orient === 'wind' && w) { up = w.from; upName = 'wind'; } else if (orient === 'winddown' && w) { up = w.to; upName = 'wind down'; } else if (orient === 'track' && f && f.trk != null) { up = f.trk; upName = 'track'; }
+  el._sub = (upName === 'wind down' ? upName : upName + ' up') + ' · ' + histN(hist) + ((orient === 'wind' || orient === 'winddown') && !w ? ' · no wind yet' : '');
+  const ctlL = `<button class="wcb" data-act="orient" aria-label="Up is ${orient}">${orient === 'wind' ? 'W↑' : orient === 'winddown' ? 'W↓' : orient === 'track' ? 'T↑' : 'N↑'}</button><button class="wcb" data-act="hist" aria-label="History ${histN(hist)}">${histL(hist)}</button><button class="wcb" data-act="bg" aria-pressed="${wantBg}" aria-label="Map behind">Map</button>`;
   const ctlR = '<button class="wcb" data-act="zin" aria-label="Zoom in">+</button><button class="wcb" data-act="zout" aria-label="Zoom out">−</button><button class="wcb" data-act="zfit" aria-label="Fit">Fit</button>';
   const cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
   if (cl._h !== ctlL) { cl.innerHTML = ctlL; cl._h = ctlL; } if (cr._h !== ctlR) { cr.innerHTML = ctlR; cr._h = ctlR; }
@@ -250,8 +251,9 @@ function liftCentres(t0, t1, rel) {
 // anchored where you left it over the ground (q.lat/q.lon): it stays at that place in the side views
 function rememberThermal(q) {
   try { const e = st.samples.filter((s) => s.t <= q.t1 && s.ax != null).pop(); q.cLL = e ? liftCentres(q.t0, q.t1, (s) => [s.ax - e.ax, s.ay - e.ay]) : []; } catch (e) { q.cLL = []; }
+  try { q.cG = liftCentres(q.t0, q.t1, (s) => enu(q.lat, q.lon, s.lat, s.lon)); } catch (e) { q.cG = []; }
 }
-function leanFit(C) { const n = C.length; if (n < 3) return null; const ma = C.reduce((q, p) => q + p.alt, 0) / n, ms = C.reduce((q, p) => q + p.s, 0) / n; let num = 0, den = 0; C.forEach((p) => { num += (p.alt - ma) * (p.s - ms); den += (p.alt - ma) ** 2; }); return den > 25 && Math.abs(num / den) < 3 ? { k: num / den, at: (a) => ms + (num / den) * (a - ma) } : null; }
+function leanFit(C, maxK = 3) { const n = C.length; if (n < 3) return null; const ma = C.reduce((q, p) => q + p.alt, 0) / n, ms = C.reduce((q, p) => q + p.s, 0) / n; let num = 0, den = 0; C.forEach((p) => { num += (p.alt - ma) * (p.s - ms); den += (p.alt - ma) ** 2; }); return den > 25 && Math.abs(num / den) < maxK ? { k: num / den, at: (a) => ms + (num / den) * (a - ma) } : null; }
 function steadyRange(cv, key, lo, hi) { const r = cv._rng || (cv._rng = {}); let [a, b] = r[key] || [lo, hi]; a = lo < a ? lo : a + (lo - a) * 0.08; b = hi > b ? hi : b + (hi - b) * 0.08; r[key] = [a, b]; return [a, b]; }
 function sideDraw(cv, W) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const f = st.fix, alt = altNow();
@@ -262,17 +264,18 @@ function sideDraw(cv, W) {
   const proj = (x, y) => x * ux + y * uy, wv = st.wind || { vx: 0, vy: 0 };
   // positions relative to you (you are at 0), in the moving air like the thermal assistant: older points move on with the wind,
   // so a column shows its real lean in the air instead of your drift
-  const rel = airRel();
+  // positions over the ground by default (where you really were); option: in the moving air
+  const air = W.cfg.frame === 'air', rel = air ? airRel() : (s) => enu(f.lat, f.lon, s.lat, s.lon);
   const P = st.samples.filter((s) => s.t >= now - hist && s.alt != null).map((s) => { const [x, y] = rel(s); return { t: s.t, s: proj(x, y), alt: s.alt, v: s.v }; });
   // lifting sections: the current thermal and earlier ones still inside the history window
   const r0 = clamp(st.lastTurn ? st.lastTurn.avg : 40, 20, 90), cols = [];
   // finished thermals stay for `keep` minutes, pinned where they were over the ground (thermals stay over their source)
   const keep = clamp(+W.cfg.keep || 5, 1, 30) * 60000, ext = clamp(W.cfg.ext == null || W.cfg.ext === '' ? 200 : +W.cfg.ext, 0, 1000), live = th && !th.end;
   st.thermals.filter((q) => q.t1 > now - keep && q.avg > 0.2 && !(live && q.t0 === th.t0)).forEach((q) => {
-    if (!q.cLL) rememberThermal(q); if (!q.cLL || q.cLL.length < 2) return;
-    const [ax0, ay0] = enu(f.lat, f.lon, q.lat, q.lon), C = q.cLL.map((p) => ({ x: ax0 + p.x, y: ay0 + p.y, alt: p.alt, v: p.v, t: p.t })); cols.push({ C, cur: false, mem: true, q, t0: q.t0, t1: q.t1 }); });
+    if (!q.cLL || !q.cG) rememberThermal(q); const cc = air ? q.cLL : q.cG; if (!cc || cc.length < 2) return;
+    const [ax0, ay0] = enu(f.lat, f.lon, q.lat, q.lon), C = cc.map((p) => ({ x: ax0 + p.x, y: ay0 + p.y, alt: p.alt, v: p.v, t: p.t })); cols.push({ C, cur: false, mem: true, q, t0: q.t0, t1: q.t1 }); });
   if (live) { const C = liftCentres(th.t0, now, rel); if (C.length) cols.push({ C, cur: true, t0: th.t0, t1: now }); }
-  cols.forEach((col) => { col.C.forEach((p) => (p.s = proj(p.x, p.y))); col.lean = leanFit(col.C); });
+  cols.forEach((col) => { col.C.forEach((p) => (p.s = proj(p.x, p.y))); col.lean = leanFit(col.C, air ? 3 : 25); }); // over the ground the drift makes a thermal lean several metres per metre
   // the current column's lean: least squares of position against height
   let lean = null; const cur = cols.find((q) => q.cur);
   if (cur && cur.C.length >= 4) lean = cur.lean;
@@ -295,7 +298,7 @@ function sideDraw(cv, W) {
     const fade = mem ? 1 - 0.6 * (now - q.t1) / keep : 1, wa0 = Math.max(9, r0 * mpx), topP = C.reduce((m, p) => (p.alt > m.alt ? p : m), C[0]);
     if (mem) {
       const sMid = C.reduce((m, p) => m + p.s, 0) / C.length;
-      if (Math.abs(sMid) > sr * 0.97) { // off to the side: a marker at the edge with direction, distance and climb
+      if (C.every((p) => Math.abs(p.s) > sr + wa0 / mpx)) { // the whole column is outside the view // off to the side: a marker at the edge with direction, distance and climb
         const right = sMid > 0, xe = right ? Wd - 6 : L0 + 2, ye = clamp(Y((topP.alt + C[0].alt) / 2), 30, H - 40), d = Math.hypot(topP.x, topP.y);
         c.fillStyle = rgba(heat(q.avg), 1); c.strokeStyle = ink; c.lineWidth = 1.5; c.beginPath(); c.moveTo(xe, ye); c.lineTo(xe + (right ? -12 : 12), ye - 8); c.lineTo(xe + (right ? -12 : 12), ye + 8); c.closePath(); c.fill(); c.stroke();
         c.font = '700 11px Barlow'; c.textAlign = right ? 'right' : 'left'; haloText(c, `${fVario(q.avg)} · ${d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m'}`, xe + (right ? -16 : 16), ye + 4, ink, card);
@@ -411,7 +414,7 @@ const DEPTH_O = [50, 100, 200, 300];
 function layerDraw(cv, W, el) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const cfg = W.cfg, f = st.fix, alt = altNow(), w = windFromSpd(), dark = document.body.classList.contains('dark');
   const orient = cfg.orient || 'wind', depth = clamp(+cfg.depth || 100, 20, 1000), above = clamp(+cfg.above || 0, 0, 500), hist = clamp(+cfg.hist || 600, 30, 600) * 1000;
-  let up = 0, upName = 'north'; if (orient === 'wind' && w) { up = w.from; upName = 'wind'; } else if (orient === 'track' && f && f.trk != null) { up = f.trk; upName = 'track'; }
+  let up = 0, upName = 'north'; if (orient === 'wind' && w) { up = w.from; upName = 'wind'; } else if (orient === 'winddown' && w) { up = w.to; upName = 'wind down'; } else if (orient === 'track' && f && f.trk != null) { up = f.trk; upName = 'track'; }
   const ctlL = `<button class="wcb wide" data-act="depth" aria-label="Layer depth ${depth} m. Tap to change">${depth} m</button>`;
   const ctlR = '<button class="wcb" data-act="zin" aria-label="Zoom in">+</button><button class="wcb" data-act="zout" aria-label="Zoom out">−</button>';
   const cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
@@ -419,7 +422,7 @@ function layerDraw(cv, W, el) {
   const cx = Wd / 2, cy = H / 2, R = Math.max(30, Math.min(Wd, H) / 2 - 12);
   if (!f || alt == null) { el._sub = ''; c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('Waiting for GPS…', cx, cy); return; }
   const now = f.t, wv = st.wind || { vx: 0, vy: 0 }, lo = alt - depth, hi = alt + above, air = cfg.frame !== 'ground', ar = airRel();
-  el._sub = `${fAlt(lo)}–${fAlt(hi)} ${S.uAlt === 'ft' ? 'ft' : 'm'} · ${upName} up${air ? '' : ' · ground'}`;
+  el._sub = `${fAlt(lo)}–${fAlt(hi)} ${S.uAlt === 'ft' ? 'ft' : 'm'} · ${upName === 'wind down' ? upName : upName + ' up'}${air ? '' : ' · ground'}`;
   const pts = st.samples.filter((s) => s.t >= now - hist && s.alt != null && s.alt >= lo && s.alt <= hi && now - s.t > 1500)
     .map((s) => { const [x, y] = air ? ar(s) : enu(f.lat, f.lon, s.lat, s.lon); return { x, y, v: s.v, dz: alt - s.alt, t: s.t }; });
   const sc = R / clamp(+cfg.range || 200, 30, 5000) * clamp(+cfg.zoom || 1, 0.25, 8), Rm = R / sc;
@@ -649,7 +652,7 @@ function widgetAct(W, act) {
   const i = act.indexOf(':'), a = i < 0 ? act : act.slice(0, i), arg = i < 0 ? '' : act.slice(i + 1);
   const C = effCfg(W), D = cfgW(W), I = W.type === 'map' ? instOf(W) : null;
   switch (a) {
-    case 'orient': { const o = ['wind', 'north', 'track'], cur = C.orient || S.taOrient || 'wind'; D.orient = o[(o.indexOf(cur) + 1) % 3]; break; }
+    case 'orient': { const o = ['wind', 'winddown', 'north', 'track'], cur = C.orient || S.taOrient || 'wind'; D.orient = o[(o.indexOf(cur) + 1) % o.length]; break; }
     case 'hist': { const cur = C.hist === 'thermal' || C.hist === 'circle' ? C.hist : +(C.hist ?? 120); D.hist = typeof cur === 'number' && HIST_O.indexOf(cur) < 0 ? (HIST_O.find((p) => typeof p === 'number' && p > cur) ?? HIST_O[0]) : HIST_O[(HIST_O.indexOf(cur) + 1) % HIST_O.length]; break; }
     case 'bg': if (!hasRot()) { toast('The map rotation library did not load'); return; } D.bgMap = !(C.bgMap === true || C.bgMap === 'true'); break;
     case 'zin': D.zoom = clamp((+C.zoom || 1) * 1.4, 0.25, 8); break;
@@ -736,7 +739,7 @@ function renderSettings() {
   if (setSec === 'units') h = `<div class="card sec"><h2>Units & glide</h2>${seg('uVario', [['m/s', 'm/s'], ['kt', 'kt'], ['fpm', 'ft/min']], 'Vario')}${seg('uAlt', [['m', 'm'], ['ft', 'ft']], 'Altitude')}${seg('uSpd', [['km/h', 'km/h'], ['kt', 'kt']], 'Speed')}
     <div class="field"><label for="wingLD">Wing glide ratio (empty dot)</label><input type="number" id="wingLD" value="${S.wingLD}" step="0.1" min="3" max="20"></div>
     <div class="field"><label for="safety">Arrival safety height (m)</label><input type="number" id="safety" value="${S.safety}" step="10"></div>
-    ${seg('rotDefault', [['north', 'North up'], ['track', 'Track up'], ['bearing', 'Bearing up']], 'New map widgets start in')}${seg('taOrient', [['wind', 'Wind up'], ['north', 'North up']], 'Thermal assistant')}</div>`;
+    ${seg('rotDefault', [['north', 'North up'], ['track', 'Track up'], ['bearing', 'Bearing up']], 'New map widgets start in')}${seg('taOrient', [['wind', 'Wind up'], ['winddown', 'Wind down'], ['north', 'North up']], 'Thermal assistant')}</div>`;
   if (setSec === 'air') h = `<div class="card sec"><h2>Airspace data</h2>
     <div class="field"><label for="oaKey">OpenAIP API key</label><input type="password" id="oaKey" value="${esc(S.openaipKey)}" placeholder="from openaip.net → API clients"></div>
     <div class="field"><span class="k"></span><button class="btn primary" id="oaLoad">Load airspace around me</button></div>
