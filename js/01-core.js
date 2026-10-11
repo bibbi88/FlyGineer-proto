@@ -28,7 +28,8 @@ let S = Object.assign({}, DEF, JSON.parse(localStorage.getItem('bora.settings') 
 function save() { localStorage.setItem('bora.settings', JSON.stringify(S)); }
 const fVario = (ms) => ms == null || isNaN(ms) ? '--' : (S.uVario === 'kt' ? (ms * 1.94384).toFixed(1) : S.uVario === 'fpm' ? Math.round(ms * 196.85 / 10) * 10 : ms.toFixed(1)).toString().replace(/^(?!-)/, ms >= 0 ? '+' : '');
 const fAlt = (m) => m == null || isNaN(m) ? '--' : String(Math.round(S.uAlt === 'ft' ? m * 3.28084 : m));
-const fSpd = (ms) => ms == null || isNaN(ms) ? '--' : String(Math.round(S.uSpd === 'kt' ? ms * 1.94384 : ms * 3.6));
+const spdK = () => (S.uSpd === 'kt' ? 1.94384 : S.uSpd === 'm/s' ? 1 : 3.6); // m/s -> display unit
+const fSpd = (ms) => ms == null || isNaN(ms) ? '--' : S.uSpd === 'm/s' ? (ms).toFixed(1) : String(Math.round(ms * spdK()));
 const fDist = (m) => m == null ? '--' : m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' km';
 const uV = () => S.uVario === 'fpm' ? 'ft/min' : S.uVario;
 

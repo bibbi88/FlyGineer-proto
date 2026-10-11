@@ -206,7 +206,7 @@ function taDraw(cv, W, el) {
     const p1 = tr(Math.sin(w.from * D2R) * Rm * 0.97, Math.cos(w.from * D2R) * Rm * 0.97), p2 = tr(Math.sin(w.from * D2R) * Rm * 0.76, Math.cos(w.from * D2R) * Rm * 0.76), ang = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
     const arrow = (col, lw) => { c.strokeStyle = col; c.fillStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]); c.stroke(); c.beginPath(); c.moveTo(p2[0] + 4 * Math.cos(ang), p2[1] + 4 * Math.sin(ang)); c.lineTo(p2[0] - 11 * Math.cos(ang - 0.5), p2[1] - 11 * Math.sin(ang - 0.5)); c.lineTo(p2[0] - 11 * Math.cos(ang + 0.5), p2[1] - 11 * Math.sin(ang + 0.5)); c.closePath(); c.fill(); };
     arrow(card, 7); arrow(css('--sink'), 3.5);
-    const wtxt = withU('uSpd', cfg.units || '', () => fSpd(w.spd) + ' ' + S.uSpd);
+    const wtxt = cfg.units === 'kmh+ms' ? withU('uSpd', 'km/h', () => fSpd(w.spd)) + ' km/h · ' + withU('uSpd', 'm/s', () => fSpd(w.spd)) + ' m/s' : withU('uSpd', cfg.units || '', () => fSpd(w.spd) + ' ' + S.uSpd);
     const mx = (p1[0] + p2[0]) / 2, my = (p1[1] + p2[1]) / 2, nx = -(p2[1] - p1[1]), ny = p2[0] - p1[0], nl = Math.hypot(nx, ny) || 1;
     c.font = '700 14px Barlow'; c.textAlign = 'center'; const tw = c.measureText(wtxt).width / 2 + 8;
     let best = null; [1, -1].forEach((sg) => { const lx = mx + sg * nx / nl * (tw + 10), ly = my + sg * ny / nl * (tw + 10) * 0.35; const ok = lx - tw > 2 && lx + tw < Wd - 2 && ly > 16 && ly < H - 6; if (ok && !best) best = [lx, ly]; });
@@ -417,7 +417,7 @@ function t3dDraw(cv, W, el) {
   if (w) { const a0 = pr(-Rl * 0.75 * Math.sin(w.to * D2R), -Rl * 0.75 * Math.cos(w.to * D2R), zHi), a1 = pr(-Rl * 0.25 * Math.sin(w.to * D2R), -Rl * 0.25 * Math.cos(w.to * D2R), zHi), ang = Math.atan2(a1[1] - a0[1], a1[0] - a0[0]);
     c.strokeStyle = css('--sink'); c.fillStyle = css('--sink'); c.lineWidth = 3; c.beginPath(); c.moveTo(a0[0], a0[1]); c.lineTo(a1[0], a1[1]); c.stroke();
     c.beginPath(); c.moveTo(a1[0] + 4 * Math.cos(ang), a1[1] + 4 * Math.sin(ang)); c.lineTo(a1[0] - 11 * Math.cos(ang - 0.45), a1[1] - 11 * Math.sin(ang - 0.45)); c.lineTo(a1[0] - 11 * Math.cos(ang + 0.45), a1[1] - 11 * Math.sin(ang + 0.45)); c.closePath(); c.fill();
-    if (Wd >= 200) { c.font = '12px Barlow'; haloText(c, fSpd(w.spd) + (S.uSpd === 'kt' ? ' kt' : ' km/h'), a0[0], a0[1] - 6, css('--sink'), card); } }
+    if (Wd >= 200) { c.font = '12px Barlow'; haloText(c, fSpd(w.spd) + ' ' + S.uSpd, a0[0], a0[1] - 6, css('--sink'), card); } }
 }
 /* ----- Thermal layer view: from above, the slice of air from your height down to `depth` below ----- */
 // every logged point in that height band, where that air is now (moved on with the wind), coloured by climb;
@@ -760,7 +760,7 @@ function renderSettings() {
     <div class="field"><span class="k">Edit layout of</span><span class="row" style="flex-wrap:wrap"><button class="btn" data-edit="pMap">Map</button><button class="btn" data-edit="pThermal">Thermal</button><button class="btn" data-edit="pAtmos">Atmosphere</button><button class="btn" data-edit="pAir">Airspace</button></span></div>
     <div class="field"><span class="k">Defaults</span><button class="btn warn" data-reset="all">Reset all page layouts</button></div>
     ${numField('avgS')}</div>`;
-  if (setSec === 'units') h = `<div class="card sec"><h2>Units & glide</h2>${seg('uVario', [['m/s', 'm/s'], ['kt', 'kt'], ['fpm', 'ft/min']], 'Vario')}${seg('uAlt', [['m', 'm'], ['ft', 'ft']], 'Altitude')}${seg('uSpd', [['km/h', 'km/h'], ['kt', 'kt']], 'Speed')}
+  if (setSec === 'units') h = `<div class="card sec"><h2>Units & glide</h2>${seg('uVario', [['m/s', 'm/s'], ['kt', 'kt'], ['fpm', 'ft/min']], 'Vario')}${seg('uAlt', [['m', 'm'], ['ft', 'ft']], 'Altitude')}${seg('uSpd', [['km/h', 'km/h'], ['m/s', 'm/s'], ['kt', 'kt']], 'Speed')}
     <div class="field"><label for="wingLD">Wing glide ratio (empty dot)</label><input type="number" id="wingLD" value="${S.wingLD}" step="0.1" min="3" max="20"></div>
     <div class="field"><label for="safety">Arrival safety height (m)</label><input type="number" id="safety" value="${S.safety}" step="10"></div>
     ${seg('rotDefault', [['north', 'North up'], ['track', 'Track up'], ['bearing', 'Bearing up']], 'New map widgets start in')}${seg('taOrient', [['wind', 'Wind up'], ['winddown', 'Wind down'], ['north', 'North up']], 'Thermal assistant')}</div>`;

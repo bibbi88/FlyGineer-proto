@@ -86,7 +86,7 @@ function renderDetails(live) {
     stats = statBox('Now', fAlt(altNow()), S.uAlt) + statBox('Above ground', st.groundElev != null && altNow() != null ? fAlt(altNow() - st.groundElev) : '--', S.uAlt) + statBox('Highest', al.length ? fAlt(Math.max(...al)) : '--', S.uAlt) + statBox('Lowest', al.length ? fAlt(Math.min(...al)) : '--', S.uAlt) + statBox('Total climbed', fAlt(climb), S.uAlt) + statBox('Cloud base', cb ? fAlt(cb) : '--', cb ? 'forecast' : 'load forecast') + statBox('Thermal top', thermalTop() ? fAlt(thermalTop()) : '--', 'forecast') + statBox('Temperature', st.baro?.temp != null ? st.baro.temp.toFixed(1) + ' °C' : '--', '');
   }
   if (g === 'spd') {
-    const sp = lg.filter((p) => p.spd != null); chart = { pts: bucket(sp, 'spd', sp.length > 900 ? 10 : 3).map((p) => ({ t: p.t, y: S.uSpd === 'kt' ? p.y * 1.94384 : p.y * 3.6 })), o: { color: css('--ink') } };
+    const sp = lg.filter((p) => p.spd != null); chart = { pts: bucket(sp, 'spd', sp.length > 900 ? 10 : 3).map((p) => ({ t: p.t, y: p.y * spdK() })), o: { color: css('--ink') } };
     const v = sp.map((p) => p.spd); const f = st.fix;
     stats = statBox('Now', fSpd(f?.spd), S.uSpd) + statBox('Average', v.length ? fSpd(v.reduce((x, y) => x + y, 0) / v.length) : '--', S.uSpd) + statBox('Max', v.length ? fSpd(Math.max(...v)) : '--', S.uSpd) + statBox('Track', f?.trk != null ? pad3(f.trk) + '°' : '--', f?.trk != null ? compass(f.trk) : '') + statBox('Wind', windFromSpd() ? fSpd(windFromSpd().spd) : '--', windFromSpd() ? 'from ' + pad3(windFromSpd().from) + '°' : '') + statBox('Airspeed est.', st.lastTurn ? fSpd(st.lastTurn.tas) : '--', 'from last circle');
   }
@@ -104,7 +104,7 @@ function renderDetails(live) {
       stats = statBox('Next', wp ? esc(wp.name) : '--', d != null ? fDist(d) : '') + statBox('Remaining', d != null ? fDist(d + rem) : '--', 'via all turnpoints') + statBox('Req. glide', d != null && st.groundElev != null && altNow() != null ? (d / Math.max(1, altNow() - st.groundElev - S.safety)).toFixed(1) : '--', 'to next') + statBox('ETA next', f?.spd > 2 && d != null ? etaStr(d / f.spd) : '--', 'at current speed'); }
   }
   if (g === 'wind') {
-    const ws = st.winds.filter((x) => !range || x.t >= now - range * 1000); chart = ws.length > 1 ? { pts: ws.map((x) => ({ t: x.t, y: S.uSpd === 'kt' ? x.spd * 1.94384 : x.spd * 3.6 })), o: { color: css('--sink') } } : null;
+    const ws = st.winds.filter((x) => !range || x.t >= now - range * 1000); chart = ws.length > 1 ? { pts: ws.map((x) => ({ t: x.t, y: x.spd * spdK() })), o: { color: css('--sink') } } : null;
     const w = windFromSpd(); stats = statBox('Now', w ? fSpd(w.spd) : '--', w ? S.uSpd + ' from ' + pad3(w.from) + '° ' + compass(w.from) : 'circle once') + statBox('Measurements', ws.length, 'one per 30 s of circling');
     extra = ws.length ? '<div class="lbl">Wind by height</div>' + ws.slice().sort((a, b) => b.alt - a.alt).slice(0, 10).map((x) => `<div class="li"><b class="num" style="font-size:20px;width:80px">${fAlt(x.alt)} ${S.uAlt}</b><svg width="22" height="22" viewBox="0 0 14 14" aria-hidden="true"><g transform="rotate(${(x.from + 180) % 360} 7 7)"><path d="M7 1l4 8H3z" fill="currentColor"/><line x1="7" y1="8" x2="7" y2="13" stroke="currentColor" stroke-width="2"/></g></svg><span class="grow">from ${pad3(x.from)}° ${compass(x.from)}</span><b class="num" style="font-size:22px">${fSpd(x.spd)} ${S.uSpd}</b></div>`).join('') : '';
   }
