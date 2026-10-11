@@ -884,6 +884,21 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setNav(f
   chip.addEventListener('click', () => { if (held) { held = false; return; } chipTap(); }); }
 $('rpPlay').onclick = () => { const r = st.replay; if (!r) return; if (r.i >= r.pts.length) { seekReplay(0); return; } r.playing = !r.playing; renderReplayBar(); };
 $('rpStop').onclick = () => stopReplay();
+// floating replay bar: drag by the grip anywhere on the screen (position remembered), fold to play/pause only
+function placeReplayBar() {
+  const b = $('replayBar'); if (!b || b.style.display === 'none') return;
+  b.classList.toggle('min', S.rpMin === true); $('rpMin').textContent = S.rpMin ? '▸' : '◂'; $('rpMin').setAttribute('aria-label', S.rpMin ? 'Unfold the replay bar' : 'Fold the replay bar');
+  const r = b.getBoundingClientRect(), p = S.rpPos;
+  const x = p ? clamp(p.x * innerWidth, 0, innerWidth - r.width) : (innerWidth - r.width) / 2, y = p ? clamp(p.y * innerHeight, 0, innerHeight - r.height) : innerHeight - r.height - 12;
+  Object.assign(b.style, { left: x + 'px', top: y + 'px', bottom: 'auto' });
+}
+{ let d = null; const g = $('rpGrip');
+  g.addEventListener('pointerdown', (e) => { const r = $('replayBar').getBoundingClientRect(); d = { dx: e.clientX - r.left, dy: e.clientY - r.top }; g.setPointerCapture(e.pointerId); e.preventDefault(); });
+  g.addEventListener('pointermove', (e) => { if (!d) return; const b = $('replayBar'), r = b.getBoundingClientRect(); b.style.left = clamp(e.clientX - d.dx, 0, innerWidth - r.width) + 'px'; b.style.top = clamp(e.clientY - d.dy, 0, innerHeight - r.height) + 'px'; b.style.bottom = 'auto'; });
+  const end = () => { if (!d) return; d = null; const r = $('replayBar').getBoundingClientRect(); S.rpPos = { x: r.left / innerWidth, y: r.top / innerHeight }; save(); };
+  g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end); }
+$('rpMin').onclick = () => { S.rpMin = !S.rpMin; save(); placeReplayBar(); };
+addEventListener('resize', placeReplayBar);
 $('rpSpeeds').onclick = (e) => { const b = e.target.closest('[data-sp]'); if (b && st.replay) { st.replay.speed = +b.dataset.sp; renderReplayBar(); } };
 $('rpSeek').oninput = () => { if (st.replay) { st.replay.dragging = true; const r = st.replay, a = r.pts[0].t, b = r.pts[r.pts.length - 1].t; const d = new Date(a + $('rpSeek').value / 1000 * (b - a)); $('rpTime').textContent = pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + 'Z'; } };
 $('rpSeek').onchange = () => { if (st.replay) { st.replay.dragging = false; $('rpTime')._t = $('rpSeek')._v = null; seekReplay($('rpSeek').value / 1000); } };

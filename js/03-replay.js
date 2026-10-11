@@ -92,7 +92,7 @@ function startReplay(igc, name) {
   st.takeoffT = pts[0].t; st.autoQ = []; st.modeSince = 0; setTimeout(() => fireEvent('takeoff'), 0);
   st.replayVer = (st.replayVer || 0) + 1; MAPS.forEach((I) => (I.up = undefined));
   st.replay.timer = setInterval(replayTick, 100);
-  $('replayBar').style.display = 'flex'; $('demoBadge').style.display = 'none'; document.body.classList.add('replaying');
+  $('replayBar').style.display = 'flex'; $('demoBadge').style.display = 'none'; document.body.classList.toggle('replaying', !!st.sim); placeReplayBar();
   renderReplayBar(); MAPS.forEach((I) => (I.follow = true)); showPage('pMap');
   const dur = (pts[pts.length - 1].t - pts[0].t) / 1000;
   toast(`Replaying ${name} · ${Math.floor(dur / 3600)} h ${pad2(Math.floor(dur / 60) % 60)} min · ${pts.length} points`);

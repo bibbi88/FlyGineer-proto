@@ -171,9 +171,15 @@ body.wedit #wBanner{display:flex}
 #legend{left:12px;bottom:40px;padding:6px 10px;font-size:13px;display:flex;flex-direction:column;gap:3px}
 #legend span{display:flex;align-items:center;gap:6px}
 /* replay bar / demo badge sit below the map page widgets instead of covering the bottom row */
-body.replaying #wLayer,body.replaying .wLayer{bottom:78px}
+/* only the synthetic test flight's badge needs room at the bottom; the replay bar floats */
+body.replaying #wLayer{bottom:56px}
 #demoBadge{left:50%;bottom:12px;transform:translateX(-50%);padding:6px 12px;font-weight:600;font-size:13px;display:none}
-#replayBar{position:fixed;left:84px;right:84px;bottom:12px;z-index:600;padding:6px;display:none;align-items:center;gap:6px}
+/* floating replay bar: drag it by the grip, fold it to play/pause only; position kept in S.rpPos */
+#replayBar{position:fixed;left:50%;top:auto;bottom:12px;width:min(760px,94vw);z-index:600;padding:6px;display:none;align-items:center;gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#replayBar.min{width:auto}
+#replayBar.min #rpSpeeds,#replayBar.min #rpSeek,#replayBar.min #rpTime,#replayBar.min #rpStop{display:none}
+#rpGrip{cursor:grab;touch-action:none;font-size:22px;background:transparent!important;border-style:dashed!important}
+#rpGrip:active{cursor:grabbing}
 /* only on the widget pages, not on Settings or Web */
 body:not([data-page=pMap]):not([data-page=pThermal]):not([data-page=pAtmos]):not([data-page=pAir]) #replayBar{display:none!important}
 #replayBar button{height:48px;min-width:48px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:15px}

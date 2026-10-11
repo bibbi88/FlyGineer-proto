@@ -22,7 +22,7 @@ Tablet-first (Samsung Galaxy Tab A9, 8.7", 1340 × 800, landscape) paragliding f
   9. `09-main.js` main loop, `boot()`
   10. `10-offline.js` service worker registration, "new version" banner, storage persistence, Settings → App & offline maps
 - `sw.js` – service worker: app files cached per `VERSION`, Leaflet/fonts cached, map tiles cached as viewed (cache first, max `MAX_TILES`, oldest out first; fetched with CORS so the quota counts real sizes). Weather, airspace, traffic etc. are never cached.
-- The replay bar (`#replayBar`) is shared by all widget pages (fixed at the bottom, hidden on Settings/Web via `body[data-page]`); `body.replaying` makes every page's widget layer end above it.
+- The replay bar (`#replayBar`) is shared by all widget pages and floats (hidden on Settings/Web via `body[data-page]`): drag by the grip `#rpGrip` (position `S.rpPos` as fractions of the screen), fold with `#rpMin` (`S.rpMin`); `placeReplayBar()` keeps it on screen. Widgets use the full height during a replay.
 - `preview.html` – desk preview: the app in an iframe inside an 8" tablet frame (default: the owner's tablet 1340×800, Galaxy Tab A9 8.7"; also Tab A 8.0 presets, custom size, portrait, fit / 100 % / real size). Not part of the app; the service worker only serves the stored app page for `/` and `index.html`, other pages come from the network.
 - `manifest.webmanifest`, `icons/` – installable app (full screen, landscape).
 
