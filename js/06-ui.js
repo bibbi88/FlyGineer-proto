@@ -110,6 +110,8 @@ function coreEstimate() {
 }
 // where a logged sample is now in the moving air, relative to you (fixed when it was logged, see ax/ay in analyse)
 function airRel() { const me = st.samples[st.samples.length - 1]; return (s) => (me && s.ax != null ? [s.ax - me.ax, s.ay - me.ay] : [0, 0]); }
+// centred text wrapped to the width (messages in small widgets)
+function wrapText(c, t, x, y, maxW, lh) { const words = t.split(' '), lines = []; let ln = ''; words.forEach((w) => { const s = ln ? ln + ' ' + w : w; if (c.measureText(s).width > maxW && ln) { lines.push(ln); ln = w; } else ln = s; }); if (ln) lines.push(ln); lines.forEach((l, i) => c.fillText(l, x, y + (i - (lines.length - 1) / 2) * lh)); }
 const hasRot = () => !!(window.L && L.Map && L.Map.prototype.setBearing);
 const haloText = (c, t, x, y, fill, halo) => { c.save(); c.lineWidth = 3.5; c.strokeStyle = halo; c.lineJoin = 'round'; c.strokeText(t, x, y); c.restore(); c.fillStyle = fill; c.fillText(t, x, y); };
 
@@ -156,7 +158,7 @@ function taDraw(cv, W, el) {
   // scale rings
   const RS = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 4000], ringM = RS.find((v) => Rm / v <= 4) || 4000;
   c.lineWidth = 1; c.strokeStyle = wantBg ? 'rgba(17,20,24,.35)' : css('--line'); c.font = '11px Barlow'; c.textAlign = 'left';
-  for (let k = 1; k * ringM <= Rm * 1.02; k++) { const r = k * ringM * sc; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke(); const lx = cx + r * 0.7071, ly = cy + r * 0.7071; if (lx < Wd - 34 && ly < H - 8) haloText(c, k * ringM + ' m', lx + 2, ly + 4, css('--muted'), wantBg ? 'rgba(255,255,255,.85)' : css('--card')); }
+  for (let k = 1; k * ringM <= Rm * 1.02; k++) { const r = k * ringM * sc; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke(); const lx = cx + r * 0.7071, ly = cy + r * 0.7071; if (lx < Wd - 34 && ly < H - 8 && Wd >= 200 && H >= 180) haloText(c, k * ringM + ' m', lx + 2, ly + 4, css('--muted'), wantBg ? 'rgba(255,255,255,.85)' : css('--card')); }
   // heat blobs
   if (style !== 'dots' && style !== 'trailonly') { const rr = clamp(16 * sc, 12, 46); loc.forEach((p) => { const [x, y] = tr(p.x, p.y); if (x < -rr || x > Wd + rr || y < -rr || y > H + rr) return; c.drawImage(heatBlob(p.v), x - rr, y - rr, 2 * rr, 2 * rr); }); }
   // track line: thin = older, thick = newest
@@ -197,7 +199,7 @@ function taDraw(cv, W, el) {
     c.save(); c.setLineDash([5, 5]); c.lineWidth = 1.5; c.strokeStyle = ink; c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke(); c.restore();
     c.strokeStyle = card; c.lineWidth = 7; c.beginPath(); c.moveTo(x - 9, y - 9); c.lineTo(x + 9, y + 9); c.moveTo(x + 9, y - 9); c.lineTo(x - 9, y + 9); c.stroke();
     c.strokeStyle = ink; c.lineWidth = 3.5; c.beginPath(); c.moveTo(x - 9, y - 9); c.lineTo(x + 9, y + 9); c.moveTo(x + 9, y - 9); c.lineTo(x - 9, y + 9); c.stroke();
-    c.font = '700 13px Barlow'; c.textAlign = 'left'; haloText(c, 'core ' + fVario(core.v), clamp(x + 12, 4, Wd - 80), clamp(y - 8, 14, H - 6), ink, wantBg ? 'rgba(255,255,255,.9)' : card);
+    if (Wd >= 200) c.font = '700 13px Barlow', c.textAlign = 'left', haloText(c, 'core ' + fVario(core.v), clamp(x + 12, 4, Wd - 80), clamp(y - 8, 14, H - 6), ink, wantBg ? 'rgba(255,255,255,.9)' : card);
   }
   // wind arrow at the rim, pointing the way the wind blows
   if (w) {
@@ -209,14 +211,14 @@ function taDraw(cv, W, el) {
     c.font = '700 14px Barlow'; c.textAlign = 'center'; const tw = c.measureText(wtxt).width / 2 + 8;
     let best = null; [1, -1].forEach((sg) => { const lx = mx + sg * nx / nl * (tw + 10), ly = my + sg * ny / nl * (tw + 10) * 0.35; const ok = lx - tw > 2 && lx + tw < Wd - 2 && ly > 16 && ly < H - 6; if (ok && !best) best = [lx, ly]; });
     if (!best) best = [clamp(mx, tw + 2, Wd - tw - 2), clamp(my + 18, 16, H - 6)];
-    haloText(c, wtxt, best[0], best[1] + 5, css('--sink'), wantBg ? 'rgba(255,255,255,.92)' : card);
+    if (Wd >= 200) haloText(c, wtxt, best[0], best[1] + 5, css('--sink'), wantBg ? 'rgba(255,255,255,.92)' : card);
   }
   // north marker
   { const [nx, ny] = tr(0, Rm * 0.97); c.font = '700 15px Barlow'; c.textAlign = 'center'; haloText(c, 'N', clamp(nx, 10, Wd - 10), clamp(ny + 5, 16, H - 4), '#B42318', wantBg ? 'rgba(255,255,255,.9)' : card); }
   // glider
   c.save(); c.translate(cx, cy); c.rotate(((f.trk ?? up) - up) * D2R); c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -14); c.lineTo(10, 12); c.lineTo(0, 6); c.lineTo(-10, 12); c.closePath(); c.fill(); c.stroke(); c.restore();
   // colour scale
-  if (cfg.legend !== false && cfg.legend !== 'false') {
+  if (cfg.legend !== false && cfg.legend !== 'false' && Wd >= 220 && H >= 200) {
     const lw = Math.min(130, Wd * 0.38), lx = 8, ly = H - 20; c.fillStyle = card; c.fillRect(lx - 4, ly - 6, lw + 8, 28);
     for (let i = 0; i < lw; i++) { c.fillStyle = rgba(heat(-3 + 8 * i / lw), 1); c.fillRect(lx + i, ly, 1.5, 7); }
     c.font = '10px Barlow'; c.fillStyle = css('--muted'); c.textAlign = 'center'; [-2, 0, 2, 4].forEach((v) => c.fillText(fVario(v).replace('+', ''), lx + (v + 3) / 8 * lw, ly + 18)); c.textAlign = 'left';
@@ -300,7 +302,7 @@ function sideDraw(cv, W, el) {
   const ink = css('--ink'), card = css('--card'), muted = css('--muted');
   // grid
   c.strokeStyle = css('--line'); c.fillStyle = muted; c.font = '11px Barlow'; c.lineWidth = 1; c.textAlign = 'left';
-  const as = niceStep((amax - amin) / 5); for (let a = Math.ceil(amin / as) * as; a < amax; a += as) { c.beginPath(); c.moveTo(L0 - 2, Y(a)); c.lineTo(Wd, Y(a)); c.stroke(); c.fillText(fAlt(a), 0, Y(a) + 4); }
+  const as = niceStep((amax - amin) / clamp(Math.floor(H / 45), 2, 5)); for (let a = Math.ceil(amin / as) * as; a < amax; a += as) { c.beginPath(); c.moveTo(L0 - 2, Y(a)); c.lineTo(Wd, Y(a)); c.stroke(); c.fillText(fAlt(a), 0, Y(a) + 4); }
   const ss = niceStep(sr / Math.max(1, Math.floor((Wd - L0) / 110))); c.textAlign = 'center'; for (let v = -Math.floor(sr / ss) * ss; v <= sr; v += ss) { c.beginPath(); c.moveTo(X(v), 14); c.lineTo(X(v), H - 26); c.stroke(); if (Math.abs(X(v) - X(0)) > 4 || v === 0) c.fillText(v === 0 ? '0' : Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + ' km' : Math.round(v) + ' m', X(v), H - 14); }
   // lifting sections, coloured by the climb in each part
   cols.forEach(({ C, cur: isCur, mem, q, lean: ln }) => {
@@ -338,8 +340,8 @@ function sideDraw(cv, W, el) {
   // labels
   c.textAlign = 'left'; c.font = '700 12px Barlow';
   const head = cur ? (lean ? `leans ${Math.round(Math.abs(lean.k) * 100)} m/100 m ${view === 'along' ? (lean.k >= 0 ? 'downwind' : 'upwind') : (lean.k >= 0 ? 'right' : 'left')}` : 'thermal · first circles…') : view === 'head' ? `heading ${pad3(hd)}° · ${ahead >= 1000 ? (ahead / 1000).toFixed(1) + ' km' : ahead + ' m'} ahead${hold && st.circling ? ' · held' : ''}` : hasWind ? `last ${Math.round(hist / 60000)} min` : 'no wind yet · north–south';
-  haloText(c, head, L0 + 2, 12, ink, card);
-  c.font = '11px Barlow'; c.fillStyle = muted;
+  if (Wd >= 165 && H >= 140) haloText(c, head, L0 + 2, 12, ink, card);
+  c.font = '11px Barlow'; c.fillStyle = muted; if (Wd < 165) return; // small: no edge labels
   const lt = !hasWind ? (view === 'along' ? 'S' : 'W') : view === 'along' ? 'upwind' : 'left', rt = !hasWind ? (view === 'along' ? 'N' : 'E') : view === 'along' ? 'downwind' : 'right';
   const nar = Wd < 300; c.textAlign = 'left'; c.fillText(nar ? `← ${pad3(ax + 180)}°` : `← ${lt} ${pad3(ax + 180)}°`, L0, H - 1); c.textAlign = 'right'; c.fillText(nar ? `${pad3(ax)}° →` : `${rt} ${pad3(ax)}° →`, Wd - 4, H - 1);
   if (nar) { c.textAlign = 'center'; c.fillText(view === 'along' ? (hasWind ? 'downwind →' : 'N →') : (hasWind ? 'right →' : 'E →'), X(0), 26); }
@@ -395,7 +397,7 @@ function t3dDraw(cv, W, el) {
     const k = Math.exp(-(((a - alt) / (step * 1.6)) ** 2)), pts = ring(0, 0, a, Rl, 40); poly(pts);
     c.fillStyle = dark ? `rgba(160,190,230,${0.02 + 0.06 * k})` : `rgba(40,90,160,${0.015 + 0.05 * k})`; c.fill();
     c.strokeStyle = dark ? `rgba(180,200,230,${0.12 + 0.3 * k})` : `rgba(40,70,120,${0.1 + 0.3 * k})`; c.lineWidth = 1; if (k < 0.5) c.setLineDash([4, 5]); c.stroke(); c.setLineDash([]);
-    const lp = pts.reduce((m, p) => (p[0] < m[0] ? p : m)); c.fillStyle = muted; c.globalAlpha = 0.45 + 0.55 * k; c.fillText(fAlt(a) + ' ' + (S.uAlt === 'ft' ? 'ft' : 'm'), clamp(lp[0] + 6, 4, Wd - 50), lp[1] - 3); c.globalAlpha = 1;
+    if (Wd >= 200) { const lp = pts.reduce((m, p) => (p[0] < m[0] ? p : m)); c.fillStyle = muted; c.globalAlpha = 0.45 + 0.55 * k; c.fillText(fAlt(a) + ' ' + (S.uAlt === 'ft' ? 'ft' : 'm'), clamp(lp[0] + 6, 4, Wd - 50), lp[1] - 3); c.globalAlpha = 1; }
   }
   // shadow of the track on the lowest layer
   c.strokeStyle = dark ? 'rgba(200,210,220,.18)' : 'rgba(30,40,50,.15)'; c.lineWidth = 2; c.beginPath(); P.forEach((p, i) => { const q = pr(p.x, p.y, zb); i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke();
@@ -415,7 +417,7 @@ function t3dDraw(cv, W, el) {
   if (w) { const a0 = pr(-Rl * 0.75 * Math.sin(w.to * D2R), -Rl * 0.75 * Math.cos(w.to * D2R), zHi), a1 = pr(-Rl * 0.25 * Math.sin(w.to * D2R), -Rl * 0.25 * Math.cos(w.to * D2R), zHi), ang = Math.atan2(a1[1] - a0[1], a1[0] - a0[0]);
     c.strokeStyle = css('--sink'); c.fillStyle = css('--sink'); c.lineWidth = 3; c.beginPath(); c.moveTo(a0[0], a0[1]); c.lineTo(a1[0], a1[1]); c.stroke();
     c.beginPath(); c.moveTo(a1[0] + 4 * Math.cos(ang), a1[1] + 4 * Math.sin(ang)); c.lineTo(a1[0] - 11 * Math.cos(ang - 0.45), a1[1] - 11 * Math.sin(ang - 0.45)); c.lineTo(a1[0] - 11 * Math.cos(ang + 0.45), a1[1] - 11 * Math.sin(ang + 0.45)); c.closePath(); c.fill();
-    c.font = '12px Barlow'; haloText(c, fSpd(w.spd) + (S.uSpd === 'kt' ? ' kt' : ' km/h'), a0[0], a0[1] - 6, css('--sink'), card); }
+    if (Wd >= 200) { c.font = '12px Barlow'; haloText(c, fSpd(w.spd) + (S.uSpd === 'kt' ? ' kt' : ' km/h'), a0[0], a0[1] - 6, css('--sink'), card); } }
 }
 /* ----- Thermal layer view: from above, the slice of air from your height down to `depth` below ----- */
 // every logged point in that height band, where that air is now (moved on with the wind), coloured by climb;
@@ -441,7 +443,7 @@ function layerDraw(cv, W, el) {
   // rings
   const RS = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000], ringM = RS.find((v) => Rm / v <= 4) || 2000;
   c.lineWidth = 1; c.strokeStyle = css('--line'); c.font = '11px Barlow'; c.textAlign = 'left';
-  for (let k = 1; k * ringM <= Rm * 1.02; k++) { const r = k * ringM * sc; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke(); const lx = cx + r * 0.7071, ly = cy + r * 0.7071; if (lx < Wd - 34 && ly < H - 8) haloText(c, k * ringM + ' m', lx + 2, ly + 4, muted, card); }
+  for (let k = 1; k * ringM <= Rm * 1.02; k++) { const r = k * ringM * sc; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke(); const lx = cx + r * 0.7071, ly = cy + r * 0.7071; if (lx < Wd - 34 && ly < H - 8 && Wd >= 200 && H >= 180) haloText(c, k * ringM + ' m', lx + 2, ly + 4, muted, card); }
   // north tick, wind arrow
   { const [nx, ny] = tr(0, Rm * 0.93); c.font = '700 13px Barlow'; c.textAlign = 'center'; c.fillStyle = '#B42318'; c.fillText('N', nx, ny + 5); }
   if (w) { const [x0, y0] = tr(-Math.sin(w.to * D2R) * Rm * 0.9, -Math.cos(w.to * D2R) * Rm * 0.9), [x1, y1] = tr(-Math.sin(w.to * D2R) * Rm * 0.62, -Math.cos(w.to * D2R) * Rm * 0.62), ang = Math.atan2(y1 - y0, x1 - x0);
@@ -464,7 +466,7 @@ function layerDraw(cv, W, el) {
     c.strokeStyle = card; c.lineWidth = 7; c.beginPath(); c.moveTo(x - 9, y - 9); c.lineTo(x + 9, y + 9); c.moveTo(x + 9, y - 9); c.lineTo(x - 9, y + 9); c.stroke();
     c.strokeStyle = ink; c.lineWidth = 3.5; c.beginPath(); c.moveTo(x - 9, y - 9); c.lineTo(x + 9, y + 9); c.moveTo(x + 9, y - 9); c.lineTo(x - 9, y + 9); c.stroke();
     c.font = '700 13px Barlow'; c.textAlign = 'left'; const gv = grp.reduce((q, p) => q + p.v, 0) / grp.length, age = Math.round((now - grp.reduce((q, p) => q + p.t, 0) / grp.length) / 60000);
-    haloText(c, `${fVario(gv)} ${uV()} · ${Math.round(d)} m ${pad3(b)}°${age >= 2 ? ` · ${age} min ago` : ''}`, 8, H - 10, ink, card);
+    haloText(c, Wd < 220 ? `${fVario(gv)} · ${Math.round(d)} m` : `${fVario(gv)} ${uV()} · ${Math.round(d)} m ${pad3(b)}°${age >= 2 ? ` · ${age} min ago` : ''}`, 8, H - 10, ink, card);
   } else { c.font = '13px Barlow'; c.textAlign = 'left'; haloText(c, pts.length ? 'no lift in this layer yet' : 'no track in this layer yet', 8, H - 10, muted, card); }
   // you
   c.save(); c.translate(cx, cy); c.rotate(((f.trk ?? 0) - up) * D2R); const gs = 13; c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -gs); c.lineTo(gs * 0.7, gs * 0.8); c.lineTo(0, gs * 0.4); c.lineTo(-gs * 0.7, gs * 0.8); c.closePath(); c.fill(); c.stroke(); c.restore();
@@ -472,10 +474,11 @@ function layerDraw(cv, W, el) {
 /* ----- Last circle ----- */
 function turnDraw(cv, W) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const t = st.lastTurn;
-  if (!t) { c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('needs one full circle', Wd / 2, H / 2); return; }
-  const S0 = Math.min(H, Wd * 0.5), cx = S0 / 2, cy = H / 2, sc = (S0 / 2 - 6) / Math.max(15, t.max);
+  if (!t) { c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; wrapText(c, 'needs one full circle', Wd / 2, H / 2, Wd - 8, 16); return; }
+  const small = Wd - Math.min(H, Wd * 0.5) - 8 < 110, S0 = small ? Math.min(H, Wd) : Math.min(H, Wd * 0.5), cx = small ? Wd / 2 : S0 / 2, cy = H / 2, sc = (S0 / 2 - 6) / Math.max(15, t.max);
   c.strokeStyle = css('--line'); c.lineWidth = 1.2; c.setLineDash([2, 3]); c.beginPath(); c.arc(cx, cy, t.avg * sc, 0, 7); c.stroke(); c.setLineDash([]);
   c.strokeStyle = css('--climb'); c.lineWidth = 2.5; c.beginPath(); t.pts.forEach((p, i) => { const x = cx + p[0] * sc, y = cy - p[1] * sc; i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.closePath(); c.stroke();
+  if (small) { const fs = clamp(Wd / 6, 13, 34); c.font = `700 ${fs}px Barlow Condensed`; c.textAlign = 'center'; haloText(c, `${Math.round(t.min)}–${Math.round(t.max)} m`, cx, cy + fs * 0.36, css('--ink'), css('--card')); return; } // small: the radius range on the circle
   const x0 = S0 + 8, fs = clamp(Math.min(H * 0.28, (Wd - x0) / 7), 14, 40); c.textAlign = 'left';
   c.fillStyle = css('--muted'); c.font = '11px Barlow'; c.fillText('R MIN – MAX', x0, 14);
   c.fillStyle = css('--ink'); c.font = `700 ${fs}px Barlow Condensed`; c.fillText(`${Math.round(t.min)} – ${Math.round(t.max)} m`, x0, 18 + fs);
@@ -486,7 +489,7 @@ function profDraw(cv, W) { withU('uAlt', W.cfg.units || '', () => profBody(cv, W
 function profBody(cv, W) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const fc = st.forecast, alt = altNow(), trig = +(S.trig ?? 2);
   const pts = st.tempPts.slice(), prof = fc ? fc.prof : [], alts = pts.map((p) => p.alt).concat(prof.map((p) => p.alt));
-  if (!alts.length) { c.fillStyle = css('--muted'); c.font = '15px Barlow'; c.textAlign = 'center'; c.fillText('Fly with the vario temperature sensor, or load the forecast', Wd / 2, H / 2); return; }
+  if (!alts.length) { c.fillStyle = css('--muted'); c.font = '15px Barlow'; c.textAlign = 'center'; wrapText(c, H < 120 ? 'No data yet' : 'Fly with the vario temperature sensor, or load the forecast', Wd / 2, H / 2, Wd - 12, 18); return; }
   const amin = Math.min(...alts) - 100, amax = Math.min(Math.max(...alts) + 300, 6000);
   const temps = pts.map((p) => p.temp).concat(prof.filter((p) => p.alt < amax).map((p) => p.temp)); if (fc) temps.push(fc.Td, fc.T + 3);
   const tmin = Math.floor(Math.min(...temps) - 2), tmax = Math.ceil(Math.max(...temps) + 2);
@@ -513,7 +516,7 @@ function asSideDraw(cv, W) {
   const X = (d) => 40 + d / L0 * (Wd - 50), Y = (a) => H - 22 - a / amax * (H - 34);
   c.strokeStyle = css('--line'); c.fillStyle = css('--muted'); c.font = '11px Barlow'; c.lineWidth = 1;
   for (let a = 1000; a < amax; a += 1000) { c.beginPath(); c.moveTo(38, Y(a)); c.lineTo(Wd, Y(a)); c.stroke(); c.textAlign = 'left'; c.fillText(fAlt(a), 0, Y(a) + 4); }
-  const ks = L0 <= 10000 ? 2 : L0 <= 20000 ? 5 : 10; c.textAlign = 'center'; for (let k = 0; k * 1000 <= L0; k += ks) c.fillText(k + ' km', X(k * 1000), H - 6);
+  const ks = [1, 2, 5, 10, 20, 50].find((k) => (k * 1000 / L0) * (Wd - 50) >= 44) || 50; c.textAlign = 'center'; for (let k = 0; k * 1000 <= L0; k += ks) c.fillText(k + ' km', X(k * 1000), H - 6);
   const g = st.groundElev || 0;
   st.airspaces.forEach((a) => { let start = null; for (let d = 0; d <= L0; d += 250) { const p = dest(f.lat, f.lon, trk, d), inn = inPoly(p[0], p[1], a.poly); if (inn && start == null) start = d; if ((!inn || d === L0) && start != null) { const lo = limM(a.lo, g), hi = Math.min(limM(a.hi, g), amax), col = airColor(a); c.fillStyle = col + '22'; c.strokeStyle = col; c.lineWidth = 2; c.fillRect(X(start), Y(hi), X(d) - X(start), Y(lo) - Y(hi)); c.strokeRect(X(start), Y(hi), X(d) - X(start), Y(lo) - Y(hi)); c.fillStyle = col; c.textAlign = 'left'; c.fillText(a.name.slice(0, 22), X(start) + 4, Y(hi) + 13); start = null; } } });
   c.fillStyle = '#DFE6CF'; c.fillRect(38, Y(g), Wd, H - 22 - Y(g));
@@ -553,30 +556,38 @@ function asMapDraw(cv, W, el, b) {
 function compassDraw(cv, W) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const f = st.fix, mode = W.cfg.mode || 'heading', hdg = f && f.trk != null ? f.trk : 0, up = mode === 'north' ? 0 : hdg;
   const cx = Wd / 2, cy = H / 2, R = Math.max(20, Math.min(Wd, H) / 2 - 6), ink = css('--ink'), card = css('--card');
+  const lv = R >= 70 ? 2 : R >= 42 ? 1 : 0; // detail level: full, medium (30° ticks, only N), small (ring, N, big number)
   const P = (b, r) => { const a = (b - up) * D2R; return [cx + r * Math.sin(a), cy - r * Math.cos(a)]; };
   c.strokeStyle = css('--line'); c.lineWidth = 2; c.beginPath(); c.arc(cx, cy, R, 0, 7); c.stroke();
-  c.strokeStyle = ink; for (let b = 0; b < 360; b += 10) { const [x1, y1] = P(b, R), [x2, y2] = P(b, R - (b % 30 === 0 ? 11 : 6)); c.lineWidth = b % 90 === 0 ? 2.5 : 1.2; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); }
-  c.font = `700 ${Math.max(11, R * 0.2)}px Barlow Condensed`; c.textAlign = 'center';
-  [['N', 0], ['E', 90], ['S', 180], ['W', 270]].forEach(([t, b]) => { const [x, y] = P(b, R - 24); c.fillStyle = t === 'N' ? '#B42318' : ink; c.fillText(t, x, y + R * 0.07); });
+  c.strokeStyle = ink; const tstep = lv === 2 ? 10 : lv === 1 ? 30 : 90;
+  for (let b = 0; b < 360; b += tstep) { const big = b % 90 === 0, [x1, y1] = P(b, R), [x2, y2] = P(b, R - (big ? Math.max(6, R * 0.16) : lv === 2 && b % 30 === 0 ? 11 : 6)); c.lineWidth = big ? 2.5 : 1.2; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); }
+  c.textAlign = 'center';
+  if (lv === 2) { c.font = `700 ${Math.max(11, R * 0.2)}px Barlow Condensed`; [['N', 0], ['E', 90], ['S', 180], ['W', 270]].forEach(([t, b]) => { const [x, y] = P(b, R - 24); c.fillStyle = t === 'N' ? '#B42318' : ink; c.fillText(t, x, y + R * 0.07); }); }
+  else { const [x, y] = P(0, R * (lv ? 0.66 : 0.72)), fs = Math.max(12, R * (lv ? 0.3 : 0.36)); c.font = `700 ${fs}px Barlow Condensed`; c.fillStyle = '#B42318'; c.fillText('N', x, y + fs * 0.36); }
   if (W.cfg.tp !== false && W.cfg.tp !== 'false' && st.task && f) { const wp = st.task.pts[st.nextWp]; if (wp) { const b = brg(f.lat, f.lon, wp.lat, wp.lon), p0 = P(b, R - 1), p1 = P(b + 7, R - 15), p2 = P(b - 7, R - 15); c.fillStyle = '#E0157F'; c.strokeStyle = card; c.lineWidth = 1.5; c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]); c.closePath(); c.fill(); c.stroke(); } }
   const w = windFromSpd();
-  if (W.cfg.windm !== false && W.cfg.windm !== 'false' && w) { const p1 = P(w.from, R - 2), p2 = P(w.from, R * 0.66), ang = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]); c.strokeStyle = css('--sink'); c.fillStyle = css('--sink'); c.lineWidth = 3.5; c.beginPath(); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]); c.stroke(); c.beginPath(); c.moveTo(p2[0] + 3 * Math.cos(ang), p2[1] + 3 * Math.sin(ang)); c.lineTo(p2[0] - 10 * Math.cos(ang - 0.5), p2[1] - 10 * Math.sin(ang - 0.5)); c.lineTo(p2[0] - 10 * Math.cos(ang + 0.5), p2[1] - 10 * Math.sin(ang + 0.5)); c.closePath(); c.fill(); }
-  c.save(); c.translate(cx, cy); c.rotate((hdg - up) * D2R); const gs = R * 0.2; c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -gs); c.lineTo(gs * 0.7, gs * 0.8); c.lineTo(0, gs * 0.4); c.lineTo(-gs * 0.7, gs * 0.8); c.closePath(); c.fill(); c.stroke(); c.restore();
-  c.fillStyle = ink; c.font = `700 ${R * 0.27}px Barlow Condensed`; c.textAlign = 'center'; c.fillText(f && f.trk != null ? pad3(hdg) + '°' : '--', cx, cy + R * 0.5);
+  if (W.cfg.windm !== false && W.cfg.windm !== 'false' && w) { const p1 = P(w.from, R - 2), p2 = P(w.from, R * (lv ? 0.66 : 0.6)), ang = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]); c.strokeStyle = css('--sink'); c.fillStyle = css('--sink'); c.lineWidth = lv ? 3.5 : 3; c.beginPath(); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]); c.stroke(); c.beginPath(); c.moveTo(p2[0] + 3 * Math.cos(ang), p2[1] + 3 * Math.sin(ang)); c.lineTo(p2[0] - 10 * Math.cos(ang - 0.5), p2[1] - 10 * Math.sin(ang - 0.5)); c.lineTo(p2[0] - 10 * Math.cos(ang + 0.5), p2[1] - 10 * Math.sin(ang + 0.5)); c.closePath(); c.fill(); }
+  const txt = f && f.trk != null ? pad3(hdg) + '°' : '--';
+  if (lv) { c.save(); c.translate(cx, cy - R * 0.12); c.rotate((hdg - up) * D2R); const gs = R * 0.2; c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -gs); c.lineTo(gs * 0.7, gs * 0.8); c.lineTo(0, gs * 0.4); c.lineTo(-gs * 0.7, gs * 0.8); c.closePath(); c.fill(); c.stroke(); c.restore();
+    c.font = `700 ${R * (lv === 2 ? 0.27 : 0.32)}px Barlow Condensed`; haloText(c, txt, cx, cy + R * 0.5, ink, card); }
+  else { const fs = R * 0.56; c.font = `700 ${fs}px Barlow Condensed`; haloText(c, txt, cx, cy + fs * 0.36, ink, card); } // small: the heading number is the whole point
 }
 /* ----- Wind direction ----- */
 function windDirDraw(cv, W) { withU('uSpd', W.cfg.units || '', () => windDirBody(cv, W)); }
 function windDirBody(cv, W) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const f = st.fix, w = windFromSpd(), mode = W.cfg.mode || 'heading', hdg = f && f.trk != null ? f.trk : 0, up = mode === 'north' ? 0 : hdg, ink = css('--ink'), card = css('--card');
-  const side = Wd >= H * 1.4, S0 = side ? Math.min(Wd * 0.5, H) : Math.min(Wd, H * 0.62), cx = side ? S0 / 2 : Wd / 2, cy = side ? H / 2 : S0 / 2, R = S0 / 2 - 6;
+  const side0 = Wd >= H * 1.4, S00 = side0 ? Math.min(Wd * 0.5, H) : Math.min(Wd, H * 0.62), small = (side0 ? Wd - S00 - 8 : 9999) < 110 || (side0 ? 9999 : H - S00) < 50 || Math.min(Wd, H) < 120;
+  // small: the circle fills the widget and the speed is written on it
+  const side = !small && side0, S0 = small ? Math.min(Wd, H) : S00, cx = small ? Wd / 2 : side ? S0 / 2 : Wd / 2, cy = small ? H / 2 : side ? H / 2 : S0 / 2, R = S0 / 2 - 6;
   const P = (b, r) => { const a = (b - up) * D2R; return [cx + r * Math.sin(a), cy - r * Math.cos(a)]; };
   c.strokeStyle = css('--line'); c.lineWidth = 2; c.beginPath(); c.arc(cx, cy, R, 0, 7); c.stroke();
   c.save(); c.translate(cx, cy); c.rotate((hdg - up) * D2R); c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 1.5; const gs = R * 0.2; c.beginPath(); c.moveTo(0, -gs); c.lineTo(gs * 0.7, gs * 0.8); c.lineTo(0, gs * 0.4); c.lineTo(-gs * 0.7, gs * 0.8); c.closePath(); c.fill(); c.stroke(); c.restore();
   const tx = side ? S0 + 8 : 6, ty = side ? 0 : S0;
-  if (!w) { c.fillStyle = css('--muted'); c.font = '13px Barlow'; c.textAlign = 'left'; c.fillText('circle once to measure the wind', tx, ty + (side ? H / 2 : 18)); return; }
+  if (!w) { c.fillStyle = css('--muted'); c.font = '13px Barlow'; c.textAlign = 'center'; if (small) wrapText(c, 'circle once', cx, cy + R * 0.55, Wd - 8, 14); else { c.textAlign = 'left'; c.fillText('circle once to measure the wind', tx, ty + (side ? H / 2 : 18)); } return; }
   const p1 = P(w.to + 180, R * 0.92), p2 = P(w.to, R * 0.92), ang = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
   c.strokeStyle = css('--sink'); c.fillStyle = css('--sink'); c.lineWidth = 5; c.lineCap = 'round'; c.beginPath(); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0] - 8 * Math.cos(ang), p2[1] - 8 * Math.sin(ang)); c.stroke(); c.beginPath(); c.moveTo(p2[0] + 4 * Math.cos(ang), p2[1] + 4 * Math.sin(ang)); c.lineTo(p2[0] - 12 * Math.cos(ang - 0.5), p2[1] - 12 * Math.sin(ang - 0.5)); c.lineTo(p2[0] - 12 * Math.cos(ang + 0.5), p2[1] - 12 * Math.sin(ang + 0.5)); c.closePath(); c.fill();
-  const comp = w.spd * Math.cos((w.to - hdg) * D2R), fs = clamp(side ? Math.min(H * 0.34, (Wd - tx) / 5) : H * 0.2, 16, 46); c.textAlign = 'left';
+  const comp = w.spd * Math.cos((w.to - hdg) * D2R); if (small) { const fs = Math.max(13, R * 0.42); c.font = `700 ${fs}px Barlow Condensed`; c.textAlign = 'center'; haloText(c, fSpd(w.spd), cx, cy + R * 0.62, ink, card); return; }
+  const fs = clamp(side ? Math.min(H * 0.34, (Wd - tx) / 5) : H * 0.2, 16, 46); c.textAlign = 'left';
   c.fillStyle = ink; c.font = `700 ${fs}px Barlow Condensed`; c.fillText(fSpd(w.spd) + ' ' + S.uSpd, tx, ty + fs + 2);
   c.fillStyle = css('--muted'); c.font = '13px Barlow'; c.fillText(`from ${pad3(w.from)}° ${compass(w.from)}`, tx, ty + fs + 20);
   if (f && f.trk != null) c.fillText(`${comp >= 0 ? 'tailwind' : 'headwind'} ${fSpd(Math.abs(comp))} ${S.uSpd}`, tx, ty + fs + 37);
@@ -613,6 +624,7 @@ function renderWidgets() {
     el.classList.toggle('sel', wEdit && wSel === W.id);
     const showL = E.cfg.showLabel !== false && E.cfg.showLabel !== 'false';
     if (T.canvas) {
+      el.classList.toggle('compact', W.type !== 'map' && (b.w < 180 || b.h < 180)); // small: no on-widget buttons, they would cover the picture
       const wl = el.querySelector('.wl'); wl.style.display = showL ? '' : 'none';
       const cv = el.querySelector('canvas'); el._sub = '';
       // label first: an empty label row has no height, so the canvas would be measured too tall
