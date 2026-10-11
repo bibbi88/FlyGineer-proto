@@ -15,6 +15,7 @@ function runAction(a, text) {
     case 'message': toast(text || 'Automatic action'); break;
     case 'soundOn': if (!S.sound) applySet('sound', 'true'); toast('Vario sound on'); break;
     case 'soundOff': if (S.sound) applySet('sound', 'false'); toast('Vario sound off'); break;
+    case 'titles': S.titles = S.titles === 'hide' ? 'each' : 'hide'; save(); renderWidgets(); toast(S.titles === 'hide' ? 'Widget titles hidden' : 'Widget titles shown'); break;
     case 'thermalOn': enterThermal(); break;
     case 'thermalOff': leaveThermal(); break;
     case 'thermalToggle': st.thermMode ? leaveThermal() : enterThermal(); break;
@@ -211,7 +212,7 @@ function setMode(on) {
   fireEvent(on ? 'thermalStart' : 'thermalStop');
 }
 const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'layoutGrid', 'widgets', 'hidden', 'mapMigrated']);
-const IMPORT_OK = new Set(['uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules']);
+const IMPORT_OK = new Set(['titles', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
   const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)) };

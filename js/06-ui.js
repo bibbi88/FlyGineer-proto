@@ -622,7 +622,7 @@ function renderWidgets() {
     const sk = [b.x, b.y, b.w, b.h, zi, +E.cfg.bg].join('|');
     if (el._sk !== sk) { el._sk = sk; el._bgc = null; Object.assign(el.style, el._st = { left: b.x + ins + 'px', top: b.y + ins + 'px', width: b.w - 2 * ins + 'px', height: b.h - 2 * ins + 'px', zIndex: 1 + zi, background: `color-mix(in srgb, var(--card) ${+E.cfg.bg}%, transparent)`, borderColor: +E.cfg.bg ? 'var(--line)' : 'transparent' }); }
     el.classList.toggle('sel', wEdit && wSel === W.id);
-    const showL = E.cfg.showLabel !== false && E.cfg.showLabel !== 'false';
+    const showL = E.cfg.showLabel !== false && E.cfg.showLabel !== 'false' && (S.titles !== 'hide' || wEdit);
     if (T.canvas) {
       el.classList.toggle('compact', W.type !== 'map' && (b.w < 180 || b.h < 180)); // small: no on-widget buttons, they would cover the picture
       const wl = el.querySelector('.wl'); wl.style.display = showL ? '' : 'none';
@@ -790,7 +790,7 @@ function renderSettings() {
     <div class="field"><span class="k"></span><button class="btn primary" id="bmCopy">Copy bookmark code</button></div>`;
   if (setSec === 'web') h = `<div class="card sec"><h2>Web pages</h2><div class="field"><label for="fUrl">Flyk page address</label><input type="url" id="fUrl" value="${esc(S.flykUrl)}" placeholder="https://flyk.com/map?lang=en"></div>
 <div class="field"><label for="cUrl">My page address</label><input type="url" id="cUrl" value="${esc(S.customUrl)}" placeholder="https://…"></div><div class="muted">Pages can use your location once you allow it for this app. Some sites refuse to be shown inside another page; use Open in browser for those.</div></div>`;
-  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}
+  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}
     <div class="field"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.1" value="${S.volume}" style="flex:1;height:40px"></div>
     ${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>`;
   if (setSec === 'modes') h = `<div class="card sec"><h2>Display update</h2>
@@ -848,6 +848,7 @@ function applySet(key, raw) {
   if (key === 'navMode') { document.body.classList.toggle('pinned', v === 'pinned'); setNav(false); setTimeout(() => MAPS.forEach((I) => I.m.invalidateSize()), 250); }
   if (key === 'sound' && v) beep.init();
   if (key === 'wake') wake();
+  if (key === 'titles') renderWidgets();
   if (key === 'rate' || key === 'rateT') loop();
   if (key === 'autoImport' || key === 'taOrient') { /* stored */ }
 }

@@ -46,6 +46,7 @@ Tablet-first (Samsung Galaxy Tab A9, 8.7", 1340 × 800, landscape) paragliding f
 - Thermal widgets (`ta`, `tside`, `tcross`, `t3d`) use a **fixed scale** by default (`cfg.scale` 'fixed'|'auto', distances in `cfg.range`, `cfg.vspan`); the owner does not want them to rescale by themselves.
 - **Small widgets**: canvas widgets under ~180 px in width or height get class `compact` (on-widget buttons hidden; maps excluded). Draw functions simplify by size: compass detail levels (full / 30° ticks + N / ring + N + big heading), wind direction and turn radius write the main value on the circle, labels and legends drop out below ~200 px. Check new canvas widgets at 2×2 and 3×3 grid cells.
 - **Thermal mode**: `updateMode/enterThermal/leaveThermal`, `st.thermMode`; "automatic actions" (`AUTO_EVENTS`, `fireEvent`, `S.autoRules`) run actions on events with optional delay.
+- **Widget titles**: per widget `cfg.showLabel`; global `S.titles` 'each' | 'hide' (Settings → Display, button action `titles`); titles always show in edit mode.
 - **Conditional visibility** (`VIS`, `visDelay`) and "When tapped" options (`TAPG`, grouped) are in `COMMON` for every widget.
 - Settings export/import covers layouts and configuration. Saved layouts from older versions must keep working (add migrations like `S.navBtnMig`, never break stored values).
 - Map: Leaflet 1.9.4 + leaflet-rotate 0.2.8 (CDN). Tiles: OpenTopoMap, Esri imagery, Carto, OSM.

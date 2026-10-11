@@ -6,7 +6,7 @@ const withU = (key, u, fn) => { if (!u) return fn(); const o = S[key]; S[key] = 
 const BTN = {
   thermalOn: ['Thermal mode on', 'THERMAL'], thermalOff: ['Thermal mode off', 'GLIDE'], thermalToggle: ['Toggle thermal mode', 'THERMAL'],
   pMap: ['Show Map page', 'MAP'], pThermal: ['Show Thermal page', 'THERMAL PAGE'], pAtmos: ['Show Atmosphere page', 'ATMOSPHERE'], pAir: ['Show Airspace page', 'AIRSPACE'], prev: ['Previous page', 'BACK'],
-  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], fullscreen: ['Full screen on/off', 'FULL SCREEN']
+  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN']
 };
 const WT = {
   vario: { n: 'Vario', d: 'Climb rate, optionally averaged', w: 6, h: 3, o: [['win', 'Averaging', numOpt(0, 120, 1, 's', [0, 1, 3, 5, 10, 30], { zero: 'None', hint: '0 = no averaging', def: 0 })], ['units', 'Units', U_V]] },
