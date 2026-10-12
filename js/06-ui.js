@@ -111,9 +111,10 @@ const histL = (h) => (h === 'thermal' ? 'Th' : h === 'circle' ? '1c' : h < 90 ? 
 const histN = (h) => (h === 'thermal' ? 'this thermal' : h === 'circle' ? 'last circle' : fmtDur(h));
 const numOpt = (min, max, step, unit, presets, o) => Object.assign({ num: true, min, max, step, snap: 1, unit, presets }, o || {});
 const HIST_O = [30, 60, 120, 180, 300, 'thermal', 'circle'];
-function coreEstimate() {
-  const f = st.fix; if (!f) return null; const now = f.t, wv = st.wind || { vx: 0, vy: 0 };
-  const ar = airRel(), pts = st.samples.filter((s) => s.t > now - 60000).map((s) => { const [x, y] = ar(s); return { x, y, v: s.v }; });
+// ground = positions over the ground (thermal assistant 'over the ground' or with the map behind); default in the moving air
+function coreEstimate(ground) {
+  const f = st.fix; if (!f) return null; const now = f.t;
+  const ar = airRel(), pts = st.samples.filter((s) => s.t > now - 60000).map((s) => { const [x, y] = ground ? enu(f.lat, f.lon, s.lat, s.lon) : ar(s); return { x, y, v: s.v }; });
   const good = pts.filter((p) => p.v > 0.3); if (good.length < 5) return null;
   const mn = Math.min(...pts.map((p) => p.v)); let sw = 0, sx = 0, sy = 0; good.forEach((p) => { const k = (p.v - mn) ** 2; sw += k; sx += p.x * k; sy += p.y * k; }); if (!sw) return null;
   const x = sx / sw, y = sy / sw; return { x, y, d: Math.hypot(x, y), b: wrap360(Math.atan2(x, y) * R2D), v: Math.max(...good.map((p) => p.v)) };
@@ -136,7 +137,8 @@ function taDraw(cv, W, el) {
   let up = 0, upName = 'north';
   // wind up: the wind comes from the top (upwind is up); wind down: the wind comes from the bottom (upwind is down, downwind ahead)
   if (orient === 'wind' && w) { up = w.from; upName = 'wind'; } else if (orient === 'winddown' && w) { up = w.to; upName = 'wind down'; } else if (orient === 'track' && f && f.trk != null) { up = f.trk; upName = 'track'; }
-  el._sub = (upName === 'wind down' ? upName : upName + ' up') + ' · ' + histN(hist) + ((orient === 'wind' || orient === 'winddown') && !w ? ' · no wind yet' : '');
+  // positions: in the moving air (default; the thermal drifts with the wind like you do) or over the ground (cfg.frame, or with the map behind)
+  el._sub = (upName === 'wind down' ? upName : upName + ' up') + ' · ' + histN(hist) + (cfg.frame === 'ground' || wantBg ? ' · over ground' : ' · in the air') + ((orient === 'wind' || orient === 'winddown') && !w ? ' · no wind yet' : '');
   const ctlL = `<button class="wcb" data-act="orient" aria-label="Up is ${orient}">${orient === 'wind' ? 'W↑' : orient === 'winddown' ? 'W↓' : orient === 'track' ? 'T↑' : 'N↑'}</button><button class="wcb" data-act="hist" aria-label="History ${histN(hist)}">${histL(hist)}</button><button class="wcb" data-act="bg" aria-pressed="${wantBg}" aria-label="Map behind">Map</button>`;
   const ctlR = '<button class="wcb" data-act="zin" aria-label="Zoom in">+</button><button class="wcb" data-act="zout" aria-label="Zoom out">−</button><button class="wcb" data-act="zfit" aria-label="Fit">Fit</button>';
   const cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
@@ -146,7 +148,7 @@ function taDraw(cv, W, el) {
   const now = f.t;
   const tmin = hist === 'thermal' ? (st.thermal ? st.thermal.t0 : now - 120000) : hist === 'circle' ? now - (st.lastTurn ? st.lastTurn.T * 1000 * 1.05 : 25000) : now - hist * 1000;
   const wv = st.wind || { vx: 0, vy: 0 };
-  const ar = airRel(), loc = st.samples.filter((s) => s.t >= tmin).map((s) => { let [x, y] = wantBg ? enu(f.lat, f.lon, s.lat, s.lon) : ar(s); return { x, y, v: s.v, t: s.t }; });
+  const ar = airRel(), gnd = wantBg || cfg.frame === 'ground', loc = st.samples.filter((s) => s.t >= tmin).map((s) => { let [x, y] = gnd ? enu(f.lat, f.lon, s.lat, s.lon) : ar(s); return { x, y, v: s.v, t: s.t }; });
   const steps = [40, 60, 100, 150, 250, 400, 700, 1000, 1500, 2500, 4000];
   const maxD = Math.max(30, ...loc.map((p) => Math.hypot(p.x, p.y)));
   const zoom = clamp(+cfg.zoom || 1, 0.25, 8);
@@ -203,7 +205,7 @@ function taDraw(cv, W, el) {
     const last = loc[loc.length - 1]; if (last) { const [x, y] = tr(last.x, last.y); c.strokeStyle = ink; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 15, 0, 7); c.stroke(); }
   }
   // core
-  const core = coreEstimate();
+  const core = coreEstimate(gnd);
   if (core) {
     const [x, y] = tr(core.x, core.y);
     c.save(); c.setLineDash([5, 5]); c.lineWidth = 1.5; c.strokeStyle = ink; c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke(); c.restore();
