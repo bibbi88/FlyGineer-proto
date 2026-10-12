@@ -223,6 +223,14 @@ function taDraw(cv, W, el) {
     if (!best) best = [clamp(mx, tw + 2, Wd - tw - 2), clamp(my + 18, 16, H - 6)];
     if (Wd >= 200) haloText(c, wtxt, best[0], best[1] + 5, css('--sink'), wantBg ? 'rgba(255,255,255,.92)' : card);
   }
+  // next turnpoint: a big arrow on the rim pointing to it, with its name and distance (cfg.tp, default on)
+  if (cfg.tp !== false && cfg.tp !== 'false' && st.task && !st.goalT) { const wp = st.task.pts[st.nextWp]; if (wp) {
+    const b = brg(f.lat, f.lon, wp.lat, wp.lon), d = dist(f.lat, f.lon, wp.lat, wp.lon), sx = Math.sin(b * D2R), sy = Math.cos(b * D2R), col = HCOL;
+    const p1 = tr(sx * Rm * 0.7, sy * Rm * 0.7), p2 = tr(sx * Rm * 0.99, sy * Rm * 0.99), ang = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]), hl = clamp(R * 0.12, 12, 22);
+    c.lineCap = 'round'; c.strokeStyle = '#FFFFFF'; c.lineWidth = 9; c.beginPath(); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]); c.stroke();
+    c.strokeStyle = col; c.lineWidth = 5; c.beginPath(); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0] - hl * 0.6 * Math.cos(ang), p2[1] - hl * 0.6 * Math.sin(ang)); c.stroke(); c.lineCap = 'butt';
+    c.fillStyle = col; c.strokeStyle = '#FFFFFF'; c.lineWidth = 2; c.beginPath(); c.moveTo(p2[0], p2[1]); c.lineTo(p2[0] - hl * Math.cos(ang - 0.45), p2[1] - hl * Math.sin(ang - 0.45)); c.lineTo(p2[0] - hl * Math.cos(ang + 0.45), p2[1] - hl * Math.sin(ang + 0.45)); c.closePath(); c.stroke(); c.fill();
+    if (Wd >= 160) { const [lx, ly] = tr(sx * Rm * 0.58, sy * Rm * 0.58); c.font = '700 13px Barlow'; c.textAlign = 'center'; haloText(c, `${wp.name} ${fDist(d)}`, clamp(lx, 40, Wd - 40), clamp(ly + 4, 14, H - 6), col, wantBg ? 'rgba(255,255,255,.9)' : card); } } }
   // north marker
   { const [nx, ny] = tr(0, Rm * 0.97); c.font = '700 15px Barlow'; c.textAlign = 'center'; haloText(c, 'N', clamp(nx, 10, Wd - 10), clamp(ny + 5, 16, H - 4), '#B42318', wantBg ? 'rgba(255,255,255,.9)' : card); }
   // glider
