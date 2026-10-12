@@ -79,7 +79,7 @@ function plDraw() {
   const A = plAnalyse(P);
   // FAI helper: with two corners set, where a third makes an FAI triangle; with a triangle, for each corner the area it can be
   // moved within (the other two staying put) and still be FAI. The selected corner's area is stronger, the others faint.
-  const fill = (ring, k, lab) => { L.polygon(ring, { color: '#16A34A', weight: k ? 2.5 : 1.2, dashArray: k ? null : '6 6', fillColor: '#16A34A', fillOpacity: k ? 0.2 : 0.07, interactive: false }).addTo(g);
+  const fill = (ring, k, lab) => { L.polygon(ring, { color: '#1D4ED8', weight: k ? 3 : 2, dashArray: k ? null : '8 6', fillColor: '#2563EB', fillOpacity: k ? 0.32 : 0.16, interactive: false }).addTo(g);
     if (lab) L.marker(ring[Math.floor(ring.length / 2)], { icon: L.divIcon({ className: 'wpLabel', html: lab, iconSize: [90, 18], iconAnchor: [45, 9] }), interactive: false }).addTo(g); };
   const ll = (q) => ({ lat: q[0], lon: q[1] });
   const corners = n === 4 ? [0, 1, 2] : n === 5 ? [1, 2, 3] : n >= 6 ? (plScore(P).tri || null) : null;
@@ -94,7 +94,7 @@ function plDraw() {
       fill(sec[side].ring, strong, strong ? 'FAI area ' + plName(ci, n) : '');
     });
   }
-  if (n > 1) { L.polyline(P, { color: '#FFFFFF', weight: 8, opacity: 0.8, interactive: false }).addTo(g); L.polyline(P, { color: A.kind === 'fai' ? '#16A34A' : '#1E50C8', weight: 4, interactive: false }).addTo(g); }
+  if (n > 1) { L.polyline(P, { color: '#FFFFFF', weight: 8, opacity: 0.8, interactive: false }).addTo(g); L.polyline(P, { color: A.kind === 'fai' ? '#16A34A' : '#111418', weight: 4, interactive: false }).addTo(g); }
   // closed loop: start and goal share one marker (S/G) that moves both
   const loop = n >= 3 && dist(P[0][0], P[0][1], P[n - 1][0], P[n - 1][1]) < 60;
   P.forEach((p, i) => {
@@ -112,8 +112,8 @@ function plDraw() {
 }
 function plSide(A) {
   const P = PL.pts, n = P.length, sel = PL.sel, km = (v) => fDist(v);
-  const info = A.kind === 'fai' || A.kind === 'flat' ? `<div class="plBig">${km(A.per)}</div><div class="muted">${PL_KIND[A.kind]} · shortest leg ${Math.round(A.mn * 100)} %${A.kind === 'flat' ? ` (FAI needs ${Math.round(FAI_MIN * 100)} %)` : ''} · closing gap ${km(A.gap)}<br>Green: where each corner can go and stay FAI · tap a corner to highlight it</div>`
-    : `<div class="plBig">${n > 1 ? km(A.len) : '--'}</div><div class="muted">${PL_KIND[A.kind]}${n === 2 || n === 3 ? ' · green: where a 3rd corner makes an FAI triangle' : n >= 4 ? ' · green: where each corner keeps the triangle FAI (tap a corner to highlight its area)' : ''}</div>`;
+  const info = A.kind === 'fai' || A.kind === 'flat' ? `<div class="plBig">${km(A.per)}</div><div class="muted">${PL_KIND[A.kind]} · shortest leg ${Math.round(A.mn * 100)} %${A.kind === 'flat' ? ` (FAI needs ${Math.round(FAI_MIN * 100)} %)` : ''} · closing gap ${km(A.gap)}<br>Blue: where each corner can go and stay FAI · tap a corner to highlight it</div>`
+    : `<div class="plBig">${n > 1 ? km(A.len) : '--'}</div><div class="muted">${PL_KIND[A.kind]}${n === 2 || n === 3 ? ' · blue: where a 3rd corner makes an FAI triangle' : n >= 4 ? ' · blue: where each corner keeps the triangle FAI (tap a corner to highlight its area)' : ''}</div>`;
   const sc = plScore(P), xc = sc.pts ? `<div class="plXc"><b>${sc.pts.toFixed(1)} pts</b> XContest · ${XC_KIND[sc.kind]}${sc.kind === 'flat' || sc.kind === 'fai' ? ` · ${km(sc.per)} − gap ${km(sc.gap)}` : ` · ${km(sc.dist)}`}</div>` : '';
   const rows = P.map((p, i) => `<div class="plRow${i === sel ? ' sel' : ''}"><button class="plSel" data-plsel="${i}"><b>${plName(i, n)}</b><span class="muted">${i ? km(A.legs[i - 1]) : 'start'}</span></button><button class="btn" data-pldel="${i}" aria-label="Delete ${plName(i, n)}">✕</button></div>`).join('');
   $('plSide').innerHTML = `<b style="font-size:20px">XC planner</b>
