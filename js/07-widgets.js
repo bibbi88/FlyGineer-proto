@@ -263,14 +263,14 @@ function openSheet(id) {
   const tm = sheetMode === 'thermal', hasT = !!W.cfgT, D = tm && hasT ? W.cfgT : W.cfg;
   const read = (k, d) => { const v = tm && hasT && W.cfgT[k] !== undefined ? W.cfgT[k] : W.cfg[k]; return v ?? d; };
   const dflt = (k, o) => (T.def && T.def[k] !== undefined ? T.def[k] : k === 'tap' ? defTap(W) : Array.isArray(o) ? o[0][0] : o.def ?? o.presets[0]);
-  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay')) && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
+  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay')) && !(!tm && k === 'showLabel') && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
   const typeOpts = Object.entries(WT).map(([k, t]) => `<option value="${k}" ${k === W.type ? 'selected' : ''}>${t.n}</option>`).join('');
   const tabs = `<div class="row"><button class="pill grow" data-sm="normal" aria-pressed="${!tm}">Normal${hasT && !tm ? ' •' : ''}</button><button class="pill grow" data-sm="thermal" aria-pressed="${tm}">When thermaling${hasT ? ' •' : ''}</button></div>`;
   let body;
   if (!tm) body = `<div class="opt"><label class="lbl" for="wsType">Widget</label><select id="wsType">${typeOpts}</select></div>
-    <div class="opt"><label class="lbl" for="wsLabel">Title text</label><input type="text" id="wsLabel" value="${esc(W.cfg.label || '')}" placeholder="${esc(T.n)}"></div>
+    <div class="opt"><label class="lbl" for="wsLabel">Title</label><div class="row wsTitle"><input type="text" id="wsLabel" value="${esc(W.cfg.label || '')}" placeholder="${esc(T.n)}"><button class="pill" data-ok="showLabel" data-ov="true" aria-pressed="${W.cfg.showLabel !== false && W.cfg.showLabel !== 'false'}">Show</button><button class="pill" data-ok="showLabel" data-ov="false" aria-pressed="${!(W.cfg.showLabel !== false && W.cfg.showLabel !== 'false')}">Hide</button></div></div>
     ${opts}
-    <div class="opt"><span class="lbl">Size and place</span><div class="row"><button class="pill" data-wsz="w-">Narrower</button><button class="pill" data-wsz="w+">Wider</button><button class="pill" data-wsz="h-">Lower</button><button class="pill" data-wsz="h+">Taller</button></div></div>
+    <div class="opt"><span class="lbl">Size · grid cells, drag the widget to move it</span>${[['w', 'Width'], ['h', 'Height']].map(([k, n]) => `<div class="row wsSize"><span class="wsK">${n}</span><button class="pill step" data-wsz="${k}-" aria-label="${n} less">−</button><input type="number" class="numin" inputmode="decimal" data-wsi="${k}" value="${+(W[k] / GSC).toFixed(2)}" step="0.5" aria-label="${n}, grid cells"><button class="pill step" data-wsz="${k}+" aria-label="${n} more">+</button></div>`).join('')}</div>
     <div class="row" style="flex-wrap:wrap;margin-top:6px"><button class="btn" id="wsDup">Duplicate</button><button class="btn" id="wsFront">Bring to front</button><button class="btn warn" id="wsDel">Delete</button></div>`;
   else body = `<div class="muted" style="line-height:1.4">Shown live on the page now. These settings replace the normal ones only while thermaling is detected; everything you leave alone stays as in Normal.</div>
     <div class="opt"><span class="lbl">Different settings when thermaling</span><div class="row"><button class="pill" data-tm="off" aria-pressed="${!hasT}">Off</button><button class="pill" data-tm="on" aria-pressed="${hasT}">On</button></div></div>${hasT ? opts + '<div class="row"><button class="btn" data-tm="clear">Clear thermal changes</button></div>' : ''}`;
@@ -294,7 +294,8 @@ function openSheet(id) {
   q('[data-ns]', (b) => (b.onclick = () => { const k = b.dataset.ns, sp = spec(k), c = D[k] ?? W.cfg[k] ?? dflt(k, sp), base = typeof c === 'number' ? c : sp.def ?? sp.min; D[k] = snapNum(sp, base + (+b.dataset.dir) * sp.step); saveLayout(); openSheet(W.id); }));
   q('[data-ni]', (i) => (i.onchange = () => { const k = i.dataset.ni, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) D[k] = snapNum(spec(k), v); saveLayout(); openSheet(W.id); }));
   q('[data-ok]', (b) => (b.onclick = () => { const raw = b.dataset.ov; D[b.dataset.ok] = raw === 'true' ? true : raw === 'false' ? false : raw !== '' && !isNaN(+raw) ? +raw : raw; saveLayout(); openSheet(W.id); }));
-  q('[data-wsz]', (b) => (b.onclick = () => { const k = b.dataset.wsz; if (k === 'w+') W.w = Math.min(GC - W.x, W.w + 2); if (k === 'w-') W.w = Math.max(6, W.w - 2); if (k === 'h+') W.h = Math.min(GR - W.y, W.h + 2); if (k === 'h-') W.h = Math.max(4, W.h - 2); saveLayout(); }));
+  q('[data-wsz]', (b) => (b.onclick = () => { const k = b.dataset.wsz; if (k === 'w+') W.w = Math.min(GC - W.x, W.w + 2); if (k === 'w-') W.w = Math.max(6, W.w - 2); if (k === 'h+') W.h = Math.min(GR - W.y, W.h + 2); if (k === 'h-') W.h = Math.max(4, W.h - 2); saveLayout(); openSheet(W.id); }));
+  q('[data-wsi]', (i) => (i.onchange = () => { const k = i.dataset.wsi, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) { const n = Math.round(v * GSC / 2) * 2; if (k === 'w') W.w = clamp(n, 6, GC - W.x); else W.h = clamp(n, 4, GR - W.y); } saveLayout(); openSheet(W.id); }));
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
 const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'] };
