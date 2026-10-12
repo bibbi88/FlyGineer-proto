@@ -13,7 +13,7 @@ function wHtml(id) {
     case 'vario': return `<div class="card w big"><div class="row" style="justify-content:space-between"><span class="lbl">Vario ${uV()}</span><span class="lbl">${st.varioSrc === 'gps' ? 'from GPS' : st.varioSrc}</span></div><div class="v num" style="color:${st.vario >= 0 ? css('--climb') : css('--sink')}">${fVario(st.vario)}</div></div>`;
     case 'avg': return tile('Avg ' + S.avgS + ' s', fVario(av), uV());
     case 'alt': return tile('Altitude', fAlt(alt), S.uAlt, st.baro ? 'baro' : 'GPS');
-    case 'agl': return tile('Above ground', st.groundElev != null && alt != null ? fAlt(alt - st.groundElev) : '--', S.uAlt, st.groundElev != null ? 'ground ' + fAlt(st.groundElev) : 'needs data');
+    case 'agl': return tile('AGL', st.groundElev != null && alt != null ? fAlt(alt - st.groundElev) : '--', S.uAlt, st.groundElev != null ? 'ground ' + fAlt(st.groundElev) : 'needs data');
     case 'gs': return tile('Ground speed', fSpd(f?.spd), S.uSpd, f?.trk != null ? 'trk ' + pad3(f.trk) + '°' : '');
     case 'ld': return tile('Glide ratio', st.ld ? st.ld.toFixed(1) : '--', '', 'wing ' + S.wingLD);
     case 'wind': return tile('Wind', w ? fSpd(w.spd) : '--', S.uSpd, w ? 'from ' + pad3(w.from) + '° ' + compass(w.from) : 'circle once');
@@ -601,16 +601,18 @@ function windDirBody(cv, W) {
   c.fillStyle = css('--muted'); c.font = '13px Barlow'; c.fillText(`from ${pad3(w.from)}° ${compass(w.from)}`, tx, ty + fs + 20);
   if (f && f.trk != null) c.fillText(`${comp >= 0 ? 'tailwind' : 'headwind'} ${fSpd(Math.abs(comp))} ${S.uSpd}`, tx, ty + fs + 37);
 }
-const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv), ta: taDraw, tside: sideDraw, tcross: sideDraw, thead: sideDraw, t3d: t3dDraw, tlayer: layerDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
+const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv), ta: taDraw, tside: sideDraw, tcross: sideDraw, thead: sideDraw, vario: (cv, W, el) => varioDraw(cv, W, el), t3d: t3dDraw, tlayer: layerDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
 
 /* ----- widget element lifecycle ----- */
 const HANDLES = '<div class="wh tl" data-c="tl"></div><div class="wh tr" data-c="tr"></div><div class="wh bl" data-c="bl"></div><div class="wh br" data-c="br"></div>';
 function wBox(W, el, r) { r = r || el.getBoundingClientRect(); return { x: W.x / GC * r.width, y: W.y / GR * r.height, w: W.w / GC * r.width, h: W.h / GR * r.height }; }
 function layerEl() { return $(LAYERID[pageKey()]); }
 function disposeW(e) { if (cvRO) e.querySelectorAll('canvas').forEach((c) => cvRO.unobserve(c)); if (e._mi) { MAPS.delete(e._mi); try { e._mi.m.remove(); } catch (x) { } } if (e._tm) { try { e._tm.remove(); } catch (x) { } } if (e._am) { try { e._am.remove(); } catch (x) { } } }
+const isCv = (W) => !!WT[W.type].canvas || (W.type === 'vario' && ['bar', 'dial'].includes(effCfg(W).mode));
 function mkWidget(W, layer) {
   const el = document.createElement('div'); el.className = 'wg'; el.dataset.id = W.id; el.dataset.type = W.type; el.setAttribute('role', W.type === 'button' ? 'button' : 'group'); el.setAttribute('aria-label', WT[W.type].n);
-  if (WT[W.type].canvas) el.innerHTML = '<div class="wl"><span></span><span></span></div><div class="wcw"><div class="wbg"></div><canvas></canvas><div class="wctl l"></div><div class="wctl r"></div><div class="wctl b"></div></div>' + HANDLES;
+  el.dataset.cv = isCv(W) ? '1' : '0';
+  if (isCv(W)) el.innerHTML = '<div class="wl"><span></span><span></span></div><div class="wcw"><div class="wbg"></div><canvas></canvas><div class="wctl l"></div><div class="wctl r"></div><div class="wctl b"></div></div>' + HANDLES;
   layer.appendChild(el); return el;
 }
 let curBox = { x: 0, y: 0, w: 200, h: 100 };
@@ -621,7 +623,7 @@ function renderWidgets() {
   L0.forEach((W, zi) => {
     const T = WT[W.type]; if (!T) return; const E = effW(W), ins = W.type === 'map' ? 0 : 2;
     let el = layer.querySelector(`.wg[data-id="${W.id}"]`);
-    if (!el || el.dataset.type !== W.type) { if (el) { disposeW(el); el.remove(); } el = mkWidget(W, layer); }
+    if (!el || el.dataset.type !== W.type || el.dataset.cv !== (isCv(W) ? '1' : '0')) { if (el) { disposeW(el); el.remove(); } el = mkWidget(W, layer); }
     const vis = W.cfg.vis || 'always', cond = vis === 'always' || (vis === 'thermal' && !!st.thermMode) || (vis === 'glide' && !st.thermMode), vdl = vis === 'always' ? 0 : +W.cfg.visDelay || 0, since = nowT() - (st.modeSince || 0);
     const shown = cond && (vdl <= 0 || since >= vdl * 1000 || since < 0);
     el.dataset.vis = vis; el.dataset.vd = vdl > 0 ? ' +' + vdl + ' s' : ''; el.classList.toggle('hidnow', !shown && wEdit);
@@ -632,7 +634,7 @@ function renderWidgets() {
     if (el._sk !== sk) { el._sk = sk; el._bgc = null; Object.assign(el.style, el._st = { left: b.x + ins + 'px', top: b.y + ins + 'px', width: b.w - 2 * ins + 'px', height: b.h - 2 * ins + 'px', zIndex: 1 + zi, background: `color-mix(in srgb, var(--card) ${+E.cfg.bg}%, transparent)`, borderColor: +E.cfg.bg ? 'var(--line)' : 'transparent' }); }
     el.classList.toggle('sel', wEdit && wSel === W.id);
     const showL = E.cfg.showLabel !== false && E.cfg.showLabel !== 'false' && (S.titles !== 'hide' || wEdit);
-    if (T.canvas) {
+    if (isCv(W)) {
       el.classList.toggle('compact', W.type !== 'map' && (b.w < 180 || b.h < 180)); // small: no on-widget buttons, they would cover the picture
       const wl = el.querySelector('.wl'); wl.style.display = showL ? '' : 'none';
       const cv = el.querySelector('canvas'); el._sub = '';

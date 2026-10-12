@@ -9,11 +9,11 @@ const BTN = {
   center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN']
 };
 const WT = {
-  vario: { n: 'Vario', d: 'Climb rate, optionally averaged', w: 6, h: 3, o: [['win', 'Averaging', numOpt(0, 120, 1, 's', [0, 1, 3, 5, 10, 30], { zero: 'None', hint: '0 = no averaging', def: 0 })], ['units', 'Units', U_V]] },
+  vario: { n: 'Vario', d: 'Climb rate as number, bar or dial; averaging in 0.1 s steps', w: 6, h: 3, o: [['mode', 'Display', [['number', 'Number'], ['bar', 'Bar'], ['dial', 'Dial']]], ['win', 'Averaging', numOpt(0, 120, 0.1, 's', [0, 0.5, 1, 2, 5, 10], { zero: 'None', hint: '0 = no averaging', def: 0, snap: 0.1 })], ['range', 'Bar / dial scale', [[3, '±3 m/s'], [5, '±5 m/s'], [10, '±10 m/s']]], ['units', 'Units', U_V]] },
   varioDial: { n: 'Vario dial', d: 'Needle gauge', w: 5, h: 5, canvas: true, o: [['range', 'Scale', [[5, '±5 m/s'], [10, '±10 m/s']]], ['win', 'Average marker', numOpt(0, 120, 1, 's', [0, 5, 10, 30, 60], { zero: 'Off', hint: '0 = off', def: 0 })]] },
   avg: { n: 'Vario average', d: 'Averaged climb', w: 3, h: 2, o: [['win', 'Average over', numOpt(1, 300, 1, 's', [5, 10, 30, 60, 120], { def: 30 })], ['units', 'Units', U_V]] },
   alt: { n: 'Altitude', d: 'Height above sea', w: 3, h: 2, o: [['src', 'Source', [['auto', 'Vario if connected'], ['gps', 'GPS']]], ['units', 'Units', U_A]] },
-  agl: { n: 'Height above ground', d: 'From terrain data', w: 3, h: 2, o: [['units', 'Units', U_A]] },
+  agl: { n: 'AGL', d: 'Height above ground, from terrain data', w: 3, h: 2, o: [['units', 'Units', U_A]] },
   gs: { n: 'Ground speed', d: 'From GPS', w: 3, h: 2, o: [['units', 'Units', U_S]] },
   trk: { n: 'Track', d: 'Direction over ground', w: 3, h: 2, o: [] },
   ld: { n: 'Glide ratio', d: 'Measured on glide', w: 3, h: 2, o: [['win', 'Average over', numOpt(5, 300, 1, 's', [10, 20, 30, 60, 120], { def: 20 })]] },
@@ -58,7 +58,7 @@ const WT = {
   radio: { n: 'Radio', d: 'Frequencies from airspace', w: 11, h: 4, o: [] },
   notams: { n: 'NOTAM', d: 'From ais.fi, tap to read', w: 11, h: 5, def: { radius: 50 }, o: [['radius', 'Within', [[25, '25 km'], [50, '50 km'], [100, '100 km']]]] }
 };
-const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling']];
 const COMMON = [['vis', 'Show when', VIS], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
@@ -132,7 +132,7 @@ function wData(W) {
     case 'vario': { const win = +c.win || 0; const v = win ? avgVario(win, now) ?? st.vario : st.vario; return { l: 'Vario', u: VU() + (win ? ' · Ø ' + win + ' s' : ''), v: V(v), col: v >= 0 ? css('--climb') : css('--sink'), s: st.varioSrc === 'gps' ? 'from GPS' : '' }; }
     case 'avg': { const win = +c.win || S.avgS; const a = avgVario(win, now); return { l: 'Vario average', u: VU() + ' · Ø ' + fmtDur(win), v: V(a), col: a == null ? null : a >= 0 ? css('--climb') : css('--sink') }; }
     case 'alt': { const a = c.src === 'gps' ? f?.alt : alt; return { l: 'Altitude', u: AU, v: A(a), s: c.src === 'gps' ? 'GPS' : st.baro ? 'vario' : 'GPS' }; }
-    case 'agl': return { l: 'Above ground', u: AU, v: st.groundElev != null && alt != null ? A(alt - st.groundElev) : '--', s: st.groundElev != null ? 'ground ' + A(st.groundElev) : 'needs terrain data' };
+    case 'agl': return { l: 'AGL', u: AU, v: st.groundElev != null && alt != null ? A(alt - st.groundElev) : '--', s: st.groundElev != null ? 'ground ' + A(st.groundElev) : 'needs terrain data' };
     case 'gs': return { l: 'Ground speed', u: SU, v: Sp(f?.spd) };
     case 'trk': return { l: 'Track', u: '°', v: f?.trk != null ? pad3(f.trk) : '--', s: f?.trk != null ? compass(f.trk) : '' };
     case 'ld': { const win = +c.win || 20, a = avgVario(win, now), g = avgSpd(win, now); const v = !st.circling && a != null && a < -0.2 && g > 3 ? g / -a : null; return { l: 'Glide ' + win + ' s', u: '', v: v ? v.toFixed(1) : (st.ld ? st.ld.toFixed(1) : '--'), s: v ? '' : st.circling ? 'circling' : '' }; }
@@ -202,16 +202,44 @@ function wData(W) {
   }
   return { l: W.type, v: '' };
 }
-function dialDraw(cv, W) {
+// Vario widget in Bar or Dial mode (Number mode is a normal text widget, see wData)
+function varioDraw(cv, W, el) {
+  withU('uVario', W.cfg.units || '', () => {
+    const win = +W.cfg.win || 0, v = win ? avgVario(win) ?? st.vario : st.vario, rg = +W.cfg.range || 5;
+    el._sub = uV() + (win ? ' · Ø ' + win + ' s' : '');
+    if (W.cfg.mode === 'dial') { dialDraw(cv, Object.assign({}, W, { cfg: Object.assign({}, W.cfg, { range: rg }) }), v, true); return; }
+    // bar: zero in the middle, climb up in orange, sink down in blue; the value beside it
+    const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const vert = H >= Wd * 0.6, ink = css('--ink'), card = css('--card'), col = v >= 0 ? css('--climb') : css('--sink'), k = clamp(v / rg, -1, 1);
+    c.font = '11px Barlow'; c.fillStyle = css('--muted'); c.strokeStyle = css('--line'); c.lineWidth = 1;
+    const step = rg <= 3 ? 1 : rg <= 5 ? 1 : 2;
+    if (vert) {
+      const bw = clamp(Wd * 0.32, 26, 90), x0 = 22, y0 = 6, y1 = H - 6, ym = (y0 + y1) / 2, hh = (y1 - y0) / 2;
+      c.fillStyle = 'rgba(128,128,128,.12)'; c.fillRect(x0, y0, bw, y1 - y0);
+      c.fillStyle = col; if (k >= 0) c.fillRect(x0, ym - k * hh, bw, k * hh); else c.fillRect(x0, ym, bw, -k * hh);
+      c.fillStyle = css('--muted'); c.textAlign = 'right';
+      for (let t = -rg; t <= rg; t += step) { const y = ym - t / rg * hh; c.strokeStyle = t === 0 ? ink : css('--line'); c.lineWidth = t === 0 ? 2 : 1; c.beginPath(); c.moveTo(x0 - 4, y); c.lineTo(x0 + bw, y); c.stroke(); if (H > 120 || t === 0 || Math.abs(t) === rg) c.fillText(String(t), x0 - 6, y + 4); }
+      const tx = x0 + bw + 8, fs = clamp(Math.min(H * 0.4, (Wd - tx) / 3.2), 14, 140); c.font = `700 ${fs}px Barlow Condensed`; c.textAlign = 'left'; c.fillStyle = col; c.fillText(fVario(v), tx, ym + fs * 0.35);
+    } else {
+      const bh = clamp(H * 0.34, 18, 60), x0 = 8, x1 = Wd - 8, xm = (x0 + x1) / 2, hw = (x1 - x0) / 2, yb = H - bh - 16;
+      c.fillStyle = 'rgba(128,128,128,.12)'; c.fillRect(x0, yb, x1 - x0, bh);
+      c.fillStyle = col; if (k >= 0) c.fillRect(xm, yb, k * hw, bh); else c.fillRect(xm + k * hw, yb, -k * hw, bh);
+      c.fillStyle = css('--muted'); c.textAlign = 'center';
+      for (let t = -rg; t <= rg; t += step) { const x = xm + t / rg * hw; c.strokeStyle = t === 0 ? ink : css('--line'); c.lineWidth = t === 0 ? 2 : 1; c.beginPath(); c.moveTo(x, yb - 3); c.lineTo(x, yb + bh + 3); c.stroke(); if (Wd > 220 || t === 0 || Math.abs(t) === rg) c.fillText(String(t), x, H - 3); }
+      const fs = clamp(yb - 6, 14, 140); c.font = `700 ${fs}px Barlow Condensed`; c.textAlign = 'center'; c.fillStyle = col; c.fillText(fVario(v), xm, yb - 6);
+    }
+  });
+}
+function dialDraw(cv, W, val, noMarker) {
+  if (val == null) val = st.vario;
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const cx = Wd / 2, cy = H / 2, R = Math.min(Wd, H) / 2 - 6; const rg = +W.cfg.range || 5;
   const ang = (v) => (180 + clamp(v, -rg, rg) / rg * 150) * D2R; const P = (v, r) => [cx + r * Math.cos(ang(v)), cy + r * Math.sin(ang(v))];
   c.lineWidth = Math.max(4, R * 0.08); c.strokeStyle = css('--climb3'); c.beginPath(); c.arc(cx, cy, R * 0.9, ang(0), ang(rg)); c.stroke(); c.strokeStyle = 'rgba(30,80,200,.25)'; c.beginPath(); c.arc(cx, cy, R * 0.9, ang(-rg), ang(0)); c.stroke();
-  if (st.vario > 0) { c.strokeStyle = css('--climb'); c.beginPath(); c.arc(cx, cy, R * 0.9, ang(0), ang(st.vario)); c.stroke(); }
+  if (val > 0) { c.strokeStyle = css('--climb'); c.beginPath(); c.arc(cx, cy, R * 0.9, ang(0), ang(val)); c.stroke(); }
   c.strokeStyle = css('--ink'); c.fillStyle = css('--ink'); c.font = `700 ${Math.max(10, R * 0.16)}px Barlow Condensed`; c.textAlign = 'center';
   for (let i = -rg; i <= rg; i++) { const [x1, y1] = P(i, R * 0.78), [x2, y2] = P(i, R * 0.98); c.lineWidth = i % (rg / 5 * 2) === 0 ? 2.5 : 1.2; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); if (i % (rg / 5 * 2) === 0 && (R >= 55 || i === 0 || Math.abs(i) === rg)) { const [tx, ty] = P(i, R * 0.6); c.fillText(String(i), tx, ty + R * 0.06); } } // small: only 0 and the ends
-  if (+W.cfg.win) { const a = avgVario(+W.cfg.win); if (a != null) { const [x, y] = P(a, R * 0.9); c.fillStyle = css('--card'); c.lineWidth = 2.5; c.beginPath(); c.arc(x, y, R * 0.07, 0, 7); c.fill(); c.stroke(); } }
-  const [nx, ny] = P(st.vario, R * 0.86); c.lineWidth = Math.max(3, R * 0.05); c.lineCap = 'round'; c.strokeStyle = css('--ink'); c.beginPath(); c.moveTo(cx, cy); c.lineTo(nx, ny); c.stroke(); c.beginPath(); c.arc(cx, cy, R * 0.07, 0, 7); c.fill();
-  c.fillStyle = st.vario >= 0 ? css('--climb') : css('--sink'); c.font = `700 ${R * 0.3}px Barlow Condensed`; c.fillText(fVario(st.vario), cx + R * 0.3, cy + R * 0.42);
+  if (!noMarker && +W.cfg.win) { const a = avgVario(+W.cfg.win); if (a != null) { const [x, y] = P(a, R * 0.9); c.fillStyle = css('--card'); c.lineWidth = 2.5; c.beginPath(); c.arc(x, y, R * 0.07, 0, 7); c.fill(); c.stroke(); } }
+  const [nx, ny] = P(val, R * 0.86); c.lineWidth = Math.max(3, R * 0.05); c.lineCap = 'round'; c.strokeStyle = css('--ink'); c.beginPath(); c.moveTo(cx, cy); c.lineTo(nx, ny); c.stroke(); c.beginPath(); c.arc(cx, cy, R * 0.07, 0, 7); c.fill();
+  c.fillStyle = val >= 0 ? css('--climb') : css('--sink'); c.font = `700 ${R * 0.3}px Barlow Condensed`; c.fillText(fVario(val), cx + R * 0.3, cy + R * 0.42);
 }
 function numRow(key, name, spec, cur) {
   const isNum = (typeof cur === 'number' && isFinite(cur)) || (typeof cur === 'string' && cur !== '' && !isNaN(+cur)), v = isNum ? +cur : null;

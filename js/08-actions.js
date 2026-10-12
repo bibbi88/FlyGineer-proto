@@ -35,6 +35,7 @@ function handleTap(W) {
   if (a === 'none') return;
   if (a === 'time') return showTime();
   if (a === 'fullscreen') return toggleFull();
+  if (a === 'vmode') { if (W.type !== 'vario') return; const o = ['number', 'bar', 'dial'], D = cfgW(W); D.mode = o[(o.indexOf(effCfg(W).mode || 'number') + 1) % 3]; saveLayout(); return; }
   if (a === 'sound') { applySet('sound', String(!S.sound)); toast('Vario sound ' + (S.sound ? 'on' : 'off')); return; }
   if (a[0] === 'p') return showPage(a);
   openDetails(W);
@@ -84,7 +85,7 @@ function renderDetails(live) {
     chart = { pts: bucket(lg, 'alt', lg.length > 900 ? 10 : 2), o: { color: css('--sink'), marks: th, fmt: (y) => fAlt(y) } };
     const al = lg.map((p) => p.alt).filter((a) => a != null); let climb = 0; for (let i = 1; i < al.length; i++) if (al[i] > al[i - 1]) climb += al[i] - al[i - 1];
     const fc = st.forecast; const cb = fc ? fc.elev + 125 * (fc.T - fc.Td) : null;
-    stats = statBox('Now', fAlt(altNow()), S.uAlt) + statBox('Above ground', st.groundElev != null && altNow() != null ? fAlt(altNow() - st.groundElev) : '--', S.uAlt) + statBox('Highest', al.length ? fAlt(Math.max(...al)) : '--', S.uAlt) + statBox('Lowest', al.length ? fAlt(Math.min(...al)) : '--', S.uAlt) + statBox('Total climbed', fAlt(climb), S.uAlt) + statBox('Cloud base', cb ? fAlt(cb) : '--', cb ? 'forecast' : 'load forecast') + statBox('Thermal top', thermalTop() ? fAlt(thermalTop()) : '--', 'forecast') + statBox('Temperature', st.baro?.temp != null ? st.baro.temp.toFixed(1) + ' °C' : '--', '');
+    stats = statBox('Now', fAlt(altNow()), S.uAlt) + statBox('AGL', st.groundElev != null && altNow() != null ? fAlt(altNow() - st.groundElev) : '--', S.uAlt) + statBox('Highest', al.length ? fAlt(Math.max(...al)) : '--', S.uAlt) + statBox('Lowest', al.length ? fAlt(Math.min(...al)) : '--', S.uAlt) + statBox('Total climbed', fAlt(climb), S.uAlt) + statBox('Cloud base', cb ? fAlt(cb) : '--', cb ? 'forecast' : 'load forecast') + statBox('Thermal top', thermalTop() ? fAlt(thermalTop()) : '--', 'forecast') + statBox('Temperature', st.baro?.temp != null ? st.baro.temp.toFixed(1) + ' °C' : '--', '');
   }
   if (g === 'spd') {
     const sp = lg.filter((p) => p.spd != null); chart = { pts: bucket(sp, 'spd', sp.length > 900 ? 10 : 3).map((p) => ({ t: p.t, y: p.y * spdK() })), o: { color: css('--ink') } };
@@ -94,7 +95,7 @@ function renderDetails(live) {
   if (g === 'glide') {
     const gl = []; let prev = null; (st.thermals.length ? st.thermals : []).forEach((t) => { if (prev) { const s0 = st.log.find((p) => p.t >= prev.t1), s1 = [...st.log].reverse().find((p) => p.t <= t.t0); if (s0 && s1 && s0.lat != null && s1.lat != null && s0.alt - s1.alt > 20) gl.push({ t: s0.t, d: dist(s0.lat, s0.lon, s1.lat, s1.lon), h: s0.alt - s1.alt }); } prev = t; });
     const p = st.pred; const ld = (win) => { const v = avgVario(win, now), sp = avgSpd(win, now); return !st.circling && v != null && v < -0.2 && sp > 3 ? (sp / -v).toFixed(1) : '--'; };
-    stats = statBox('L/D 20 s', ld(20), st.circling ? 'circling now' : '') + statBox('L/D 60 s', ld(60), '') + statBox('Wing L/D', S.wingLD, 'set in Units & glide') + statBox('Lands at L/D now', p.now ? fDist(p.now[2]) : '--', 'filled dot') + statBox('Lands at wing L/D', p.wing ? fDist(p.wing[2]) : '--', 'empty dot') + statBox('Above ground', st.groundElev != null && altNow() != null ? fAlt(altNow() - st.groundElev) : '--', S.uAlt);
+    stats = statBox('L/D 20 s', ld(20), st.circling ? 'circling now' : '') + statBox('L/D 60 s', ld(60), '') + statBox('Wing L/D', S.wingLD, 'set in Units & glide') + statBox('Lands at L/D now', p.now ? fDist(p.now[2]) : '--', 'filled dot') + statBox('Lands at wing L/D', p.wing ? fDist(p.wing[2]) : '--', 'empty dot') + statBox('AGL', st.groundElev != null && altNow() != null ? fAlt(altNow() - st.groundElev) : '--', S.uAlt);
     extra = gl.length ? '<div class="lbl">Glides between thermals</div>' + gl.slice(-6).reverse().map((x) => { const d = new Date(x.t); return `<div class="li"><b class="num" style="font-size:20px;width:64px">${pad2(d.getHours())}:${pad2(d.getMinutes())}</b><span class="grow">${fDist(x.d)} for ${fAlt(x.h)} ${S.uAlt}</span><b class="num" style="font-size:22px">L/D ${(x.d / x.h).toFixed(1)}</b></div>`; }).join('') : '<div class="muted">Glides between thermals appear here after two thermals.</div>';
   }
   if (g === 'task') {
