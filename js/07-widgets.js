@@ -120,7 +120,7 @@ const defLayout = (pk) => (DEFS[pk || pageKey()] || DEFS.map).map(([t, x, y, w, 
 }
 Object.defineProperty(S, 'layout', { enumerable: false, configurable: true, get() { return S.layouts[pageKey()]; }, set(v) { S.layouts[pageKey()] = v; } });
 let wEdit = false, wSel = null;
-function wData(W) {
+function wData(W, bx) { bx = bx || { w: 300, h: 150 };
   const c = W.cfg, f = st.fix, alt = altNow(), now = nowT(), u = c.units || '';
   const V = (ms) => withU('uVario', u, () => fVario(ms)), VU = () => withU('uVario', u, uV);
   const A = (m) => withU('uAlt', u, () => fAlt(m)), AU = u || S.uAlt;
@@ -153,9 +153,12 @@ function wData(W) {
     case 'next': {
       // no task: open FlyXC on the Web page, or paste a FlyXC link you already have
       if (!st.task) return { l: 'Next turnpoint', html: `<div class="fxW"><div class="row"><input class="fxIn" type="url" inputmode="url" placeholder="Paste a FlyXC link" aria-label="FlyXC link"><button class="wcb fxB" data-act="fximp">Import</button></div><button class="wcb fxB" data-act="fxweb">Plan in FlyXC ›</button></div>` };
+      if (st.goalT) { const d = new Date(st.goalT); return { l: 'Goal · ' + st.task.name, html: `<div class="wv" style="font-size:${clamp(Math.min(bx.h * 0.4, bx.w / 5), 16, 90).toFixed(0)}px;justify-content:center">✓ GOAL</div><div class="ws" style="text-align:center">reached ${pad2(d.getHours())}:${pad2(d.getMinutes())} · ${(st.task.len / 1000).toFixed(1)} km</div>`, bgc: '#1F8A4C', col: '#FFFFFF' }; }
       if (!wp || !f) return { html: `<div class="ws" style="white-space:normal">Waiting for GPS…</div>`, l: 'Next turnpoint' };
       const b = brg(f.lat, f.lon, wp.lat, wp.lon); const arr = alt != null && st.groundElev != null ? alt - dwp / S.wingLD - st.groundElev : null;
-      return { l: `Next · ${wp.name} (${st.nextWp + 1}/${st.task.pts.length})`, html: `<div class="row" style="gap:14px;flex:1;align-items:center"><div><div class="ws">Dist</div><div class="num" style="font-size:26px">${fDist(dwp)}</div></div><div><div class="ws">Brg</div><div class="num" style="font-size:26px">${pad3(b)}°</div></div><div><div class="ws">ETA</div><div class="num" style="font-size:26px">${f.spd > 2 ? etaStr(dwp / f.spd) : '--'}</div></div></div><div class="ws">${arr != null ? (arr >= 0 ? 'Arrive ' + A(arr) + ' ' + AU + ' above ground' : 'Short by ' + A(-arr) + ' ' + AU) + ' at L/D ' + S.wingLD : ''}</div>` };
+      // for 20 s after a turnpoint: green, "✓ TP1 reached · next TP2"
+      const hit = st.wpHit && nowT() - st.wpHit.t < 20000 ? st.wpHit : null;
+      return { l: hit ? `✓ ${hit.name} reached · next ${wp.name} (${st.nextWp + 1}/${st.task.pts.length})` : `Next · ${wp.name} (${st.nextWp + 1}/${st.task.pts.length})`, ...(hit ? { bgc: '#1F8A4C', col: '#FFFFFF' } : {}), html: `<div class="row" style="gap:14px;flex:1;align-items:center"><div><div class="ws">Dist</div><div class="num" style="font-size:26px">${fDist(dwp)}</div></div><div><div class="ws">Brg</div><div class="num" style="font-size:26px">${pad3(b)}°</div></div><div><div class="ws">ETA</div><div class="num" style="font-size:26px">${f.spd > 2 ? etaStr(dwp / f.spd) : '--'}</div></div></div><div class="ws">${arr != null ? (arr >= 0 ? 'Arrive ' + A(arr) + ' ' + AU + ' above ground' : 'Short by ' + A(-arr) + ' ' + AU) + ' at L/D ' + S.wingLD : ''}</div>` };
     }
     case 'button': { const a = BTN[c.action] || BTN.thermalOn, bgc = { orange: 'var(--climb)', blue: 'var(--sink)', dark: 'var(--ink)' }[c.color || 'orange'], fg = { plain: 'var(--ink)' }[c.color] || (c.color === 'dark' ? 'var(--bg)' : '#FFFFFF'); let lab = c.label || a[1]; if (!c.label) { if (c.action === 'pSwitch') lab = pageKey() === 'thermal' ? 'MAP' : 'THERMAL'; if (c.action === 'fullscreen' && document.fullscreenElement) lab = 'EXIT FULL'; } return { l: '', v: lab, col: fg, bgc, center: true, btn: true }; }
     case 'core': { const k = coreEstimate(); return { l: 'Centering', u: '', v: k ? Math.round(k.d) + ' m' : '--', s: k ? 'to ' + pad3(k.b) + '° ' + compass(k.b) + (st.circling ? '' : ' (last)') : 'start circling' }; }

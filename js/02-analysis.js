@@ -41,7 +41,12 @@ function analyse(f) {
   // glide ratio when gliding
   if (!st.circling) { const a = avgVario(20, now); const gs = avgSpd(20, now); if (a != null && a < -0.2 && gs > 3) st.ld = gs / -a; }
   // task progress
-  if (st.task && st.task.pts[st.nextWp]) { const wp = st.task.pts[st.nextWp]; if (dist(f.lat, f.lon, wp.lat, wp.lon) < (S.cylR || 400) && st.nextWp < st.task.pts.length - 1) { st.nextWp++; toast('Turnpoint ' + wp.name + ' reached'); fireEvent('turnpoint'); } }
+  // turnpoint reached: move on to the next one and let the Next turnpoint widget say so for a while (st.wpHit); the last point is the goal (st.goalT)
+  if (st.task && st.task.pts[st.nextWp] && !st.goalT) { const wp = st.task.pts[st.nextWp]; if (dist(f.lat, f.lon, wp.lat, wp.lon) < (S.cylR || 400)) {
+    st.wpHit = { name: wp.name, t: nowT() };
+    if (st.nextWp < st.task.pts.length - 1) { st.nextWp++; toast('Turnpoint ' + wp.name + ' reached · next ' + st.task.pts[st.nextWp].name); }
+    else { st.goalT = nowT(); toast('Goal reached'); }
+    fireEvent('turnpoint'); } }
 }
 function avgSpd(sec, now) { const a = st.fixes.filter((p) => p.t > now - sec * 1000 && p.spd != null); return a.length ? a.reduce((s, p) => s + p.spd, 0) / a.length : null; }
 function windFromSpd() { if (!st.wind) return null; const sp = Math.hypot(st.wind.vx, st.wind.vy); const to = wrap360(Math.atan2(st.wind.vx, st.wind.vy) * R2D); return { spd: sp, from: wrap360(to + 180), to }; }

@@ -82,13 +82,13 @@ function importFlyXC(text, silent) {
   let len = 0; for (let i = 1; i < pts.length; i++) len += dist(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
   const d = new Date();
   st.task = { name: 'FlyXC ' + d.getDate() + '.' + (d.getMonth() + 1), len, pts: pts.map((q, i) => ({ lat: q[0], lon: q[1], name: i === 0 ? 'Start' : i === pts.length - 1 ? 'Goal' : 'TP' + i })) };
-  st.nextWp = pts.length > 1 ? 1 : 0;
+  st.nextWp = pts.length > 1 ? 1 : 0; st.wpHit = st.goalT = null;
   localStorage.setItem('bora.task', JSON.stringify(st.task)); localStorage.setItem('bora.lastRoute', p);
   drawTask();
   toast(`Route imported from FlyXC · ${pts.length} points · ${(len / 1000).toFixed(1)} km`, [['Show on map', () => showPage('pMap')], ['Undo', () => { clearTask(); }]]);
   return true;
 }
-function clearTask() { st.task = null; localStorage.removeItem('bora.task'); drawTask(); toast('Task removed'); }
+function clearTask() { st.task = null; st.wpHit = st.goalT = null; localStorage.removeItem('bora.task'); drawTask(); toast('Task removed'); }
 async function tryClipboardImport() { if (!S.autoImport || !navigator.clipboard?.readText) return; try { const t = await navigator.clipboard.readText(); if (/flyxc\.app/i.test(t)) importFlyXC(t, true); } catch (e) { /* permission denied */ } }
 
 /* ================= NOTAM (sample) ================= */

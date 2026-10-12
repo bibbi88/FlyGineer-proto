@@ -153,7 +153,7 @@ async function useFlyxcRoute() {
 }
 window.addEventListener('storage', (e) => {
   if (e.key !== 'bora.task') return;
-  st.task = JSON.parse(e.newValue || 'null'); st.nextWp = st.task && st.task.pts.length > 1 ? 1 : 0; drawTask();
+  st.task = JSON.parse(e.newValue || 'null'); st.nextWp = st.task && st.task.pts.length > 1 ? 1 : 0; st.wpHit = st.goalT = null; drawTask();
   if (st.task) toast(`New route from FlyXC · ${st.task.pts.length} points · ${(st.task.len / 1000).toFixed(1)} km`, [['Show on map', () => showPage('pMap')]]);
 });
 

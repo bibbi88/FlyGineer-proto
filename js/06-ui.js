@@ -644,7 +644,7 @@ function renderWidgets() {
       if (wl.children[1].textContent !== (el._sub || '')) wl.children[1].textContent = el._sub || '';
       return;
     }
-    const d = wData(E); const lab = esc(E.cfg.label || d.l || '');
+    const d = wData(E, b); const lab = esc(E.cfg.label || d.l || '');
     const mul = E.cfg.size === 'auto' || !E.cfg.size ? 1 : +E.cfg.size;
     let html = showL ? `<div class="wl"><span>${lab}</span><span>${esc(d.u || '')}${d.arrow != null ? ` <svg width="14" height="14" viewBox="0 0 14 14" style="vertical-align:-2px"><g transform="rotate(${d.arrow} 7 7)"><path d="M7 1l4 8H3z" fill="currentColor"/><line x1="7" y1="8" x2="7" y2="13" stroke="currentColor" stroke-width="2"/></g></svg>` : ''}</span></div>` : '';
     if (d.html) html += d.html;
@@ -655,7 +655,7 @@ function renderWidgets() {
     }
     html += HANDLES;
     const bgc = d.bgc ? d.bgc + '|' + (d.col || '') : null;
-    if (el._bgc !== bgc) { if (d.bgc) { el.style.background = d.bgc; el.style.borderColor = 'transparent'; el.style.color = d.col || ''; } else { Object.assign(el.style, el._st); el.style.color = ''; } el._bgc = bgc; }
+    if (el._bgc !== bgc) { el.classList.toggle('tint', !!d.bgc); if (d.bgc) { el.style.background = d.bgc; el.style.borderColor = 'transparent'; el.style.color = d.col || ''; } else { Object.assign(el.style, el._st); el.style.color = ''; } el._bgc = bgc; }
     if (el._last !== html) { el.innerHTML = html; el._last = html; }
   });
   updateBackOverlay(layer);
