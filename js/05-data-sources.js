@@ -118,6 +118,21 @@ function faiDrawInto(g, s) {
 
 /* ================= task / FlyXC ================= */
 function decodePolyline(s) { let i = 0, lat = 0, lng = 0; const out = []; while (i < s.length) { for (const k of [0, 1]) { let b, sh = 0, r = 0; do { b = s.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32 && i <= s.length); const d = r & 1 ? ~(r >> 1) : r >> 1; if (k === 0) lat += d; else lng += d; } out.push([lat / 1e5, lng / 1e5]); } return out; }
+function encodePolyline(pts) { let out = '', pl = 0, po = 0; const enc = (v) => { v = v < 0 ? ~(v << 1) : v << 1; let r = ''; while (v >= 0x20) { r += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; } return r + String.fromCharCode(v + 63); };
+  pts.forEach(([a, o]) => { const la = Math.round(a * 1e5), lo = Math.round(o * 1e5); out += enc(la - pl) + enc(lo - po); pl = la; po = lo; }); return out; }
+// FlyXC opens its planner when the link carries a route (p=): the current task, or a short starter line at your position
+const taskLink = () => (st.task && st.task.pts.length > 1 ? 'https://flyxc.app/?p=' + encodeURIComponent(encodePolyline(st.task.pts.map((q) => [q.lat, q.lon]))) : null);
+function flyxcUrl() {
+  const t = taskLink(); if (t) return t;
+  const f = st.fix || startPlace() || { lat: 63.1, lon: 21.6 }, k = f.lat.toFixed(2) + ',' + f.lon.toFixed(2);
+  if (!st.fxStart || st.fxStart.k !== k) st.fxStart = { k, url: 'https://flyxc.app/?p=' + encodeURIComponent(encodePolyline([dest(f.lat, f.lon, 270, 3000), dest(f.lat, f.lon, 90, 3000)])) };
+  return st.fxStart.url;
+}
+async function copyTask() {
+  const t = taskLink(); if (!t) { toast('No task loaded to copy'); return; }
+  try { await navigator.clipboard.writeText(t); toast(`Task copied as a FlyXC link · ${st.task.pts.length} points · ${(st.task.len / 1000).toFixed(1)} km`); }
+  catch (e) { prompt('Copy the task link', t); }
+}
 function importFlyXC(text, silent) {
   const m = String(text || '').match(/https?:\/\/(?:www\.)?flyxc\.app\/?\S*/i); if (!m) { if (!silent) toast('No flyxc.app link found'); return false; }
   let p; try { p = new URL(m[0]).searchParams.get('p'); } catch (e) { p = null; }

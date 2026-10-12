@@ -6,7 +6,7 @@ const withU = (key, u, fn) => { if (!u) return fn(); const o = S[key]; S[key] = 
 const BTN = {
   thermalOn: ['Thermal mode on', 'THERMAL'], thermalOff: ['Thermal mode off', 'GLIDE'], thermalToggle: ['Toggle thermal mode', 'THERMAL'],
   pMap: ['Show Map page', 'MAP'], pThermal: ['Show Thermal page', 'THERMAL PAGE'], pAtmos: ['Show Atmosphere page', 'ATMOSPHERE'], pAir: ['Show Airspace page', 'AIRSPACE'], prev: ['Previous page', 'BACK'],
-  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN'], fai: ['FAI triangle on/off', 'FAI']
+  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN'], fai: ['FAI triangle on/off', 'FAI'], copyTask: ['Copy task (FlyXC link)', 'COPY TASK']
 };
 const WT = {
   vario: { n: 'Vario', d: 'Climb rate as number, bar or dial; averaging in 0.1 s steps', w: 6, h: 3, o: [['mode', 'Display', [['number', 'Number'], ['bar', 'Bar'], ['dial', 'Dial']]], ['barDir', 'Bar direction', [['auto', 'Auto'], ['v', 'Vertical'], ['h', 'Horizontal']]], ['win', 'Averaging', numOpt(0, 120, 0.1, 's', [0, 0.5, 1, 2, 5, 10], { zero: 'None', hint: '0 = no averaging', def: 0, snap: 0.1 })], ['range', 'Bar / dial scale', [[3, '±3 m/s'], [5, '±5 m/s'], [10, '±10 m/s']]], ['units', 'Units', U_V]] },
@@ -362,13 +362,13 @@ function openSheet(id) {
   q('[data-wsi]', (i) => (i.onchange = () => { const k = i.dataset.wsi, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) { const n = Math.round(v * GSC / 2) * 2; if (k === 'w') W.w = clamp(n, 6, GC - W.x); else W.h = clamp(n, 4, GR - W.y); } saveLayout(); openSheet(W.id); }));
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
-const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'] };
-const ADD_NEW = ['theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
+const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'] };
+const ADD_NEW = ['button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
   ['Thermal', ['ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
   ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'temp']],
   ['Speed, wind & glide', ['gs', 'trk', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
-  ['Map & task', ['map', 'next', 'dist', 'fai', 'button:fai']],
+  ['Map & task', ['map', 'next', 'dist', 'fai', 'button:fai', 'button:copyTask']],
   ['Buttons', ['button:pSwitch', 'button:fullscreen', 'button']],
   ['Weather', ['profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],
   ['Airspace & places', ['air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],

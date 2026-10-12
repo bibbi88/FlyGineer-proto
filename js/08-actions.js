@@ -27,6 +27,7 @@ function runAction(a, text) {
     case 'start': setStartHere(); break;
     case 'pSwitch': goPage(pageKey() === 'thermal' ? 'pMap' : 'pThermal'); break;
     case 'fullscreen': toggleFull(); break;
+    case 'copyTask': copyTask(); break;
     case 'fai': S.fai = !S.fai; save(); renderWidgets(); toast(S.fai ? 'FAI triangle on: the map shows where the 3rd point must be' : 'FAI triangle off'); break;
   }
 }
@@ -151,7 +152,7 @@ async function useFlyxcRoute() {
   $('dlg').style.display = 'flex';
   $('dlgClose').onclick = () => ($('dlg').style.display = 'none');
   $('fxDo').onclick = () => { if (importFlyXC($('fxPaste').value)) $('dlg').style.display = 'none'; };
-  $('fxOpen').onclick = () => window.open('https://flyxc.app/', '_blank');
+  $('fxOpen').onclick = () => window.open(flyxcUrl(), '_blank');
 }
 window.addEventListener('storage', (e) => {
   if (e.key !== 'bora.task') return;
