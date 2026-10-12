@@ -74,7 +74,8 @@ function mapMount(el, E) {
   I.trackHalo = L.polyline([], { color: '#FFFFFF', weight: 8, opacity: 0.7, lineCap: 'round', interactive: false });
   I.trackL = L.polyline([], { color: css('--climb'), weight: 3, interactive: false });
   I.trackG = L.layerGroup().addTo(m);
-  ['task', 'air', 'notam', 'places', 'traffic'].forEach((k) => (I.g[k] = L.layerGroup().addTo(m)));
+  ['task', 'fai', 'air', 'notam', 'places', 'traffic'].forEach((k) => (I.g[k] = L.layerGroup().addTo(m)));
+  I.faiLive = L.polyline([], { color: '#16A34A', weight: 2.5, dashArray: '6 8', interactive: false });
   I.headHalo = L.polyline([], { color: '#FFFFFF', weight: 9, opacity: 0.85, lineCap: 'round', interactive: false });
   I.headL = L.polyline([], { color: HCOL, weight: 4.5, dashArray: '1 10', lineCap: 'round', interactive: false });
   I.predNow = L.circleMarker([0, 0], { radius: 10, color: '#FFFFFF', weight: 3, fillColor: HCOL, fillOpacity: 1, interactive: false });
@@ -122,6 +123,10 @@ function mapDraw(cv, E, el, b) {
   // overlays only redraw when their data changed
   const ov = (key, g, fn, vk) => { const k = on(C[key]) ? vk : 'off'; if (I.k[key] !== k) { I.k[key] = k; g.clearLayers(); if (k !== 'off') fn(g); } };
   ov('task', I.g.task, drawTaskInto, [st.taskVer, S.cylR, st.nextWp].join('|'));
+  // FAI triangle assistant: sectors redraw when the start or the farthest point moves (~100 m); the dashed legs to you follow every fix
+  { const fs = S.fai ? faiState() : null, ok = fs && fs.B && fs.c >= 500, k = ok ? [fs.A.lat, fs.A.lon, fs.B.lat, fs.B.lon].map((v) => v.toFixed(3)).join(',') : 'off';
+    if (I.k.fai !== k) { I.k.fai = k; I.g.fai.clearLayers(); if (ok) faiDrawInto(I.g.fai, fs); }
+    if (ok && f) I.faiLive.setLatLngs([[fs.B.lat, fs.B.lon], [f.lat, f.lon], [fs.A.lat, fs.A.lon]]).addTo(m); else I.faiLive.remove(); }
   ov('air', I.g.air, drawAirInto, 'a' + (st.airVer || 0));
   ov('notam', I.g.notam, drawNotamInto, 'n' + (st.ntVer || 0));
   { const pl = C.places === true || C.places === 'true'; const k = pl ? [st.placesVer, S.poiRadius, JSON.stringify(S.poiKinds), f ? Math.round(f.lat * 100) + ',' + Math.round(f.lon * 100) : ''].join('|') : 'off'; if (I.k.places !== k) { I.k.places = k; I.g.places.clearLayers(); if (pl && f) drawPlacesInto(I.g.places, f); } }

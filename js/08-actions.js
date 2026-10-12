@@ -27,6 +27,7 @@ function runAction(a, text) {
     case 'start': setStartHere(); break;
     case 'pSwitch': goPage(pageKey() === 'thermal' ? 'pMap' : 'pThermal'); break;
     case 'fullscreen': toggleFull(); break;
+    case 'fai': S.fai = !S.fai; save(); renderWidgets(); toast(S.fai ? 'FAI triangle on: the map shows where the 3rd point must be' : 'FAI triangle off'); break;
   }
 }
 function handleTap(W) {
@@ -35,13 +36,14 @@ function handleTap(W) {
   if (a === 'none') return;
   if (a === 'time') return showTime();
   if (a === 'fullscreen') return toggleFull();
+  if (a === 'fai') return runAction('fai');
   if (a === 'vmode') { if (W.type !== 'vario') return; const o = ['number', 'bar', 'dial'], D = cfgW(W); D.mode = o[(o.indexOf(effCfg(W).mode || 'number') + 1) % 3]; saveLayout(); return; }
   if (a === 'sound') { applySet('sound', String(!S.sound)); toast('Vario sound ' + (S.sound ? 'on' : 'off')); return; }
   if (a[0] === 'p') return showPage(a);
   openDetails(W);
 }
 const GROUP = { vario: 'vario', avg: 'vario', varioDial: 'vario', thermal: 'vario', gain: 'vario', ttime: 'vario', climb: 'vario', ta: 'vario',
-  alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', dist: 'task',
+  alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', fai: 'task', dist: 'task',
   wind: 'wind', flight: 'flight', place: 'place', air: 'air', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
 function closeDetails() { clearInterval(detT); detT = null; detState = null; $('dlg').style.display = 'none'; }
 function openDetails(W, range) {

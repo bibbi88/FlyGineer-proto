@@ -6,7 +6,7 @@ const withU = (key, u, fn) => { if (!u) return fn(); const o = S[key]; S[key] = 
 const BTN = {
   thermalOn: ['Thermal mode on', 'THERMAL'], thermalOff: ['Thermal mode off', 'GLIDE'], thermalToggle: ['Toggle thermal mode', 'THERMAL'],
   pMap: ['Show Map page', 'MAP'], pThermal: ['Show Thermal page', 'THERMAL PAGE'], pAtmos: ['Show Atmosphere page', 'ATMOSPHERE'], pAir: ['Show Airspace page', 'AIRSPACE'], prev: ['Previous page', 'BACK'],
-  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN']
+  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN'], fai: ['FAI triangle on/off', 'FAI']
 };
 const WT = {
   vario: { n: 'Vario', d: 'Climb rate as number, bar or dial; averaging in 0.1 s steps', w: 6, h: 3, o: [['mode', 'Display', [['number', 'Number'], ['bar', 'Bar'], ['dial', 'Dial']]], ['barDir', 'Bar direction', [['auto', 'Auto'], ['v', 'Vertical'], ['h', 'Horizontal']]], ['win', 'Averaging', numOpt(0, 120, 0.1, 's', [0, 0.5, 1, 2, 5, 10], { zero: 'None', hint: '0 = no averaging', def: 0, snap: 0.1 })], ['range', 'Bar / dial scale', [[3, '±3 m/s'], [5, '±5 m/s'], [10, '±10 m/s']]], ['units', 'Units', U_V]] },
@@ -19,6 +19,7 @@ const WT = {
   ld: { n: 'Glide ratio', d: 'Measured on glide', w: 3, h: 2, o: [['win', 'Average over', numOpt(5, 300, 1, 's', [10, 20, 30, 60, 120], { def: 20 })]] },
   reqld: { n: 'Required glide', d: 'To next turnpoint', w: 3, h: 2, o: [] },
   wind: { n: 'Wind', d: 'Measured while circling', w: 3, h: 2, o: [['units', 'Units', U_S]] },
+  fai: { n: 'FAI triangle', d: 'FAI calculator: triangle size, shortest leg, way to the FAI sector; tap = on/off', w: 6, h: 3, def: { tap: 'fai' }, o: [] },
   next: { n: 'Next turnpoint', d: 'Distance, bearing, arrival', w: 6, h: 3, o: [['units', 'Height units', U_A]] },
   dist: { n: 'Distance to turnpoint', d: 'Next turnpoint only', w: 3, h: 2, o: [] },
   thermal: { n: 'Thermal average', d: 'Since entering the thermal', w: 3, h: 2, o: [['units', 'Units', U_V]] },
@@ -58,7 +59,7 @@ const WT = {
   radio: { n: 'Radio', d: 'Frequencies from airspace', w: 11, h: 4, o: [] },
   notams: { n: 'NOTAM', d: 'From ais.fi, tap to read', w: 11, h: 5, def: { radius: 50 }, o: [['radius', 'Within', [[25, '25 km'], [50, '50 km'], [100, '100 km']]]] }
 };
-const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling']];
 const COMMON = [['vis', 'Show when', VIS], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
@@ -150,6 +151,12 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
     case 'cloud': { const fc = st.forecast; if (!fc) return { l: 'Cloud base', u: AU, v: '--', s: 'load forecast on Atmosphere' }; const cb = fc.elev + 125 * (fc.T - fc.Td), top = thermalTop(); return { l: 'Cloud base', u: AU, v: A(cb), s: 'thermal top ' + (top ? A(top) : '--') }; }
     case 'place': { if (!f) return { l: 'Nearest place', v: '--' }; const spl = startPlace(); const L0 = c.kind === 'start' ? (spl ? [spl] : []) : st.places.concat(c.kind === 'any' || !c.kind ? (spl ? [spl] : []) : []).filter((p) => c.kind === 'airport' ? p.kind === 'airport' : c.kind === 'town' ? p.kind === 'town' : p.kind !== 'peak'); let b = null, bd = 1e12; L0.forEach((p) => { const d = dist(f.lat, f.lon, p.lat, p.lon); if (d < bd) { bd = d; b = p; } }); return b ? { l: c.kind === 'start' ? 'Start' : 'Nearest place', u: '', v: fDist(bd), s: `${compass(brg(b.lat, b.lon, f.lat, f.lon))} of ${b.name}` } : { l: 'Nearest place', v: '--', s: 'loading places…' }; }
     case 'air': { const x = airStatus()[0]; if (!x) return { l: 'Airspace', v: '--', s: st.airspaces.length ? 'none within 30 km' : 'no airspace data' }; return { l: 'Airspace', u: '', v: x.inside && x.vert === 'in' ? 'INSIDE' : fDist(x.d), s: `${x.a.name} · ${fmtLim(x.a.lo)}–${fmtLim(x.a.hi)}`, col: x.inside && x.vert === 'in' ? css('--restr') : null }; }
+    case 'fai': {
+      const z = faiCalc(), km = (m) => (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' km', cell = (k, v, cl) => `<div><div class="ws">${k}</div><div class="num" style="font-size:24px${cl ? ';color:' + cl : ''}">${v}</div></div>`;
+      if (!z) return { l: 'FAI triangle', v: 'OFF', s: 'tap to turn on: the map shows where to fly' };
+      if (!z.ready) return { l: 'FAI triangle · on', v: '--', s: !z.B || z.c < 500 ? 'fly away from the start: the sectors appear after 0.5 km' : 'waiting for GPS…' };
+      return { l: z.ok ? 'FAI triangle · ✓ FAI' : 'FAI triangle', ...(z.ok ? { bgc: '#1F8A4C', col: '#FFFFFF' } : {}), html: `<div class="row" style="gap:14px;flex:1;align-items:center;flex-wrap:wrap">${cell('Triangle', km(z.P))}${cell('Shortest leg', Math.round(z.mn * 100) + ' %', z.ok ? '' : css('--sink'))}${z.ok ? '' : cell('To FAI sector', km(z.toSec))}${cell('Back to start', km(z.b))}</div><div class="ws">start → TP ${km(z.c)} · FAI needs every leg ≥ 28 %</div>` };
+    }
     case 'next': {
       // no task: open FlyXC on the Web page, or paste a FlyXC link you already have
       if (!st.task) return { l: 'Next turnpoint', html: `<div class="fxW"><div class="row"><input class="fxIn" type="url" inputmode="url" placeholder="Paste a FlyXC link" aria-label="FlyXC link"><button class="wcb fxB" data-act="fximp">Import</button></div><button class="wcb fxB" data-act="fxweb">Plan in FlyXC ›</button></div>` };
@@ -160,7 +167,7 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
       const hit = st.wpHit && nowT() - st.wpHit.t < 20000 ? st.wpHit : null;
       return { l: hit ? `✓ ${hit.name} reached · next ${wp.name} (${st.nextWp + 1}/${st.task.pts.length})` : `Next · ${wp.name} (${st.nextWp + 1}/${st.task.pts.length})`, ...(hit ? { bgc: '#1F8A4C', col: '#FFFFFF' } : {}), html: `<div class="row" style="gap:14px;flex:1;align-items:center"><div><div class="ws">Dist</div><div class="num" style="font-size:26px">${fDist(dwp)}</div></div><div><div class="ws">Brg</div><div class="num" style="font-size:26px">${pad3(b)}°</div></div><div><div class="ws">ETA</div><div class="num" style="font-size:26px">${f.spd > 2 ? etaStr(dwp / f.spd) : '--'}</div></div></div><div class="ws">${arr != null ? (arr >= 0 ? 'Arrive ' + A(arr) + ' ' + AU + ' above ground' : 'Short by ' + A(-arr) + ' ' + AU) + ' at L/D ' + S.wingLD : ''}</div>` };
     }
-    case 'button': { const a = BTN[c.action] || BTN.thermalOn, bgc = { orange: 'var(--climb)', blue: 'var(--sink)', dark: 'var(--ink)' }[c.color || 'orange'], fg = { plain: 'var(--ink)' }[c.color] || (c.color === 'dark' ? 'var(--bg)' : '#FFFFFF'); let lab = c.label || a[1]; if (!c.label) { if (c.action === 'pSwitch') lab = pageKey() === 'thermal' ? 'MAP' : 'THERMAL'; if (c.action === 'fullscreen' && document.fullscreenElement) lab = 'EXIT FULL'; } return { l: '', v: lab, col: fg, bgc, center: true, btn: true }; }
+    case 'button': { const a = BTN[c.action] || BTN.thermalOn, bgc = { orange: 'var(--climb)', blue: 'var(--sink)', dark: 'var(--ink)' }[c.color || 'orange'], fg = { plain: 'var(--ink)' }[c.color] || (c.color === 'dark' ? 'var(--bg)' : '#FFFFFF'); let lab = c.label || a[1]; if (!c.label) { if (c.action === 'pSwitch') lab = pageKey() === 'thermal' ? 'MAP' : 'THERMAL'; if (c.action === 'fullscreen' && document.fullscreenElement) lab = 'EXIT FULL'; if (c.action === 'fai') lab = S.fai ? 'FAI ON' : 'FAI OFF'; } return { l: '', v: lab, col: fg, bgc, center: true, btn: true }; }
     case 'core': { const k = coreEstimate(); return { l: 'Centering', u: '', v: k ? Math.round(k.d) + ' m' : '--', s: k ? 'to ' + pad3(k.b) + '° ' + compass(k.b) + (st.circling ? '' : ' (last)') : 'start circling' }; }
     case 'groundT': { const fc = st.forecast; return { l: 'Ground T / dew pt', u: '°C', v: fc ? fc.T.toFixed(1) + ' / ' + fc.Td.toFixed(1) : '--', s: fc ? 'forecast 2 m · ' + fc.t.slice(11, 16) : 'load forecast' }; }
     case 'cbase': { const fc = st.forecast, cb = fc ? fc.elev + 125 * (fc.T - fc.Td) : null; return { l: 'Cloud base', u: AU, v: cb != null ? A(cb) : '--', col: css('--sink'), s: 'elev + 125 m × spread' }; }
@@ -303,13 +310,13 @@ function openSheet(id) {
   q('[data-wsi]', (i) => (i.onchange = () => { const k = i.dataset.wsi, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) { const n = Math.round(v * GSC / 2) * 2; if (k === 'w') W.w = clamp(n, 6, GC - W.x); else W.h = clamp(n, 4, GR - W.y); } saveLayout(); openSheet(W.id); }));
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
-const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'] };
-const ADD_NEW = ['thead', 'tlayer', 't3d'];
+const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'] };
+const ADD_NEW = ['fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
   ['Thermal', ['ta', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
   ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'temp']],
   ['Speed, wind & glide', ['gs', 'trk', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
-  ['Map & task', ['map', 'next', 'dist']],
+  ['Map & task', ['map', 'next', 'dist', 'fai', 'button:fai']],
   ['Buttons', ['button:pSwitch', 'button:fullscreen', 'button']],
   ['Weather', ['profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],
   ['Airspace & places', ['air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],

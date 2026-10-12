@@ -71,6 +71,51 @@ async function loadPlaces(force) {
   } catch (e) { st.placesState = 'error: ' + e.message; st.placesErrAt = Date.now(); markDirty(); st.placesAt = null; }
 }
 
+/* ================= FAI triangle assistant (S.fai) =================
+   Start = the Start point (takeoff); 1st turnpoint = the point of the flight farthest from the start. The 3rd point must lie in
+   one of two sectors (left / right of that leg) so that every leg is at least 28 % of the whole triangle (FAI rule). */
+const FAI_MIN = 0.28;
+function faiLocal(A) { const k = Math.cos(A.lat * D2R); return { xy: (p) => [(p.lon - A.lon) * D2R * RE * k, (p.lat - A.lat) * D2R * RE], ll: (x, y) => [A.lat + y / RE * R2D, A.lon + x / (RE * k) * R2D] }; }
+function faiState() {
+  if (!S.fai) return null;
+  const lg = st.log, sp = startPlace(); let A = sp ? { lat: sp.lat, lon: sp.lon } : null;
+  if (!A) { const p0 = lg.find((p) => p.lat != null); if (!p0) return null; A = { lat: p0.lat, lon: p0.lon }; }
+  // farthest point from the start, scanned once per new log entry (by time: the log is trimmed at the front on long flights)
+  const ak = A.lat.toFixed(5) + ',' + A.lon.toFixed(5); let sc = st.faiScan;
+  if (!sc || sc.ak !== ak || (lg.length && lg[lg.length - 1].t < sc.t)) sc = st.faiScan = { ak, t: -Infinity, B: null, d: 0 };
+  for (let i = lg.length - 1; i >= 0 && lg[i].t > sc.t; i--) { const p = lg[i]; if (p.lat == null) continue; const d = dist(A.lat, A.lon, p.lat, p.lon); if (d > sc.d) { sc.d = d; sc.B = { lat: p.lat, lon: p.lon }; } }
+  if (lg.length) sc.t = lg[lg.length - 1].t;
+  return { A, B: sc.B, c: sc.d };
+}
+// the two sectors as lat/lon rings: walk "leg from start = 28 %", then the largest triangle, then "leg from turnpoint = 28 %"
+function faiSectors(A, B) {
+  const P = faiLocal(A), [bx, by] = P.xy(B), c = Math.hypot(bx, by); if (c < 500) return [];
+  const ux = bx / c, uy = by / c, m = FAI_MIN, mx = 1 - 2 * m, Pmin = c / mx, Pmax = c / m, N = 32;
+  const pt = (b, a, sd) => { const ca = clamp((b * b + c * c - a * a) / (2 * b * c), -1, 1), sa = Math.sqrt(1 - ca * ca) * sd; return P.ll(b * (ux * ca - uy * sa), b * (uy * ca + ux * sa)); };
+  return [1, -1].map((sd) => { const r = [];
+    for (let i = 0; i <= N; i++) { const q = Pmin + (Pmax - Pmin) * i / N; r.push(pt(m * q, q - c - m * q, sd)); }
+    for (let i = 1; i < N; i++) { const b = Pmax * (m + (mx - m) * i / N); r.push(pt(b, Pmax - c - b, sd)); }
+    for (let i = N; i >= 0; i--) { const q = Pmin + (Pmax - Pmin) * i / N, a = m * q; r.push(pt(q - c - a, a, sd)); }
+    return { ring: r, tip: pt(m * Pmin, m * Pmin, sd), Pmin }; });
+}
+// the calculator: the triangle start → turnpoint → you (closing back to the start)
+function faiCalc() {
+  const s = faiState(), f = st.fix; if (!s) return null; if (!s.B || !f || s.c < 500) return Object.assign({ ready: false }, s);
+  const a = dist(s.B.lat, s.B.lon, f.lat, f.lon), b = dist(s.A.lat, s.A.lon, f.lat, f.lon), P = a + b + s.c, mn = Math.min(a, b, s.c) / P, ok = mn >= FAI_MIN;
+  let toSec = 0;
+  if (!ok) { const L0 = faiLocal(s.A), [fx, fy] = L0.xy(f); toSec = Infinity;
+    faiSectors(s.A, s.B).forEach(({ ring }) => { const q = ring.map((ll) => L0.xy({ lat: ll[0], lon: ll[1] }));
+      for (let i = 0; i < q.length; i++) { const [x1, y1] = q[i], [x2, y2] = q[(i + 1) % q.length], dx = x2 - x1, dy = y2 - y1, t = clamp(((fx - x1) * dx + (fy - y1) * dy) / (dx * dx + dy * dy || 1), 0, 1); toSec = Math.min(toSec, Math.hypot(fx - x1 - t * dx, fy - y1 - t * dy)); } }); }
+  return Object.assign({ ready: true, a, b, P, mn, ok, toSec }, s);
+}
+function faiDrawInto(g, s) {
+  const col = '#16A34A';
+  L.polyline([[s.A.lat, s.A.lon], [s.B.lat, s.B.lon]], { color: col, weight: 3, interactive: false }).addTo(g);
+  faiSectors(s.A, s.B).forEach(({ ring, tip, Pmin }) => {
+    L.polygon(ring, { color: col, weight: 2, fillColor: col, fillOpacity: 0.14, interactive: false }).addTo(g);
+    L.marker(tip, { icon: L.divIcon({ className: 'wpLabel', html: `FAI ≥ ${(Pmin / 1000).toFixed(1)} km`, iconSize: [110, 18], iconAnchor: [55, -4] }), interactive: false }).addTo(g); });
+}
+
 /* ================= task / FlyXC ================= */
 function decodePolyline(s) { let i = 0, lat = 0, lng = 0; const out = []; while (i < s.length) { for (const k of [0, 1]) { let b, sh = 0, r = 0; do { b = s.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32 && i <= s.length); const d = r & 1 ? ~(r >> 1) : r >> 1; if (k === 0) lat += d; else lng += d; } out.push([lat / 1e5, lng / 1e5]); } return out; }
 function importFlyXC(text, silent) {
