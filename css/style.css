@@ -242,6 +242,8 @@ canvas{display:block;width:100%;touch-action:none}
 .plLay button:last-child{border-right:0}
 .plLay button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 #plFxIn{min-height:42px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:15px;min-width:0}
+.plYou{width:26px;height:26px;border-radius:50%;background:#2563EB;border:4px solid #fff;box-shadow:0 0 0 2px rgba(37,99,235,.35),0 1px 6px rgba(0,0,0,.5)}
+.plLoc button{width:52px;height:52px;border-radius:10px;border:2px solid rgba(0,0,0,.2);background:var(--card);color:#2563EB;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 5px rgba(0,0,0,.3)}
 #plMap .leaflet-control-zoom a{width:52px;height:52px;line-height:52px;font-size:28px}
 #plSide{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:0;border-width:0 0 0 1px;overflow-y:auto}
 #plSide .btn{height:42px;min-height:0;padding:0 8px;font-size:14px}

@@ -107,8 +107,8 @@ function startGPS() {
   if (!navigator.geolocation) { toast('No GPS available in this browser'); return; }
   if (gpsWatch != null) return;
   gpsWatch = navigator.geolocation.watchPosition((p) => {
+    const c = p.coords; st.gpsPos = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, t: Date.now() }; // the real device position, also during a demo or replay
     if (st.sim || st.replay) return;
-    const c = p.coords;
     onFix({ t: p.timestamp || Date.now(), lat: c.latitude, lon: c.longitude, alt: c.altitude, spd: c.speed, trk: c.heading != null && !isNaN(c.heading) && c.speed > 1 ? c.heading : null, acc: c.accuracy });
   }, (e) => { st.gpsOk = false; toast('GPS: ' + e.message); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
 }

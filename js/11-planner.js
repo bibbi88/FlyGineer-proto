@@ -58,10 +58,14 @@ function plMount() {
     L.control.zoom({ position: 'bottomleft' }).addTo(m); L.control.scale({ metric: true, imperial: false, position: 'bottomright' }).addTo(m);
     const LS = L.control({ position: 'topleft' }); LS.onAdd = () => { const d = L.DomUtil.create('div', 'plLay'); L.DomEvent.disableClickPropagation(d); d.innerHTML = [['topo', 'Topo'], ['sat', 'Satellite'], ['light', 'Airspace']].map(([k, nm]) => `<button data-pllay="${k}">${nm}</button>`).join(''); d.onclick = (e) => { const b = e.target.closest('[data-pllay]'); if (b) plSetLayer(b.dataset.pllay); }; return d; }; LS.addTo(m);
     PL.air = L.layerGroup().addTo(m); PL.g = L.layerGroup().addTo(m); PL.me = L.marker([0, 0], { icon: gliderIcon(0.8), interactive: false, zIndexOffset: 500 });
+    // you: the device's GPS position as a blue dot with its accuracy ring (also during a demo/replay, whose glider is shown separately)
+    PL.you = L.marker([0, 0], { icon: L.divIcon({ className: '', html: '<div class="plYou"></div>', iconSize: [26, 26], iconAnchor: [13, 13] }), interactive: false, zIndexOffset: 1500 });
+    PL.acc = L.circle([0, 0], { radius: 10, color: '#2563EB', weight: 1, fillColor: '#2563EB', fillOpacity: 0.12, interactive: false });
+    const LC = L.control({ position: 'bottomleft' }); LC.onAdd = () => { const d = L.DomUtil.create('div', 'plLoc'); L.DomEvent.disableClickPropagation(d); d.innerHTML = '<button aria-label="Show my position" title="My position"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="8" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="15" cy="15" r="3.6" fill="currentColor"/><path d="M15 2v6M15 22v6M2 15h6M22 15h6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>'; d.onclick = plLocate; return d; }; LC.addTo(m);
     plSetLayer(PL.layer);
-    const f = st.fix || startPlace(); if (PL.pts.length) m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); else m.setView(f ? [f.lat, f.lon] : [63.1, 21.6], 11);
+    const g0 = st.gpsPos, f = (g0 && !st.replay && !st.sim ? g0 : null) || st.fix || g0 || startPlace(); if (PL.pts.length) m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); else { m.setView(f ? [f.lat, f.lon] : [63.1, 21.6], 11); if (!f) PL.wantMe = true; }
     // your position follows while the planner is open
-    setInterval(() => { if (curPage === 'pPlan' && st.fix) PL.me.setLatLng([st.fix.lat, st.fix.lon]).addTo(m); }, 2000);
+    setInterval(() => { if (curPage === 'pPlan') plMe(); }, 2000);
     m.on('click', (e) => { if (PL.sel >= 0) { PL.sel = -1; plDraw(); return; } plEdit(() => PL.pts.push([+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)])); });
   }
   setTimeout(() => PL.m.invalidateSize(), 0);
@@ -71,11 +75,24 @@ function plSetLayer(k) {
   if (!LAYERS[k]) return; PL.layer = k; if (PL.tile) PL.m.removeLayer(PL.tile); PL.tile = L.tileLayer(LAYERS[k].url, LAYERS[k].o).addTo(PL.m); PL.tile.bringToBack(); plSave();
   document.querySelectorAll('[data-pllay]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pllay === k)));
 }
+// your position: real GPS (blue dot) and, in a demo or replay, the simulated glider
+function plMe() {
+  const m = PL.m, g = st.gpsPos, sim = (st.replay || st.sim) && st.fix;
+  if (g && Date.now() - g.t < 120000) { PL.you.setLatLng([g.lat, g.lon]).addTo(m); PL.acc.setLatLng([g.lat, g.lon]).setRadius(Math.max(5, g.acc || 10)).addTo(m); if (PL.wantMe) { PL.wantMe = false; m.setView([g.lat, g.lon], Math.max(m.getZoom(), 12)); } }
+  else { PL.you.remove(); PL.acc.remove(); }
+  if (sim) PL.me.setLatLng([st.fix.lat, st.fix.lon]).addTo(m); else PL.me.remove();
+}
+// ⌖: centre on you (asks for the position if the app has none yet)
+function plLocate() {
+  const g = st.gpsPos;
+  if (g && Date.now() - g.t < 120000) { PL.m.setView([g.lat, g.lon], Math.max(PL.m.getZoom(), 12)); return; }
+  if (navigator.geolocation) { PL.wantMe = true; toast('Finding your position…'); navigator.geolocation.getCurrentPosition((p) => { st.gpsPos = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, t: Date.now() }; plMe(); }, (e) => { PL.wantMe = false; const f = st.fix || startPlace(); if (f) PL.m.setView([f.lat, f.lon], Math.max(PL.m.getZoom(), 12)); toast('No GPS position: ' + e.message); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }); }
+}
 function plDraw() {
   if (!PL.m) return; const m = PL.m, P = PL.pts, n = P.length, g = PL.g; g.clearLayers();
   // airspaces (always), your position
   if (PL.airV !== st.airVer) { PL.airV = st.airVer; PL.air.clearLayers(); drawAirInto(PL.air); }
-  const f = st.fix; if (f) PL.me.setLatLng([f.lat, f.lon]).addTo(m); else PL.me.remove();
+  plMe();
   const A = plAnalyse(P);
   // FAI helper: with two corners set, where a third makes an FAI triangle; with a triangle, for each corner the area it can be
   // moved within (the other two staying put) and still be FAI. The selected corner's area is stronger, the others faint.
