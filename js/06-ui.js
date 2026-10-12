@@ -68,11 +68,21 @@ let cvROT = 0;
 function cvSize(cv) { let r = cv._r; if (!r || !r.width) { const b = cv.getBoundingClientRect(); r = { width: b.width, height: b.height }; if (cvRO && cv.closest('.wg')) { if (!cv._r) cvRO.observe(cv); cv._r = r; } } return r; }
 function fitCanvas(cv) { const r = cvSize(cv), dpr = window.devicePixelRatio || 1; const w = Math.max(10, r.width), h = Math.max(10, r.height || +cv.getAttribute('height') || 100); if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); } const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); return [c, w, h]; }
 function climbCol(v) { return v >= 2.5 ? css('--climb') : v >= 1.5 ? css('--climb2') : v >= 0.5 ? css('--climb3') : null; }
-function histDraw(cv) {
+// climb history: one bar per time slice, averaged; fixed scale (cfg.time s back, cfg.scale m/s up, 60 % of it down)
+function histDraw(cv, W0) {
   const [c, W, H] = fitCanvas(cv); c.clearRect(0, 0, W, H);
-  const now = nowT(), bins = 40, bw = W / bins, mid = H * 0.6;
-  c.strokeStyle = css('--ink'); c.beginPath(); c.moveTo(0, mid); c.lineTo(W, mid); c.stroke();
-  for (let i = 0; i < bins; i++) { const t0 = now - 120000 + i * 3000; const a = st.varioHist.filter((h) => h.t >= t0 && h.t < t0 + 3000); if (!a.length) continue; const v = a.reduce((s, h) => s + h.v, 0) / a.length; const hh = clamp(v, -3, 5) * 9; c.fillStyle = v >= 0 ? (v >= 2 ? css('--climb') : css('--climb3')) : css('--sink'); c.fillRect(i * bw + 1, v >= 0 ? mid - hh : mid, bw - 2, Math.abs(hh)); }
+  const cf = (W0 && W0.cfg) || {}, span = clamp(+cf.time || 120, 10, 3600) * 1000, up = clamp(+cf.scale || 5, 0.5, 20), dn = up * 0.6;
+  const now = nowT(), bins = clamp(Math.round(span / 3000), 10, Math.max(10, Math.floor(W / 6))), bt = span / bins;
+  const lx = H > 70 && W > 120 ? 26 : 0, top = 6, bot = H - 4, mid = top + (bot - top) * up / (up + dn), k = (mid - top) / up, bwx = (W - lx) / bins;
+  // grid at least 18 px apart (0.5 / 1 / 2 / 5 / 10 m/s), labels on the left when there is room
+  const g = [0.5, 1, 2, 5, 10].find((x) => x * k >= 18 && (x >= 1 || up <= 2)) || 10; c.font = '11px Barlow'; c.textAlign = 'right'; c.lineWidth = 1;
+  for (let v = -Math.floor(dn / g) * g; v <= up + 1e-9; v += g) { if (!v) continue; const y = mid - v * k; c.strokeStyle = css('--line'); c.beginPath(); c.moveTo(lx, y); c.lineTo(W, y); c.stroke(); if (lx) { c.fillStyle = css('--muted'); c.fillText((v > 0 ? '+' : '') + v, lx - 4, y + 4); } }
+  c.strokeStyle = css('--ink'); c.beginPath(); c.moveTo(lx, mid); c.lineTo(W, mid); c.stroke();
+  // bin the samples in one pass: the vario history (5.5 min, fine) or the flight log (1 per second) for longer spans
+  const src = span <= 300000 ? st.varioHist : st.log, t0 = now - span, sum = new Float64Array(bins), n = new Uint32Array(bins);
+  for (let i = src.length - 1; i >= 0; i--) { const h = src[i]; if (h.t < t0) break; if (h.v == null || h.t > now) continue; const b = Math.min(bins - 1, Math.floor((h.t - t0) / bt)); sum[b] += h.v; n[b]++; }
+  for (let b = 0; b < bins; b++) { if (!n[b]) continue; const v = sum[b] / n[b], hh = clamp(v, -dn, up) * k; c.fillStyle = v >= 0 ? (v >= 2 ? css('--climb') : css('--climb3')) : css('--sink'); c.fillRect(lx + b * bwx + 0.5, v >= 0 ? mid - hh : mid, Math.max(1, bwx - 1.5), Math.abs(hh)); }
+  if (W > 160 && H > 60) { c.fillStyle = css('--muted'); c.textAlign = 'left'; c.fillText('−' + (span >= 120000 ? Math.round(span / 60000) + ' min' : Math.round(span / 1000) + ' s'), lx + 3, H - 6); }
 }
 function visiblePlaces() { const f = st.fix; if (!f) return []; const sp = startPlace(); return (sp ? [sp] : []).concat(st.places.filter((p) => S.poiKinds[p.kind] && dist(f.lat, f.lon, p.lat, p.lon) <= S.poiRadius * 1000)); }
 function openNotam(i) { const x = ntView[i]; if (!x) return; const n = x.n; $('dlgBody').innerHTML = `<div class="row"><span class="badge ${x.s === 'active' ? 'act' : ''}">${x.s === 'active' ? 'Active' : 'Later'}</span><span class="num grow" style="font-size:26px">${esc(n.id)} · ${esc(n.ad || n.sec)}</span><button class="btn primary" id="dlgClose">Close</button></div>
@@ -601,7 +611,7 @@ function windDirBody(cv, W) {
   c.fillStyle = css('--muted'); c.font = '13px Barlow'; c.fillText(`from ${pad3(w.from)}° ${compass(w.from)}`, tx, ty + fs + 20);
   if (f && f.trk != null) c.fillText(`${comp >= 0 ? 'tailwind' : 'headwind'} ${fSpd(Math.abs(comp))} ${S.uSpd}`, tx, ty + fs + 37);
 }
-const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv) => histDraw(cv), ta: taDraw, tside: sideDraw, tcross: sideDraw, thead: sideDraw, vario: (cv, W, el) => varioDraw(cv, W, el), t3d: t3dDraw, tlayer: layerDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
+const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv, W) => histDraw(cv, W), ta: taDraw, tside: sideDraw, tcross: sideDraw, thead: sideDraw, vario: (cv, W, el) => varioDraw(cv, W, el), t3d: t3dDraw, tlayer: layerDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
 
 /* ----- widget element lifecycle ----- */
 const HANDLES = '<div class="wh tl" data-c="tl"></div><div class="wh tr" data-c="tr"></div><div class="wh bl" data-c="bl"></div><div class="wh br" data-c="br"></div>';

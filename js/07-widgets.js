@@ -30,7 +30,7 @@ const WT = {
   temp: { n: 'Temperature', d: 'From the vario', w: 3, h: 2, o: [] },
   battery: { n: 'Battery', d: 'Vario and tablet', w: 3, h: 2, o: [] },
   glide: { n: 'Landing prediction', d: 'Filled and empty dot', w: 6, h: 2, o: [] },
-  climb: { n: 'Climb history', d: 'Last 2 minutes', w: 6, h: 3, canvas: true, o: [] },
+  climb: { n: 'Climb history', d: 'Climb and sink bars over time; time span and scale settable', w: 6, h: 3, canvas: true, o: [['time', 'Time shown', numOpt(10, 3600, 10, 's', [60, 120, 300, 600], { def: 120, hint: 'seconds back' })], ['scale', 'Scale (top of the bars)', numOpt(0.5, 20, 0.5, 'm/s', [3, 5, 8], { def: 5, snap: 0.5, hint: 'sink shown down to 60 %' })]] },
   cloud: { n: 'Cloud base & top', d: 'From the forecast', w: 4, h: 2, o: [['units', 'Units', U_A]] },
   place: { n: 'Nearest place', d: 'For radio calls', w: 6, h: 2, o: [['kind', 'Places', [['any', 'All'], ['start', 'Start only'], ['town', 'Towns'], ['airport', 'Airports']]]] },
   air: { n: 'Airspace status', d: 'Nearest airspace', w: 6, h: 2, o: [] },
