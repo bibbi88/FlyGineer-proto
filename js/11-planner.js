@@ -24,6 +24,25 @@ function plAnalyse(P) {
     if (gap <= 0.2 * per) { const mn = Math.min(a, b, c) / per; Object.assign(r, { kind: mn >= FAI_MIN ? 'fai' : 'flat', per, gap, mn, tri: [a, b, c] }); } }
   return r;
 }
+// XContest scoring as FlyXC does it for a planned route (its optimiser runs over the route points):
+// free distance via up to 3 turnpoints ×1.0; flat triangle ×1.2 and FAI triangle ×1.4 (every side ≥ 28 %) score the
+// perimeter minus the closing gap, allowed up to 20 % of the perimeter. Brute force over the points (routes are short).
+function plScore(P) {
+  const n = P.length, D = P.map((a) => P.map((b) => dist(a[0], a[1], b[0], b[1]))), best = { pts: 0, kind: 'none' }; if (n < 2) return best;
+  // free distance: the longest path through at most 5 of the points in order (start, 3 TPs, finish)
+  let row = new Array(n).fill(0); // row[j] = longest path ending at point j with k legs (any start)
+  for (let k = 1; k <= 4; k++) { const nx = new Array(n).fill(-Infinity);
+    for (let j = 1; j < n; j++) for (let i = 0; i < j; i++) if (row[i] > -Infinity) nx[j] = Math.max(nx[j], row[i] + D[i][j]);
+    nx.forEach((v, j) => { if (v / 1000 > best.pts) Object.assign(best, { pts: v / 1000, kind: 'free', dist: v }); }); row = nx; }
+  // triangles: corners i < j < k, closing gap = the closest pair of points before i and after k
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) {
+    const per = D[i][j] + D[j][k] + D[k][i]; if (per < 1000) continue; let gap = Infinity;
+    for (let a = 0; a <= i; a++) for (let b = k; b < n; b++) gap = Math.min(gap, D[a][b]);
+    if (gap > 0.2 * per) continue; const fai = Math.min(D[i][j], D[j][k], D[k][i]) / per >= FAI_MIN, v = (per - gap) / 1000 * (fai ? 1.4 : 1.2);
+    if (v > best.pts) Object.assign(best, { pts: v, kind: fai ? 'fai' : 'flat', per, gap, tri: [i, j, k] }); }
+  return best;
+}
+const XC_KIND = { none: '', free: 'free distance ×1.0', flat: 'flat triangle ×1.2', fai: 'FAI triangle ×1.4' };
 const PL_KIND = { none: 'Tap the map to add the start', open: 'Open distance', or: 'Out & return', flat: 'Flat triangle', fai: 'FAI triangle' };
 function plIcon(i, n, sel, loop) {
   if (loop && i === 0) return L.divIcon({ className: '', html: `<div class="plPt${sel ? ' sel' : ''}" style="background:linear-gradient(135deg,#2E7D4F 50%,#B42318 50%);font-size:14px">S/G</div>`, iconSize: [40, 40], iconAnchor: [20, 20] });
@@ -37,8 +56,9 @@ function plMount() {
     box.innerHTML = `<div id="plMap"></div><div id="plSide" class="card"></div>`;
     const m = PL.m = L.map('plMap', { zoomControl: false, attributionControl: true, zoomSnap: 0.5, rotateControl: false });
     L.control.zoom({ position: 'bottomleft' }).addTo(m); L.control.scale({ metric: true, imperial: false, position: 'bottomright' }).addTo(m);
-    PL.tile = L.tileLayer(LAYERS[PL.layer].url, LAYERS[PL.layer].o).addTo(m);
+    const LS = L.control({ position: 'topleft' }); LS.onAdd = () => { const d = L.DomUtil.create('div', 'plLay'); L.DomEvent.disableClickPropagation(d); d.innerHTML = [['topo', 'Topo'], ['sat', 'Satellite'], ['light', 'Airspace']].map(([k, nm]) => `<button data-pllay="${k}">${nm}</button>`).join(''); d.onclick = (e) => { const b = e.target.closest('[data-pllay]'); if (b) plSetLayer(b.dataset.pllay); }; return d; }; LS.addTo(m);
     PL.air = L.layerGroup().addTo(m); PL.g = L.layerGroup().addTo(m); PL.me = L.marker([0, 0], { icon: gliderIcon(0.8), interactive: false, zIndexOffset: 500 });
+    plSetLayer(PL.layer);
     const f = st.fix || startPlace(); if (PL.pts.length) m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); else m.setView(f ? [f.lat, f.lon] : [63.1, 21.6], 11);
     // your position follows while the planner is open
     setInterval(() => { if (curPage === 'pWeb' && webCur === 'plan' && st.fix) PL.me.setLatLng([st.fix.lat, st.fix.lon]).addTo(m); }, 2000);
@@ -46,6 +66,10 @@ function plMount() {
   }
   setTimeout(() => PL.m.invalidateSize(), 0);
   plDraw();
+}
+function plSetLayer(k) {
+  if (!LAYERS[k]) return; PL.layer = k; if (PL.tile) PL.m.removeLayer(PL.tile); PL.tile = L.tileLayer(LAYERS[k].url, LAYERS[k].o).addTo(PL.m); PL.tile.bringToBack(); plSave();
+  document.querySelectorAll('[data-pllay]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pllay === k)));
 }
 function plDraw() {
   if (!PL.m) return; const m = PL.m, P = PL.pts, n = P.length, g = PL.g; g.clearLayers();
@@ -75,9 +99,12 @@ function plSide(A) {
   const P = PL.pts, n = P.length, sel = PL.sel, km = (v) => fDist(v);
   const info = A.kind === 'fai' || A.kind === 'flat' ? `<div class="plBig">${km(A.per)}</div><div class="muted">${PL_KIND[A.kind]} · shortest leg ${Math.round(A.mn * 100)} %${A.kind === 'flat' ? ` (FAI needs ${Math.round(FAI_MIN * 100)} %)` : ''} · closing gap ${km(A.gap)}</div>`
     : `<div class="plBig">${n > 1 ? km(A.len) : '--'}</div><div class="muted">${PL_KIND[A.kind]}${n === 2 || n === 3 ? ' · green: where a 3rd corner makes an FAI triangle' : ''}</div>`;
+  const sc = plScore(P), xc = sc.pts ? `<div class="plXc"><b>${sc.pts.toFixed(1)} pts</b> XContest · ${XC_KIND[sc.kind]}${sc.kind === 'flat' || sc.kind === 'fai' ? ` · ${km(sc.per)} − gap ${km(sc.gap)}` : ` · ${km(sc.dist)}`}</div>` : '';
   const rows = P.map((p, i) => `<div class="plRow${i === sel ? ' sel' : ''}"><button class="plSel" data-plsel="${i}"><b>${plName(i, n)}</b><span class="muted">${i ? km(A.legs[i - 1]) : 'start'}</span></button><button class="btn" data-pldel="${i}" aria-label="Delete ${plName(i, n)}">✕</button></div>`).join('');
-  $('plSide').innerHTML = `<div class="row" style="justify-content:space-between"><b style="font-size:20px">XC planner</b><button class="btn" id="plLayer">${LAYERS[PL.layer].name}</button></div>
+  $('plSide').innerHTML = `<b style="font-size:20px">XC planner</b>
     ${info}
+    ${xc}
+    <div class="row"><input type="url" id="plFxIn" class="grow" placeholder="Paste a FlyXC link to load its route" aria-label="FlyXC link"><button class="btn" id="plFxLoad">Load</button></div>
     <div class="plList">${rows || '<div class="muted">Tap the map to add points. Drag a point to move it, tap ＋ on a leg to add one in between.</div>'}</div>
     <div class="plBtns">
       <button class="btn" id="plUndo" ${PL.hist.length ? '' : 'disabled'}>↶ Undo</button>
@@ -98,8 +125,12 @@ function plSide(A) {
   q('plStart', () => { const s0 = startPlace() || st.fix; if (!s0) { toast('No Start point or GPS position yet'); return; } plEdit(() => { if (P.length && dist(P[0][0], P[0][1], s0.lat, s0.lon) < 50) return; P.unshift([s0.lat, s0.lon]); }); PL.m.panTo([s0.lat, s0.lon]); });
   q('plFromTask', () => { plEdit(() => { PL.pts = st.task.pts.map((p) => [p.lat, p.lon]); PL.sel = -1; }); PL.m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); });
   q('plClear', () => plEdit(() => { P.length = 0; PL.sel = -1; }));
-  q('plLayer', () => { const ks = Object.keys(LAYERS); PL.layer = ks[(ks.indexOf(PL.layer) + 1) % ks.length]; PL.m.removeLayer(PL.tile); PL.tile = L.tileLayer(LAYERS[PL.layer].url, LAYERS[PL.layer].o).addTo(PL.m); PL.tile.bringToBack(); plSave(); plDraw(); });
   q('plUse', () => plUseTask());
+  const fxLoad = (t) => { const m0 = String(t || '').match(/https?:\/\/(?:www\.)?flyxc\.app\/?\S*/i); let p = null; try { p = m0 && new URL(m0[0]).searchParams.get('p'); } catch (e) { }
+    if (!p) { toast('No FlyXC route in that link'); return false; } const pts = decodePolyline(p); if (pts.length < 2) { toast('That route has fewer than 2 points'); return false; }
+    plEdit(() => { PL.pts = pts.map((q0) => [+q0[0].toFixed(6), +q0[1].toFixed(6)]); PL.sel = -1; }); PL.m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); toast(`FlyXC route loaded · ${pts.length} points`); return true; };
+  q('plFxLoad', async () => { let t = $('plFxIn').value; if (!t && navigator.clipboard?.readText) { try { t = await navigator.clipboard.readText(); } catch (e) { } } fxLoad(t); });
+  { const i0 = $('plFxIn'); if (i0) i0.oninput = () => { if (/flyxc\.app\/?\S*[?&]p=/i.test(i0.value)) fxLoad(i0.value); }; }
   q('plCopy', async () => { const t = 'https://flyxc.app/?p=' + encodeURIComponent(encodePolyline(P)); try { await navigator.clipboard.writeText(t); toast('Route copied as a FlyXC link'); } catch (e) { prompt('Copy the route link', t); } });
   q('plFx', () => window.open('https://flyxc.app/?p=' + encodeURIComponent(encodePolyline(P)), '_blank'));
 }
