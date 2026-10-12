@@ -318,7 +318,7 @@ function sideDraw(cv, W, el) {
   // fixed scale (default): metres per pixel never change, you stay at the same place and the grid moves; Auto fits everything in
   const fixed = W.cfg.scale !== 'auto', zm = clamp(+W.cfg.zoom || 1, 0.25, 8), vs = clamp(+W.cfg.vspan || 400, 100, 3000) / zm;
   const [smin, smax] = fixed ? [-1, 1].map((k) => k * clamp(+W.cfg.range || 300, 50, 5000) / zm) : steadyRange(cv, 's', -span, span),
-    [amin, amax] = fixed ? [alt - vs * 0.55, alt + vs * 0.45] : steadyRange(cv, 'a', aLo, aHi), sr = Math.max(-smin, smax);
+    yp = clamp(+W.cfg.ypos || 55, 5, 95) / 100, [amin, amax] = fixed ? [alt - vs * yp, alt + vs * (1 - yp)] : steadyRange(cv, 'a', aLo, aHi), sr = Math.max(-smin, smax);
   const L0 = 34, X = (v) => L0 + (v + sr) / (2 * sr) * (Wd - L0 - 8), Y = (a) => H - 26 - (a - amin) / (amax - amin) * (H - 46), mpx = (Wd - L0 - 8) / (2 * sr);
   const ink = css('--ink'), card = css('--card'), muted = css('--muted');
   // grid
