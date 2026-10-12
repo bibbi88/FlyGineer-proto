@@ -5,7 +5,7 @@ const U_V = [['', 'App setting'], ['m/s', 'm/s'], ['kt', 'kt'], ['fpm', 'ft/min'
 const withU = (key, u, fn) => { if (!u) return fn(); const o = S[key]; S[key] = u; try { return fn(); } finally { S[key] = o; } };
 const BTN = {
   thermalOn: ['Thermal mode on', 'THERMAL'], thermalOff: ['Thermal mode off', 'GLIDE'], thermalToggle: ['Toggle thermal mode', 'THERMAL'],
-  pMap: ['Show Map page', 'MAP'], pThermal: ['Show Thermal page', 'THERMAL PAGE'], pAtmos: ['Show Atmosphere page', 'ATMOSPHERE'], pAir: ['Show Airspace page', 'AIRSPACE'], prev: ['Previous page', 'BACK'],
+  pMap: ['Show Map page', 'MAP'], pThermal: ['Show Thermal page', 'THERMAL PAGE'], pAtmos: ['Show Atmosphere page', 'ATMOSPHERE'], pAir: ['Show Airspace page', 'AIRSPACE'], pPlan: ['Show XC planner', 'PLANNER'], prev: ['Previous page', 'BACK'],
   center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN'], fai: ['FAI triangle on/off', 'FAI'], copyTask: ['Copy task (FlyXC link)', 'COPY TASK']
 };
 const WT = {
@@ -60,7 +60,7 @@ const WT = {
   radio: { n: 'Radio', d: 'Frequencies from airspace', w: 11, h: 4, o: [] },
   notams: { n: 'NOTAM', d: 'From ais.fi, tap to read', w: 11, h: 5, def: { radius: 50 }, o: [['radius', 'Within', [[25, '25 km'], [50, '50 km'], [100, '100 km']]]] }
 };
-const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling']];
 const COMMON = [['vis', 'Show when', VIS], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
@@ -212,7 +212,7 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
     }
     case 'next': {
       // no task: open FlyXC on the Web page, or paste a FlyXC link you already have
-      if (!st.task) return { l: 'Next turnpoint', html: `<div class="fxW"><div class="row"><input class="fxIn" type="url" inputmode="url" placeholder="Paste a FlyXC link" aria-label="FlyXC link"><button class="wcb fxB" data-act="fximp">Import</button></div><button class="wcb fxB" data-act="fxweb">Plan in FlyXC ›</button></div>` };
+      if (!st.task) return { l: 'Next turnpoint', html: `<div class="fxW"><div class="row"><input class="fxIn" type="url" inputmode="url" placeholder="Paste a FlyXC link" aria-label="FlyXC link"><button class="wcb fxB" data-act="fximp">Import</button></div><button class="wcb fxB" data-act="fxweb">Plan a route ›</button></div>` };
       if (st.goalT) { const d = new Date(st.goalT); return { l: 'Goal · ' + st.task.name, html: `<div class="wv" style="font-size:${clamp(Math.min(bx.h * 0.4, bx.w / 5), 16, 90).toFixed(0)}px;justify-content:center">✓ GOAL</div><div class="ws" style="text-align:center">reached ${pad2(d.getHours())}:${pad2(d.getMinutes())} · ${(st.task.len / 1000).toFixed(1)} km</div>`, bgc: '#1F8A4C', col: '#FFFFFF' }; }
       if (!wp || !f) return { html: `<div class="ws" style="white-space:normal">Waiting for GPS…</div>`, l: 'Next turnpoint' };
       const b = brg(f.lat, f.lon, wp.lat, wp.lon); const arr = alt != null && st.groundElev != null ? alt - dwp / S.wingLD - st.groundElev : null;

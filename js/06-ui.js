@@ -782,7 +782,7 @@ function widgetAct(W, act) {
     case 'bg': if (!hasRot()) { toast('The map rotation library did not load'); return; } D.bgMap = !(C.bgMap === true || C.bgMap === 'true'); break;
     case 'zin': D.zoom = clamp((+C.zoom || 1) * 1.4, 0.25, 8); break;
     case 'zout': D.zoom = clamp((+C.zoom || 1) / 1.4, 0.25, 8); break;
-    case 'fxweb': webCur = 'flyxc'; showPage('pWeb'); return;
+    case 'fxweb': showPage('pPlan'); return;
     case 'fximp': { const v = document.querySelector(`.wg[data-id="${W.id}"] .fxIn`)?.value.trim();
       if (v) { if (importFlyXC(v)) renderWidgets(); return; }
       // empty field: try the clipboard
@@ -829,9 +829,6 @@ function renderWeb() {
   document.querySelectorAll('[data-web]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.web === webCur)));
   const f = st.fix || { lat: 63.1, lon: 21.6 }; const area = $('webArea'); $('webExtra').innerHTML = '';
   let url = '', html = '';
-  // our own planner: a native page next to the frame (kept alive, so the map and the draft survive switching tabs)
-  const plan = webCur === 'plan'; $('planArea').style.display = plan ? 'flex' : 'none'; $('webArea').style.display = plan ? 'none' : '';
-  if (plan) { const ob = $('fxUse'); if (ob) ob.remove(); $('webOpen').onclick = () => window.open(PL.pts && PL.pts.length > 1 ? 'https://flyxc.app/?p=' + encodeURIComponent(encodePolyline(PL.pts)) : 'https://flyxc.app/', '_blank'); plMount(); return; }
   if (webCur === 'windy') url = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=9&overlay=wind&product=ecmwf&level=surface&lat=${f.lat.toFixed(3)}&lon=${f.lon.toFixed(3)}&detailLat=${f.lat.toFixed(3)}&detailLon=${f.lon.toFixed(3)}&marker=true`;
   if (webCur === 'flyxc') { url = flyxcUrl(); $('webExtra').innerHTML = `<button class="pill" id="impAuto" aria-pressed="${S.autoImport}">Auto-import: ${S.autoImport ? 'on' : 'off'}</button>`; }
   if (webCur === 'flyk') url = S.flykUrl || 'https://flyk.com/map?lang=en';
@@ -995,7 +992,7 @@ function showPage(id) {
   // draw the new page once, right after the switch has been painted, so the tap answers at once
   cancelAnimationFrame(pageRaf); if (PAGEKEY[id]) pageRaf = requestAnimationFrame(() => setTimeout(() => { if (curPage !== id) return; MAPS.forEach((I) => I.m.invalidateSize()); loop(); }, 0));
   if (id === 'pAir') { loadPlaces(); loadNotams(); }
-  if (id === 'pWeb') renderWeb(); if (id === 'pSet') renderSettings(); if (id === 'pAtmos' && !st.forecast && st.fix) loadForecast();
+  if (id === 'pWeb') renderWeb(); if (id === 'pPlan') plMount(); if (id === 'pSet') renderSettings(); if (id === 'pAtmos' && !st.forecast && st.fix) loadForecast();
 }
 
 /* ================= events ================= */

@@ -22,6 +22,7 @@
     <button class="tab" data-page="pThermal">Thermal</button>
     <button class="tab" data-page="pAtmos">Atmosphere</button>
     <button class="tab" data-page="pAir">Airspace</button>
+    <button class="tab" data-page="pPlan">Planner</button>
     <button class="tab" data-page="pWeb">Web</button>
   </nav>
   <div class="msep" role="separator"></div>
@@ -63,9 +64,9 @@
 <section class="page" id="pAir"><div class="wLayer" id="wLayer_air" aria-label="Airspace widgets"></div></section>
 
 <!-- WEB -->
+<section class="page" id="pPlan"><div id="planArea"></div></section>
 <section class="page" id="pWeb">
   <div id="webBar">
-    <button class="pill" data-web="plan" aria-pressed="false">XC planner</button>
     <button class="pill" data-web="windy" aria-pressed="true">Windy</button>
     <button class="pill" data-web="flyxc" aria-pressed="false">FlyXC</button>
     <button class="pill" data-web="flyk" aria-pressed="false">Flyk</button>
@@ -76,7 +77,6 @@
     <button class="pill" id="webOpen" style="margin-left:auto">Open in browser</button>
   </div>
   <div id="webArea"></div>
-  <div id="planArea"></div>
 </section>
 
 <!-- SETTINGS -->

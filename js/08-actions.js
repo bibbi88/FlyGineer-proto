@@ -4,7 +4,7 @@ function defTap(W) { return W.type === 'time' ? 'time' : W.type === 'map' || W.t
 let detT = null, detState = null;
 function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); } catch (e) { toast('Full screen not available here'); } }
 document.addEventListener('fullscreenchange', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
-const PG_ALL = [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pWeb', 'Web'], ['pSet', 'Settings']];
+const PG_ALL = [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner'], ['pWeb', 'Web'], ['pSet', 'Settings']];
 function pageMenu() {
   const m = $('pgMenu'), c = m.firstElementChild; c.innerHTML = '<b>Go to page</b>' + PG_ALL.map(([id, n]) => `<button class="btn" data-pg="${id}" ${curPage === id ? 'style="background:var(--ink);color:var(--bg)"' : ''}>${n}</button>`).join('');
   m.style.display = 'flex'; c.querySelectorAll('[data-pg]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); m.style.display = 'none'; goPage(b.dataset.pg); })); m.onclick = () => (m.style.display = 'none');
@@ -19,7 +19,7 @@ function runAction(a, text) {
     case 'thermalOn': enterThermal(); break;
     case 'thermalOff': leaveThermal(); break;
     case 'thermalToggle': st.thermMode ? leaveThermal() : enterThermal(); break;
-    case 'pMap': case 'pThermal': case 'pAtmos': case 'pAir': goPage(a); break;
+    case 'pMap': case 'pThermal': case 'pAtmos': case 'pAir': case 'pPlan': goPage(a); break;
     case 'prev': backPage(); break;
     case 'center': MAPS.forEach((I) => { I.follow = true; I.panAt = 0; }); renderWidgets(); break;
     case 'sound': applySet('sound', String(!S.sound)); toast('Vario sound ' + (S.sound ? 'on' : 'off')); break;

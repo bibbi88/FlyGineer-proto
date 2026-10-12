@@ -232,7 +232,10 @@ canvas{display:block;width:100%;touch-action:none}
 #pWeb{flex-direction:column}
 #webBar{height:64px;flex-shrink:0;display:flex;align-items:center;gap:6px;padding:6px 430px 6px 10px;border-bottom:1px solid var(--line);overflow-x:auto}
 #webArea{flex:1;position:relative}
-#planArea{flex:1;display:none;min-height:0;position:relative}
+#pPlan{flex-direction:row}
+#planArea{flex:1;display:flex;min-height:0;position:relative}
+/* the clock / status / menu buttons float at the top right: keep the panel's content below them */
+#plSide{padding-top:72px!important}
 #plMap{flex:1;min-width:0}
 .plLay{display:flex;gap:0;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .plLay button{height:52px;padding:0 16px;border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font:600 16px var(--txt,inherit)}

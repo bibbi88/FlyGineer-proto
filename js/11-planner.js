@@ -1,5 +1,5 @@
 'use strict';
-/* ================= XC planner (Web page → "XC planner"): our own route planner instead of the FlyXC frame =================
+/* ================= XC planner (its own page, pPlan): our own route planner instead of the FlyXC frame =================
    Tap the map to add a point, drag a point to move it, tap a "+" on a leg to insert one, tap a point to select it.
    Airspaces, turnpoint cylinders and your position are always shown. The draft is kept in localStorage 'bora.plan'.
    Route types: open distance, out & return, flat / FAI triangle (3 corners, closed within 20 % of the triangle). */
@@ -61,7 +61,7 @@ function plMount() {
     plSetLayer(PL.layer);
     const f = st.fix || startPlace(); if (PL.pts.length) m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); else m.setView(f ? [f.lat, f.lon] : [63.1, 21.6], 11);
     // your position follows while the planner is open
-    setInterval(() => { if (curPage === 'pWeb' && webCur === 'plan' && st.fix) PL.me.setLatLng([st.fix.lat, st.fix.lon]).addTo(m); }, 2000);
+    setInterval(() => { if (curPage === 'pPlan' && st.fix) PL.me.setLatLng([st.fix.lat, st.fix.lon]).addTo(m); }, 2000);
     m.on('click', (e) => { if (PL.sel >= 0) { PL.sel = -1; plDraw(); return; } plEdit(() => PL.pts.push([+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)])); });
   }
   setTimeout(() => PL.m.invalidateSize(), 0);
