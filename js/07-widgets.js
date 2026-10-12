@@ -66,25 +66,25 @@ const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stoppe
 const COMMON = [['vis', 'Show when', VIS], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
 let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
-// default layouts = the owner's own setup (exported 2026-10-12, updated 10:40), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
+// default layouts = the owner's own setup (exported 2026-10-12 11:10), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
 const DEFS = {
   map: [
-    ['map', 0, 0, 96, 64, { bg: 0, showLabel: false, layer: 'sat', rot: 'north', smooth: 'normal', z: 12, follow: true, ret: 0, track: 'plain', trackMin: 15, heading: true, start: true, task: true, air: true, notam: true, places: false, traffic: false, trafficR: 25, trafficA: 1500, gsize: 1, ctl: true, tap: 'none' }],
+    ['map', 0, 0, 96, 64, { bg: 0, showLabel: false, layer: 'sat', rot: 'north', smooth: 'normal', z: 14, follow: true, ret: 0, track: 'plain', trackMin: 15, heading: true, start: true, task: true, air: true, notam: true, places: false, traffic: false, trafficR: 25, trafficA: 1500, gsize: 1, ctl: true, tap: 'none' }],
     ['vario', 0, 40, 9, 24, { size: 1.15, showLabel: false, win: 1, mode: 'bar', barDir: 'v', range: 5 }],
-    ['avg', 72, 20, 12, 8],
-    ['alt', 87, 22, 9, 7, { units: '', label: 'AMSL [m]' }],
-    ['agl', 72, 28, 12, 8],
-    ['gs', 84, 28, 12, 8],
-    ['ld', 72, 36, 12, 8],
-    ['wind', 84, 36, 12, 8],
-    ['next', 77, 47, 19, 9],
-    ['thermal', 48, 56, 12, 8],
-    ['flight', 73, 56, 12, 8],
-    ['glide', 24, 56, 24, 8],
-    ['button', 85, 56, 11, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'orange', tap: 'none' }],
+    ['avg', 87, 5, 9, 8],
+    ['alt', 87, 20, 9, 7, { units: '', label: 'AMSL [m]' }],
+    ['agl', 87, 49, 9, 7],
+    ['gs', 87, 26, 9, 8],
+    ['ld', 27, 55, 9, 7],
+    ['wind', 87, 34, 9, 7],
+    ['next', 81, 41, 15, 8],
+    ['flight', 0, 0, 12, 7],
+    ['glide', 39, 56, 24, 8],
+    ['button', 87, 56, 9, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'orange', tap: 'none' }],
     ['vario', 9, 48, 15, 16, { size: 1.15, showLabel: false, win: 0.6, mode: 'dial', barDir: 'v', range: 5 }],
-    ['alt', 87, 15, 9, 7, { units: '', label: 'AMSL [m]' }],
-    ['alt', 60, 57, 9, 7, { units: 'ft', label: 'AMSL [ft]' }]
+    ['alt', 87, 13, 9, 7, { units: '', label: 'AMSL [m]' }],
+    ['alt', 2, 32, 9, 7, { units: 'ft', label: 'AMSL [ft]' }],
+    ['compass', 73, 49, 14, 15]
   ],
   thermal: [
     ['ta', 0, 0, 40, 46, { bg: 85, orient: 'wind', hist: 30, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1.96 }],
@@ -99,9 +99,10 @@ const DEFS = {
     ['compass', 0, 46, 16, 18],
     ['alt', 87, 41, 9, 7],
     ['button', 85, 56, 11, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'orange', tap: 'none' }],
-    ['climb', 40, 46, 18, 8],
+    ['climb', 59, 46, 20, 8],
     ['turn', 16, 46, 16, 18],
-    ['thead', 67, 1, 19, 45, { hist: 600, ahead: 1000, hold: false }]
+    ['thead', 67, 1, 19, 45, { hist: 600, ahead: 1000, hold: false }],
+    ['theat', 32, 46, 18, 18, { bg: 100, orient: 'wind', hist: 90, depth: 70, blur: 25, range: 150, zoom: 1, colors: 'fixed' }]
   ],
   atmos: [
     ['profile', 0, 0, 44, 64],
