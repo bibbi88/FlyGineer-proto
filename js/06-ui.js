@@ -233,7 +233,8 @@ function sideAxis(view) {
   // the view only turns when the wind has clearly changed (> 30°) and never during a thermal, so the picture stays put
   if (w && (st.sideAx == null || (!live && Math.abs(angDiff(st.sideAx, w.to)) > 30))) st.sideAx = w.to;
   const base = st.sideAx ?? null;
-  return { ax: wrap360((base ?? 0) + (view === 'cross' ? 90 : 0)), hasWind: base != null };
+  // no wind yet: north on the left, south on the right (as if the wind came from the north)
+  return { ax: wrap360((base ?? 180) + (view === 'cross' ? 90 : 0)), hasWind: base != null };
 }
 // circle-averaged centres between t0 and t1: averaging over one full turn removes the wobble of circling
 function liftCentres(t0, t1, rel) {
@@ -339,12 +340,20 @@ function sideDraw(cv, W, el) {
   else { c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(gx + 11 * sgn, gy); c.lineTo(gx - 11 * sgn, gy + 5); c.lineTo(gx - 11 * sgn, gy - 5); c.closePath(); c.fill(); c.stroke(); }
   // labels
   c.textAlign = 'left'; c.font = '700 12px Barlow';
-  const head = cur ? (lean ? `leans ${Math.round(Math.abs(lean.k) * 100)} m/100 m ${view === 'along' ? (lean.k >= 0 ? 'downwind' : 'upwind') : (lean.k >= 0 ? 'right' : 'left')}` : 'thermal · first circles…') : view === 'head' ? `heading ${pad3(hd)}° · ${ahead >= 1000 ? (ahead / 1000).toFixed(1) + ' km' : ahead + ' m'} ahead${hold && st.circling ? ' · held' : ''}` : hasWind ? `last ${Math.round(hist / 60000)} min` : 'no wind yet · north–south';
+  const head = cur ? (lean ? `leans ${Math.round(Math.abs(lean.k) * 100)} m/100 m ${view === 'along' ? (lean.k >= 0 ? 'downwind' : 'upwind') : (lean.k >= 0 ? 'right' : 'left')}` : 'thermal · first circles…') : view === 'head' ? `heading ${pad3(hd)}° · ${ahead >= 1000 ? (ahead / 1000).toFixed(1) + ' km' : ahead + ' m'} ahead${hold && st.circling ? ' · held' : ''}` : hasWind ? `last ${Math.round(hist / 60000)} min` : 'no wind yet';
   if (Wd >= 165 && H >= 140) haloText(c, head, L0 + 2, 12, ink, card);
+  // direction indicator, seen from above with "up" = the direction you look into the view:
+  // blue arrow = where the wind blows (with its speed), red arrow = north while no wind is known
+  { const wd = windFromSpd(), face = ax - 90, r = clamp(Math.min(Wd, H) * 0.08, 11, 18), ix = Wd - r - 8, iy = (Wd >= 165 && H >= 140 ? 22 : 6) + r;
+    const b = wd ? wd.to : 0, a = (b - face) * D2R, col = wd ? css('--sink') : '#B42318', dx = Math.sin(a), dy = -Math.cos(a);
+    c.fillStyle = card; c.globalAlpha = 0.85; c.beginPath(); c.arc(ix, iy, r + 3, 0, 7); c.fill(); c.globalAlpha = 1;
+    c.strokeStyle = css('--line'); c.lineWidth = 1; c.beginPath(); c.arc(ix, iy, r + 3, 0, 7); c.stroke();
+    c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 3; c.lineCap = 'round'; c.beginPath(); c.moveTo(ix - dx * r * 0.8, iy - dy * r * 0.8); c.lineTo(ix + dx * r * 0.35, iy + dy * r * 0.35); c.stroke();
+    const tx = ix + dx * r, ty = iy + dy * r, px = -dy, py = dx; c.beginPath(); c.moveTo(tx, ty); c.lineTo(tx - dx * r * 0.6 + px * r * 0.42, ty - dy * r * 0.6 + py * r * 0.42); c.lineTo(tx - dx * r * 0.6 - px * r * 0.42, ty - dy * r * 0.6 - py * r * 0.42); c.closePath(); c.fill();
+    c.font = '700 12px Barlow'; c.textAlign = 'right'; haloText(c, wd ? fSpd(wd.spd) + ' ' + S.uSpd : 'N', ix - r - 6, iy + 4, col, card); }
   c.font = '11px Barlow'; c.fillStyle = muted; if (Wd < 165) return; // small: no edge labels
-  const lt = !hasWind ? (view === 'along' ? 'S' : 'W') : view === 'along' ? 'upwind' : 'left', rt = !hasWind ? (view === 'along' ? 'N' : 'E') : view === 'along' ? 'downwind' : 'right';
-  const nar = Wd < 300; c.textAlign = 'left'; c.fillText(nar ? `← ${pad3(ax + 180)}°` : `← ${lt} ${pad3(ax + 180)}°`, L0, H - 1); c.textAlign = 'right'; c.fillText(nar ? `${pad3(ax)}° →` : `${rt} ${pad3(ax)}° →`, Wd - 4, H - 1);
-  if (nar) { c.textAlign = 'center'; c.fillText(view === 'along' ? (hasWind ? 'downwind →' : 'N →') : (hasWind ? 'right →' : 'E →'), X(0), 26); }
+  // edges: compass bearings only
+  c.textAlign = 'left'; c.fillText(`← ${pad3(ax + 180)}°`, L0, H - 1); c.textAlign = 'right'; c.fillText(`${pad3(ax)}° →`, Wd - 4, H - 1);
 }
 /* ----- Thermal 3D: perspective view of your track, the lift columns and faint height layers ----- */
 // cameras: 'behind' looks the way you fly, 'downwind' sits downwind looking upwind, 'north' sits south looking north,
