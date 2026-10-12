@@ -72,7 +72,6 @@ main{flex:1;min-height:0;position:relative}
 #mapWrap{background:var(--bg)}
 .wLayer{position:absolute;inset:0;z-index:450;pointer-events:none}
 #pThermal .wLayer,#pAtmos .wLayer,#pAir .wLayer{z-index:1}
-body:not(.pinned) #pThermal .wLayer,body:not(.pinned) #pAtmos .wLayer,body:not(.pinned) #pAir .wLayer{top:64px}
 .wg{position:absolute;pointer-events:auto;border-radius:10px;border:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;padding:4px 8px;color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none}
 .wg .wl{display:flex;justify-content:space-between;gap:6px;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--muted);white-space:nowrap;overflow:hidden;line-height:1.2}
 .wg .wv{font-family:var(--num);font-weight:700;font-variant-numeric:tabular-nums;line-height:1;flex:1;display:flex;align-items:center;white-space:nowrap;overflow:hidden}

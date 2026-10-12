@@ -9,7 +9,7 @@ const BTN = {
   center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN']
 };
 const WT = {
-  vario: { n: 'Vario', d: 'Climb rate as number, bar or dial; averaging in 0.1 s steps', w: 6, h: 3, o: [['mode', 'Display', [['number', 'Number'], ['bar', 'Bar'], ['dial', 'Dial']]], ['win', 'Averaging', numOpt(0, 120, 0.1, 's', [0, 0.5, 1, 2, 5, 10], { zero: 'None', hint: '0 = no averaging', def: 0, snap: 0.1 })], ['range', 'Bar / dial scale', [[3, '±3 m/s'], [5, '±5 m/s'], [10, '±10 m/s']]], ['units', 'Units', U_V]] },
+  vario: { n: 'Vario', d: 'Climb rate as number, bar or dial; averaging in 0.1 s steps', w: 6, h: 3, o: [['mode', 'Display', [['number', 'Number'], ['bar', 'Bar'], ['dial', 'Dial']]], ['barDir', 'Bar direction', [['auto', 'Auto'], ['v', 'Vertical'], ['h', 'Horizontal']]], ['win', 'Averaging', numOpt(0, 120, 0.1, 's', [0, 0.5, 1, 2, 5, 10], { zero: 'None', hint: '0 = no averaging', def: 0, snap: 0.1 })], ['range', 'Bar / dial scale', [[3, '±3 m/s'], [5, '±5 m/s'], [10, '±10 m/s']]], ['units', 'Units', U_V]] },
   varioDial: { n: 'Vario dial', d: 'Needle gauge', w: 5, h: 5, canvas: true, o: [['range', 'Scale', [[5, '±5 m/s'], [10, '±10 m/s']]], ['win', 'Average marker', numOpt(0, 120, 1, 's', [0, 5, 10, 30, 60], { zero: 'Off', hint: '0 = off', def: 0 })]] },
   avg: { n: 'Vario average', d: 'Averaged climb', w: 3, h: 2, o: [['win', 'Average over', numOpt(1, 300, 1, 's', [5, 10, 30, 60, 120], { def: 30 })], ['units', 'Units', U_V]] },
   alt: { n: 'Altitude', d: 'Height above sea', w: 3, h: 2, o: [['src', 'Source', [['auto', 'Vario if connected'], ['gps', 'GPS']]], ['units', 'Units', U_A]] },
@@ -209,16 +209,19 @@ function varioDraw(cv, W, el) {
     el._sub = uV() + (win ? ' · Ø ' + win + ' s' : '');
     if (W.cfg.mode === 'dial') { dialDraw(cv, Object.assign({}, W, { cfg: Object.assign({}, W.cfg, { range: rg }) }), v, true); return; }
     // bar: zero in the middle, climb up in orange, sink down in blue; the value beside it
-    const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const vert = H >= Wd * 0.6, ink = css('--ink'), card = css('--card'), col = v >= 0 ? css('--climb') : css('--sink'), k = clamp(v / rg, -1, 1);
+    const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const bd = W.cfg.barDir || 'auto', vert = bd === 'v' || (bd !== 'h' && H >= Wd * 0.6), ink = css('--ink'), card = css('--card'), col = v >= 0 ? css('--climb') : css('--sink'), k = clamp(v / rg, -1, 1);
     c.font = '11px Barlow'; c.fillStyle = css('--muted'); c.strokeStyle = css('--line'); c.lineWidth = 1;
     const step = rg <= 3 ? 1 : rg <= 5 ? 1 : 2;
     if (vert) {
-      const bw = clamp(Wd * 0.32, 26, 90), x0 = 22, y0 = 6, y1 = H - 6, ym = (y0 + y1) / 2, hh = (y1 - y0) / 2;
+      // narrow: value on top and the bar under it; wide: bar on the left, value beside it
+      const narrow = Wd < 170, fsN = narrow ? clamp(Math.min(Wd / 3, H * 0.18), 14, 60) : 0;
+      const bw = narrow ? clamp(Wd - 34, 16, 90) : clamp(Wd * 0.32, 26, 90), x0 = narrow ? Math.max(22, (Wd - bw) / 2 + 8) : 22, y0 = narrow ? fsN + 10 : 6, y1 = H - 6, ym = (y0 + y1) / 2, hh = (y1 - y0) / 2;
       c.fillStyle = 'rgba(128,128,128,.12)'; c.fillRect(x0, y0, bw, y1 - y0);
       c.fillStyle = col; if (k >= 0) c.fillRect(x0, ym - k * hh, bw, k * hh); else c.fillRect(x0, ym, bw, -k * hh);
       c.fillStyle = css('--muted'); c.textAlign = 'right';
       for (let t = -rg; t <= rg; t += step) { const y = ym - t / rg * hh; c.strokeStyle = t === 0 ? ink : css('--line'); c.lineWidth = t === 0 ? 2 : 1; c.beginPath(); c.moveTo(x0 - 4, y); c.lineTo(x0 + bw, y); c.stroke(); if (H > 120 || t === 0 || Math.abs(t) === rg) c.fillText(String(t), x0 - 6, y + 4); }
-      const tx = x0 + bw + 8, fs = clamp(Math.min(H * 0.4, (Wd - tx) / 3.2), 14, 140); c.font = `700 ${fs}px Barlow Condensed`; c.textAlign = 'left'; c.fillStyle = col; c.fillText(fVario(v), tx, ym + fs * 0.35);
+      if (narrow) { c.font = `700 ${fsN}px Barlow Condensed`; c.textAlign = 'center'; c.fillStyle = col; c.fillText(fVario(v), Wd / 2, fsN + 2); }
+      else { const tx = x0 + bw + 8, fs = clamp(Math.min(H * 0.4, (Wd - tx) / 3.2), 14, 140); c.font = `700 ${fs}px Barlow Condensed`; c.textAlign = 'left'; c.fillStyle = col; c.fillText(fVario(v), tx, ym + fs * 0.35); }
     } else {
       const bh = clamp(H * 0.34, 18, 60), x0 = 8, x1 = Wd - 8, xm = (x0 + x1) / 2, hw = (x1 - x0) / 2, yb = H - bh - 16;
       c.fillStyle = 'rgba(128,128,128,.12)'; c.fillRect(x0, yb, x1 - x0, bh);
