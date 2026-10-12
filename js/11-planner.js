@@ -112,25 +112,24 @@ function plDraw() {
 }
 function plSide(A) {
   const P = PL.pts, n = P.length, sel = PL.sel, km = (v) => fDist(v);
-  const info = A.kind === 'fai' || A.kind === 'flat' ? `<div class="plBig">${km(A.per)}</div><div class="muted">${PL_KIND[A.kind]} · shortest leg ${Math.round(A.mn * 100)} %${A.kind === 'flat' ? ` (FAI needs ${Math.round(FAI_MIN * 100)} %)` : ''} · closing gap ${km(A.gap)}<br>Blue: where each corner can go and stay FAI · tap a corner to highlight it</div>`
-    : `<div class="plBig">${n > 1 ? km(A.len) : '--'}</div><div class="muted">${PL_KIND[A.kind]}${n === 2 || n === 3 ? ' · blue: where a 3rd corner makes an FAI triangle' : n >= 4 ? ' · blue: where each corner keeps the triangle FAI (tap a corner to highlight its area)' : ''}</div>`;
-  const sc = plScore(P), xc = sc.pts ? `<div class="plXc"><b>${sc.pts.toFixed(1)} pts</b> XContest · ${XC_KIND[sc.kind]}${sc.kind === 'flat' || sc.kind === 'fai' ? ` · ${km(sc.per)} − gap ${km(sc.gap)}` : ` · ${km(sc.dist)}`}</div>` : '';
-  const rows = P.map((p, i) => `<div class="plRow${i === sel ? ' sel' : ''}"><button class="plSel" data-plsel="${i}"><b>${plName(i, n)}</b><span class="muted">${i ? km(A.legs[i - 1]) : 'start'}</span></button><button class="btn" data-pldel="${i}" aria-label="Delete ${plName(i, n)}">✕</button></div>`).join('');
-  $('plSide').innerHTML = `<b style="font-size:20px">XC planner</b>
-    ${info}
-    ${xc}
-    <div class="row"><input type="url" id="plFxIn" class="grow" placeholder="Paste a FlyXC link to load its route" aria-label="FlyXC link"><button class="btn" id="plFxLoad">Load</button></div>
-    <div class="plList">${rows || '<div class="muted">Tap the map to add points. Drag a point to move it, tap ＋ on a leg to add one in between.</div>'}</div>
+  // compact: distance + type on one line, one detail line (shortest leg, gap, XContest points), a short hint only when needed
+  const tri = A.kind === 'fai' || A.kind === 'flat', sc = plScore(P);
+  const det = [tri ? `shortest leg ${Math.round(A.mn * 100)} %` : '', tri && A.gap > 50 ? `gap ${km(A.gap)}` : '', sc.pts ? `<b>${sc.pts.toFixed(1)} pts</b> XContest${sc.kind !== A.kind && !(sc.kind === 'free' && A.kind !== 'fai' && A.kind !== 'flat') ? ' as ' + XC_KIND[sc.kind] : ''}` : ''].filter(Boolean).join(' · ');
+  const hint = !n ? 'Tap the map to add the start' : n === 1 ? 'Tap the map for the next point' : n <= 3 ? 'Blue: where a 3rd corner makes it FAI' : tri ? 'Blue: where each corner stays FAI' : '';
+  const rows = P.map((p, i) => `<div class="plRow${i === sel ? ' sel' : ''}"><button class="plSel" data-plsel="${i}"><b>${plName(i, n)}</b><span class="muted">${i ? km(A.legs[i - 1]) : ''}</span></button><button class="btn" data-pldel="${i}" aria-label="Delete ${plName(i, n)}">✕</button></div>`).join('');
+  $('plSide').innerHTML = `<div class="plHead"><span class="plBig">${n > 1 ? km(tri ? A.per : A.len) : '--'}</span><span class="plKind${A.kind === 'fai' ? ' fai' : ''}">${n > 1 ? PL_KIND[A.kind] : ''}</span></div>
+    ${det ? `<div class="plDet">${det}</div>` : ''}${hint ? `<div class="plHint">${hint}</div>` : ''}
+    <div class="plList">${rows}</div>
     <div class="plBtns">
       <button class="btn" id="plUndo" ${PL.hist.length ? '' : 'disabled'}>↶ Undo</button>
-      <button class="btn" id="plClose" ${n >= 2 ? '' : 'disabled'}>Close loop</button>
-      <button class="btn" id="plRev" ${n >= 2 ? '' : 'disabled'}>Reverse</button>
-      <button class="btn" id="plStart">Start at takeoff</button>
-      <button class="btn" id="plFromTask" ${st.task ? '' : 'disabled'}>Load my task</button>
+      <button class="btn" id="plClose" ${n >= 2 ? '' : 'disabled'}>⟲ Close</button>
+      <button class="btn" id="plRev" ${n >= 2 ? '' : 'disabled'}>⇄ Reverse</button>
+      <button class="btn" id="plStart">⚑ Takeoff</button>
+      <button class="btn" id="plFromTask" ${st.task ? '' : 'disabled'}>My task</button>
       <button class="btn warn" id="plClear" ${n ? '' : 'disabled'}>Clear</button>
     </div>
-    <button class="btn primary" id="plUse" ${n >= 2 ? '' : 'disabled'} style="min-height:56px">Use as my task</button>
-    <div class="row"><button class="btn grow" id="plCopy" ${n >= 2 ? '' : 'disabled'}>Copy link</button><button class="btn grow" id="plFx" ${n >= 2 ? '' : 'disabled'}>Open in FlyXC</button></div>`;
+    <div class="row plFxRow"><input type="url" id="plFxIn" class="grow" placeholder="FlyXC link…" aria-label="Paste a FlyXC link to load its route"><button class="btn" id="plFxLoad">Load</button><button class="btn" id="plCopy" ${n >= 2 ? '' : 'disabled'} aria-label="Copy as FlyXC link">Copy</button><button class="btn" id="plFx" ${n >= 2 ? '' : 'disabled'} aria-label="Open in FlyXC">FlyXC ↗</button></div>
+    <button class="btn primary" id="plUse" ${n >= 2 ? '' : 'disabled'}>Use as my task</button>`;
   const q = (id, fn) => { const e = $(id); if (e) e.onclick = fn; };
   document.querySelectorAll('[data-plsel]').forEach((b) => (b.onclick = () => { const i = +b.dataset.plsel; PL.sel = PL.sel === i ? -1 : i; if (PL.sel >= 0) PL.m.panTo(P[i]); plDraw(); }));
   document.querySelectorAll('[data-pldel]').forEach((b) => (b.onclick = () => plEdit(() => { P.splice(+b.dataset.pldel, 1); PL.sel = -1; })));

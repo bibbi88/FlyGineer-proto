@@ -241,18 +241,24 @@ canvas{display:block;width:100%;touch-action:none}
 .plLay button{height:52px;padding:0 16px;border:0;border-right:1px solid var(--line);background:var(--card);color:var(--ink);font:600 16px var(--txt,inherit)}
 .plLay button:last-child{border-right:0}
 .plLay button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-.plXc{font-size:15px;padding:6px 10px;border-radius:10px;background:color-mix(in srgb,#16A34A 14%,transparent)}
-#plFxIn{min-height:48px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:15px;min-width:0}
+#plFxIn{min-height:42px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:15px;min-width:0}
 #plMap .leaflet-control-zoom a{width:52px;height:52px;line-height:52px;font-size:28px}
-#plSide{width:330px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:0;border-width:0 0 0 1px;overflow-y:auto}
-#plSide .btn{min-height:48px}
-.plBig{font-family:var(--num);font-weight:700;font-size:40px;line-height:1}
+#plSide{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:0;border-width:0 0 0 1px;overflow-y:auto}
+#plSide .btn{height:42px;min-height:0;padding:0 8px;font-size:14px}
+.plHead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.plBig{font-family:var(--num);font-weight:700;font-size:34px;line-height:1}
+.plKind{font-weight:600;font-size:15px;color:var(--muted)}
+.plKind.fai{color:#16A34A}
+.plDet{font-size:14px}
+.plHint{font-size:13px;color:var(--muted)}
+.plFxRow{gap:4px}
+#plSide #plUse{height:48px;font-size:16px}
 .plList{display:flex;flex-direction:column;gap:4px;flex:1;min-height:60px;overflow-y:auto}
 .plRow{display:flex;gap:4px}
-.plRow .plSel{flex:1;display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:16px}
+.plRow .plSel{flex:1;display:flex;justify-content:space-between;align-items:center;min-height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:15px}
 .plRow.sel .plSel{border-color:var(--sink);box-shadow:inset 0 0 0 2px var(--sink)}
-.plRow .btn{min-height:44px;min-width:48px}
-.plBtns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#plSide .plRow .btn{height:40px;min-width:44px}
+.plBtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}
 .plPt{width:40px;height:40px;border-radius:50%;color:#fff;font:700 17px/36px Barlow,sans-serif;text-align:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
 .plPt.sel{box-shadow:0 0 0 4px #F59E0B,0 1px 4px rgba(0,0,0,.45)}
 .plAdd{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.85);color:#1E50C8;font:700 24px/30px Barlow,sans-serif;text-align:center;border:2px solid #1E50C8}
