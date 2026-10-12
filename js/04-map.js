@@ -19,10 +19,15 @@ const effW = (W) => Object.assign({}, W, { cfg: effCfg(W), W0: W });
 function drawTask() { st.taskVer = (st.taskVer || 0) + 1; }
 const gliderIcon = (k) => L.divIcon({ className: '', html: '<svg viewBox="0 0 40 40" style="width:100%;height:100%;display:block"><g class="glg"><path d="M20 4 L31 34 L20 27 L9 34 Z" fill="#111418" stroke="#fff" stroke-width="2.5"/></g></svg>', iconSize: [40 * k, 40 * k], iconAnchor: [20 * k, 20 * k] });
 const startIcon = () => L.divIcon({ className: '', html: '<svg width="34" height="40" viewBox="0 0 34 40" style="margin:-38px 0 0 -4px"><path d="M5 38V4" stroke="#111418" stroke-width="3" stroke-linecap="round"/><path d="M6 4h22l-5 6 5 6H6z" fill="#2E7D4F" stroke="#fff" stroke-width="1.5"/><text x="9" y="14" font-size="8" font-weight="700" fill="#fff" font-family="Barlow">START</text></svg>', iconSize: [0, 0] });
-function drawTaskInto(g) {
-  if (!st.task) return; const pts = st.task.pts.map((p) => [p.lat, p.lon]);
-  L.polyline(pts, { color: '#1E50C8', weight: 3, dashArray: '8 6', interactive: false }).addTo(g);
-  st.task.pts.forEach((p, i) => { L.circle([p.lat, p.lon], { radius: S.cylR, color: i === st.nextWp ? '#1E50C8' : '#111418', weight: i === st.nextWp ? 4 : 2, fill: false, interactive: false }).addTo(g); L.marker([p.lat, p.lon], { icon: L.divIcon({ className: 'wpLabel', html: esc(p.name), iconSize: [80, 16], iconAnchor: [-8, 8] }), interactive: false }).addTo(g); });
+// task: thick line with a halo in the chosen colour (cfg.taskCol, default yellow: readable on satellite and topo);
+// legs already flown are faint, the leg to the next turnpoint is drawn live from your position (I.toWp) when cfg.towp is on
+const TASK_COL = { yellow: '#FACC15', magenta: '#E0157F', blue: '#1E50C8', black: '#111418' };
+function drawTaskInto(g, C) {
+  if (!st.task) return; const pts = st.task.pts.map((p) => [p.lat, p.lon]), col = TASK_COL[(C && C.taskCol) || 'yellow'] || TASK_COL.yellow, halo = col === TASK_COL.yellow ? '#111418' : '#FFFFFF', nx = st.nextWp;
+  const done = pts.slice(0, Math.max(1, nx)), todo = pts.slice(Math.max(0, nx - 1));
+  if (done.length > 1) L.polyline(done, { color: col, weight: 3, opacity: 0.45, dashArray: '6 8', interactive: false }).addTo(g);
+  if (todo.length > 1) { L.polyline(todo, { color: halo, weight: 9, opacity: 0.75, lineJoin: 'round', interactive: false }).addTo(g); L.polyline(todo, { color: col, weight: 5, lineJoin: 'round', interactive: false }).addTo(g); }
+  st.task.pts.forEach((p, i) => { const nxt = i === nx; L.circle([p.lat, p.lon], { radius: S.cylR, color: nxt ? col : i < nx ? '#6B7280' : '#111418', weight: nxt ? 5 : 2, fill: nxt, fillColor: col, fillOpacity: 0.12, interactive: false }).addTo(g); L.marker([p.lat, p.lon], { icon: L.divIcon({ className: 'wpLabel', html: esc(p.name), iconSize: [80, 16], iconAnchor: [-8, 8] }), interactive: false }).addTo(g); });
 }
 function drawAirInto(g) { st.airspaces.forEach((a) => L.polygon(a.poly, { color: airColor(a), weight: 2, fillOpacity: 0.08 }).bindTooltip(`${esc(a.name)} · ${fmtLim(a.lo)} – ${fmtLim(a.hi)}`).addTo(g)); }
 function drawNotamInto(g) { NOTAMS.filter((n) => n.geo && ntState(n) !== 'over').forEach((n) => { const o = { color: '#9A3D06', weight: 2, dashArray: '6 4', fillOpacity: 0.08 }; const lay = n.geo.poly ? L.polygon(n.geo.poly, o) : n.geo.r > 0 ? L.circle(n.geo.pt, Object.assign({ radius: n.geo.r }, o)) : L.circleMarker(n.geo.pt, { radius: 6, color: '#9A3D06', weight: 2, fillOpacity: 0.3 }); lay.bindTooltip(esc(n.id + ' ' + n.text.slice(0, 60))).addTo(g); }); }
@@ -76,6 +81,7 @@ function mapMount(el, E) {
   I.trackG = L.layerGroup().addTo(m);
   ['task', 'fai', 'air', 'notam', 'places', 'traffic'].forEach((k) => (I.g[k] = L.layerGroup().addTo(m)));
   I.faiLive = L.polyline([], { color: '#16A34A', weight: 2.5, dashArray: '6 8', interactive: false });
+  I.toWpH = L.polyline([], { color: '#111418', weight: 8, opacity: 0.6, lineCap: 'round', interactive: false }); I.toWp = L.polyline([], { color: TASK_COL.yellow, weight: 4, dashArray: '10 8', lineCap: 'round', interactive: false });
   I.headHalo = L.polyline([], { color: '#FFFFFF', weight: 9, opacity: 0.85, lineCap: 'round', interactive: false });
   I.headL = L.polyline([], { color: HCOL, weight: 4.5, dashArray: '1 10', lineCap: 'round', interactive: false });
   I.predNow = L.circleMarker([0, 0], { radius: 10, color: '#FFFFFF', weight: 3, fillColor: HCOL, fillOpacity: 1, interactive: false });
@@ -122,7 +128,7 @@ function mapDraw(cv, E, el, b) {
   if (!I.follow && +C.ret > 0 && I.panAt && Date.now() - I.panAt > C.ret * 1000) { I.follow = true; I.panAt = 0; }
   // overlays only redraw when their data changed
   const ov = (key, g, fn, vk) => { const k = on(C[key]) ? vk : 'off'; if (I.k[key] !== k) { I.k[key] = k; g.clearLayers(); if (k !== 'off') fn(g); } };
-  ov('task', I.g.task, drawTaskInto, [st.taskVer, S.cylR, st.nextWp].join('|'));
+  ov('task', I.g.task, (g) => drawTaskInto(g, C), [st.taskVer, S.cylR, st.nextWp, C.taskCol].join('|'));
   // FAI triangle assistant: sectors redraw when the start or the farthest point moves (~100 m); the dashed legs to you follow every fix
   { const fs = S.fai ? faiState() : null, ok = fs && fs.B && fs.c >= 500, k = ok ? [fs.A.lat, fs.A.lon, fs.B.lat, fs.B.lon].map((v) => v.toFixed(3)).join(',') : 'off';
     if (I.k.fai !== k) { I.k.fai = k; I.g.fai.clearLayers(); if (ok) faiDrawInto(I.g.fai, fs); }
@@ -157,6 +163,9 @@ function mapDraw(cv, E, el, b) {
     const want = -up; if (m.setBearing && Math.abs(angDiff(mb, want)) > 0.2) m.setBearing(want); mb = m.getBearing ? m.getBearing() : 0;
     const ge = I.glider.getElement(), gg = ge && ge.querySelector('.glg'); if (gg) gg.setAttribute('transform', `rotate(${(f.trk || 0) + mb} 20 20)`);
     trafficDraw(I, C, mb, f);
+    // live line from you to the next turnpoint
+    if (wp && on(C.task) && on(C.towp) && !st.goalT) { const col = TASK_COL[C.taskCol || 'yellow'] || TASK_COL.yellow, seg = [ll, [wp.lat, wp.lon]]; I.toWp.setStyle({ color: col }); I.toWpH.setStyle({ color: col === TASK_COL.yellow ? '#111418' : '#FFFFFF' }); I.toWpH.setLatLngs(seg).addTo(m); I.toWp.setLatLngs(seg).addTo(m); }
+    else { I.toWp.remove(); I.toWpH.remove(); }
     const p = st.pred;
     if (on(C.heading) && f.trk != null) { const len = p.now ? p.now[2] : p.wing ? p.wing[2] : 3000, end = p.now ? [p.now[0], p.now[1]] : dest(f.lat, f.lon, f.trk, len); I.headL.setLatLngs([ll, end]); I.headHalo.setLatLngs([ll, end]); if (!m.hasLayer(I.headL)) { I.headHalo.addTo(m); I.headL.addTo(m); } p.now ? I.predNow.setLatLng([p.now[0], p.now[1]]).addTo(m) : I.predNow.remove(); p.wing ? I.predWing.setLatLng([p.wing[0], p.wing[1]]).addTo(m) : I.predWing.remove(); }
     else { I.headL.remove(); I.headHalo.remove(); I.predNow.remove(); I.predWing.remove(); }
