@@ -142,11 +142,26 @@ function importFlyXC(text, silent) {
   let len = 0; for (let i = 1; i < pts.length; i++) len += dist(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
   const d = new Date();
   st.task = { name: 'FlyXC ' + d.getDate() + '.' + (d.getMonth() + 1), len, pts: pts.map((q, i) => ({ lat: q[0], lon: q[1], name: i === 0 ? 'Start' : i === pts.length - 1 ? 'Goal' : 'TP' + i })) };
-  st.nextWp = pts.length > 1 ? 1 : 0; st.wpHit = st.goalT = null;
+  const done = taskResume();
   localStorage.setItem('bora.task', JSON.stringify(st.task)); localStorage.setItem('bora.lastRoute', p);
   drawTask();
-  toast(`Route imported from FlyXC · ${pts.length} points · ${(len / 1000).toFixed(1)} km`, [['Show on map', () => showPage('pMap')], ['Undo', () => { clearTask(); }]]);
+  toast(`Route imported from FlyXC · ${pts.length} points · ${(len / 1000).toFixed(1)} km${resumeNote(done)}`, [['Show on map', () => showPage('pMap')], ['Undo', () => { clearTask(); }]]);
   return true;
+}
+// a new or changed task during a flight: replay the flight track through its turnpoints in order, so turnpoints already flown
+// through (track inside the cylinder) count as reached and you carry on from the right one. Returns how many were reached.
+function taskResume() {
+  st.wpHit = st.goalT = null; st.wpSkip = new Set(); const T = st.task; if (!T) { st.nextWp = 0; return 0; }
+  const n = T.pts.length, R = S.cylR || 400; let i = n > 1 ? 1 : 0;
+  if (st.takeoffT && n > 1) for (const p of st.log) { if (p.lat == null) continue; const w = T.pts[i]; if (dist(p.lat, p.lon, w.lat, w.lon) < R) { if (i < n - 1) i++; else { st.goalT = p.t; break; } } }
+  st.nextWp = i; return i - 1 + (st.goalT ? 1 : 0);
+}
+const resumeNote = (k) => (k > 0 ? ` · ${k} already reached` : '');
+// jump to turnpoint i (skip ahead, or go back); turnpoints jumped over are marked as skipped
+function goWp(i) {
+  const T = st.task; if (!T) return; const n = T.pts.length; i = clamp(i, n > 1 ? 1 : 0, n - 1); if (!st.wpSkip) st.wpSkip = new Set();
+  if (i > st.nextWp) for (let k = st.nextWp; k < i; k++) st.wpSkip.add(k); else for (let k = i; k < n; k++) st.wpSkip.delete(k);
+  st.nextWp = i; st.goalT = st.wpHit = null; drawTask(); renderWidgets(); toast('Next turnpoint: ' + T.pts[i].name);
 }
 function clearTask() { st.task = null; st.wpHit = st.goalT = null; localStorage.removeItem('bora.task'); drawTask(); toast('Task removed'); }
 async function tryClipboardImport() { if (!S.autoImport || !navigator.clipboard?.readText) return; try { const t = await navigator.clipboard.readText(); if (/flyxc\.app/i.test(t)) importFlyXC(t, true); } catch (e) { /* permission denied */ } }

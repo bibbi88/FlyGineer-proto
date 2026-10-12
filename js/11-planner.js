@@ -168,7 +168,7 @@ function plSide(A) {
 function plUseTask() {
   const P = PL.pts, n = P.length; if (n < 2) return; const A = plAnalyse(P), d = new Date(), old = st.task;
   st.task = { name: 'Plan ' + d.getDate() + '.' + (d.getMonth() + 1), len: A.len, pts: P.map((p, i) => ({ lat: p[0], lon: p[1], name: plName(i, n) })) };
-  st.nextWp = n > 1 ? 1 : 0; st.wpHit = st.goalT = null;
+  const done = taskResume();
   localStorage.setItem('bora.task', JSON.stringify(st.task)); drawTask(); renderWidgets();
-  toast(`Task set · ${n} points · ${fDist(A.len)}${A.kind === 'fai' ? ' · FAI triangle' : ''}`, [['Show on map', () => showPage('pMap')], ['Undo', () => { st.task = old; if (old) localStorage.setItem('bora.task', JSON.stringify(old)); else localStorage.removeItem('bora.task'); drawTask(); renderWidgets(); }]]);
+  toast(`Task set · ${n} points · ${fDist(A.len)}${A.kind === 'fai' ? ' · FAI triangle' : ''}${resumeNote(done)}`, [['Show on map', () => showPage('pMap')], ['Undo', () => { st.task = old; taskResume(); if (old) localStorage.setItem('bora.task', JSON.stringify(old)); else localStorage.removeItem('bora.task'); drawTask(); renderWidgets(); }]]);
 }

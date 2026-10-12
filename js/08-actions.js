@@ -28,6 +28,7 @@ function runAction(a, text) {
     case 'pSwitch': goPage(pageKey() === 'thermal' ? 'pMap' : 'pThermal'); break;
     case 'fullscreen': toggleFull(); break;
     case 'copyTask': copyTask(); break;
+    case 'skipWp': if (!st.task) toast('No task loaded'); else if (st.nextWp >= st.task.pts.length - 1) toast('The next point is the goal'); else goWp(st.nextWp + 1); break;
     case 'fai': S.fai = !S.fai; save(); renderWidgets(); toast(S.fai ? 'FAI triangle on: the map shows where the 3rd point must be' : 'FAI triangle off'); break;
   }
 }
@@ -104,7 +105,8 @@ function renderDetails(live) {
   if (g === 'task') {
     const f = st.fix;
     if (!st.task) extra = '<div class="muted">No task loaded. Import a route from FlyXC on the Web page.</div>';
-    else { let rem = 0; extra = '<div class="lbl">' + esc(st.task.name) + ' · ' + (st.task.len / 1000).toFixed(1) + ' km</div>' + st.task.pts.map((w, i) => { const d = f ? dist(f.lat, f.lon, w.lat, w.lon) : null; if (i > st.nextWp && i > 0) rem += dist(st.task.pts[i - 1].lat, st.task.pts[i - 1].lon, w.lat, w.lon); return `<div class="li"><b style="width:64px">${i < st.nextWp ? '✓' : i === st.nextWp ? 'next' : ''}</b><span class="grow"><b>${esc(w.name)}</b></span><span>${d != null ? fDist(d) + ' · ' + pad3(brg(f.lat, f.lon, w.lat, w.lon)) + '°' : ''}</span></div>`; }).join('');
+    else { let rem = 0; extra = '<div class="lbl">' + esc(st.task.name) + ' · ' + (st.task.len / 1000).toFixed(1) + ' km</div>' + st.task.pts.map((w, i) => { const d = f ? dist(f.lat, f.lon, w.lat, w.lon) : null; if (i > st.nextWp && i > 0) rem += dist(st.task.pts[i - 1].lat, st.task.pts[i - 1].lon, w.lat, w.lon); const skipped = st.wpSkip && st.wpSkip.has(i) && i < st.nextWp; return `<div class="li"><b style="width:78px">${skipped ? '⤼ skip' : i < st.nextWp ? '✓' : i === st.nextWp ? (st.goalT ? '✓' : 'next') : ''}</b><span class="grow"><b>${esc(w.name)}</b></span><span>${d != null ? fDist(d) + ' · ' + pad3(brg(f.lat, f.lon, w.lat, w.lon)) + '°' : ''}</span>${i > 0 && i !== st.nextWp ? `<button class="btn" data-wpgo="${i}" style="margin-left:10px">Go to</button>` : ''}</div>`; }).join('');
+      const n0 = st.task.pts.length; extra = `<div class="row" style="gap:8px"><button class="btn primary grow" data-wpgo="${st.nextWp + 1}" ${st.nextWp >= n0 - 1 ? 'disabled' : ''}>⏭ Skip ${esc(st.task.pts[st.nextWp]?.name || '')}</button><button class="btn grow" data-wpgo="${st.nextWp - 1}" ${st.nextWp <= 1 ? 'disabled' : ''}>⏮ Back one</button></div>` + extra;
       const wp = st.task.pts[st.nextWp]; const d = f && wp ? dist(f.lat, f.lon, wp.lat, wp.lon) : null;
       stats = statBox('Next', wp ? esc(wp.name) : '--', d != null ? fDist(d) : '') + statBox('Remaining', d != null ? fDist(d + rem) : '--', 'via all turnpoints') + statBox('Req. glide', d != null && st.groundElev != null && altNow() != null ? (d / Math.max(1, altNow() - st.groundElev - S.safety)).toFixed(1) : '--', 'to next') + statBox('ETA next', f?.spd > 2 && d != null ? etaStr(d / f.spd) : '--', 'at current speed'); }
   }
@@ -156,8 +158,8 @@ async function useFlyxcRoute() {
 }
 window.addEventListener('storage', (e) => {
   if (e.key !== 'bora.task') return;
-  st.task = JSON.parse(e.newValue || 'null'); st.nextWp = st.task && st.task.pts.length > 1 ? 1 : 0; st.wpHit = st.goalT = null; drawTask();
-  if (st.task) toast(`New route from FlyXC · ${st.task.pts.length} points · ${(st.task.len / 1000).toFixed(1)} km`, [['Show on map', () => showPage('pMap')]]);
+  st.task = JSON.parse(e.newValue || 'null'); const done = taskResume(); drawTask();
+  if (st.task) toast(`New route from FlyXC · ${st.task.pts.length} points · ${(st.task.len / 1000).toFixed(1)} km${resumeNote(done)}`, [['Show on map', () => showPage('pMap')]]);
 });
 
 
@@ -301,3 +303,6 @@ function autoSection() {
 }
 function ruleEdit(i, field, val) { const r = (S.autoRules || [])[i]; if (!r) return; if (field === 'delay') r.delay = clamp(Math.round(+val) || 0, 0, 600); else r[field] = val; save(); renderSettings(); }
 
+
+// turnpoint popup: Skip / Back one / Go to (re-renders the popup)
+document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-wpgo]'); if (!b || b.disabled) return; goWp(+b.dataset.wpgo); if (detState) openDetails(detState.W); });
