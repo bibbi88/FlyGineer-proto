@@ -690,6 +690,13 @@ function widgetAct(W, act) {
     case 'bg': if (!hasRot()) { toast('The map rotation library did not load'); return; } D.bgMap = !(C.bgMap === true || C.bgMap === 'true'); break;
     case 'zin': D.zoom = clamp((+C.zoom || 1) * 1.4, 0.25, 8); break;
     case 'zout': D.zoom = clamp((+C.zoom || 1) / 1.4, 0.25, 8); break;
+    case 'fxweb': webCur = 'flyxc'; showPage('pWeb'); return;
+    case 'fximp': { const v = document.querySelector(`.wg[data-id="${W.id}"] .fxIn`)?.value.trim();
+      if (v) { if (importFlyXC(v)) renderWidgets(); return; }
+      // empty field: try the clipboard
+      if (navigator.clipboard?.readText) navigator.clipboard.readText().then((t) => { if (importFlyXC(t)) renderWidgets(); }).catch(() => toast('Paste the FlyXC link into the field first'));
+      else toast('Paste the FlyXC link into the field first');
+      return; }
     case 'zfit': D.zoom = 1; break;
     case 'cam3d': { const o = Object.keys(CAM3D); D.cam = o[(o.indexOf(CAM3D[C.cam] ? C.cam : 'auto') + 1) % o.length]; D.yaw = 0; break; }
     case 'rotl': D.yaw = ((+C.yaw || 0) - 30 + 540) % 360 - 180; break;
@@ -923,6 +930,9 @@ function placeReplayBar() {
   g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end); }
 $('rpMin').onclick = () => { S.rpMin = !S.rpMin; save(); placeReplayBar(); };
 addEventListener('resize', placeReplayBar);
+// the Next turnpoint widget's link field: a pasted FlyXC link with a route is imported right away, Enter imports too
+document.addEventListener('input', (e) => { const i = e.target.closest?.('.fxIn'); if (i && /flyxc\.app\/?\S*[?&]p=/i.test(i.value) && importFlyXC(i.value)) renderWidgets(); });
+document.addEventListener('keydown', (e) => { const i = e.target.closest?.('.fxIn'); if (i && e.key === 'Enter' && importFlyXC(i.value)) renderWidgets(); });
 $('rpSpeeds').onclick = (e) => { const b = e.target.closest('[data-sp]'); if (b && st.replay) { st.replay.speed = +b.dataset.sp; renderReplayBar(); } };
 $('rpSeek').oninput = () => { if (st.replay) { st.replay.dragging = true; const r = st.replay, a = r.pts[0].t, b = r.pts[r.pts.length - 1].t; const d = new Date(a + $('rpSeek').value / 1000 * (b - a)); $('rpTime').textContent = pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + 'Z'; } };
 $('rpSeek').onchange = () => { if (st.replay) { st.replay.dragging = false; $('rpTime')._t = $('rpSeek')._v = null; seekReplay($('rpSeek').value / 1000); } };

@@ -149,6 +149,10 @@ body.wedit #wBanner{display:flex}
 #wSheet input[type=text],#wSheet select{height:48px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);width:100%}
 .wcbl{display:block;text-align:center;font-size:12px;font-weight:700;color:var(--muted);background:var(--card);border-radius:6px;padding:1px 4px}
 .wg.compact .wctl{display:none}
+.wg .fxW{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;min-height:0}
+.wg .fxW .row{gap:6px}
+.wg .fxIn{user-select:text;-webkit-user-select:text;flex:1;min-width:0;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 10px;font-size:15px}
+.wg .fxB{padding:0 14px;background:var(--card)}
 .addSearch{gap:8px}
 .addSearch input{flex:1;min-height:52px;font-size:18px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
 .addH{margin:6px 0 0;font-size:15px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}

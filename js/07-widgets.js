@@ -151,7 +151,9 @@ function wData(W) {
     case 'place': { if (!f) return { l: 'Nearest place', v: '--' }; const spl = startPlace(); const L0 = c.kind === 'start' ? (spl ? [spl] : []) : st.places.concat(c.kind === 'any' || !c.kind ? (spl ? [spl] : []) : []).filter((p) => c.kind === 'airport' ? p.kind === 'airport' : c.kind === 'town' ? p.kind === 'town' : p.kind !== 'peak'); let b = null, bd = 1e12; L0.forEach((p) => { const d = dist(f.lat, f.lon, p.lat, p.lon); if (d < bd) { bd = d; b = p; } }); return b ? { l: c.kind === 'start' ? 'Start' : 'Nearest place', u: '', v: fDist(bd), s: `${compass(brg(b.lat, b.lon, f.lat, f.lon))} of ${b.name}` } : { l: 'Nearest place', v: '--', s: 'loading places…' }; }
     case 'air': { const x = airStatus()[0]; if (!x) return { l: 'Airspace', v: '--', s: st.airspaces.length ? 'none within 30 km' : 'no airspace data' }; return { l: 'Airspace', u: '', v: x.inside && x.vert === 'in' ? 'INSIDE' : fDist(x.d), s: `${x.a.name} · ${fmtLim(x.a.lo)}–${fmtLim(x.a.hi)}`, col: x.inside && x.vert === 'in' ? css('--restr') : null }; }
     case 'next': {
-      if (!wp || !f) return { html: `<div class="ws" style="white-space:normal">No task. Import a FlyXC route on the Web page.</div>`, l: 'Next turnpoint' };
+      // no task: open FlyXC on the Web page, or paste a FlyXC link you already have
+      if (!st.task) return { l: 'Next turnpoint', html: `<div class="fxW"><div class="row"><input class="fxIn" type="url" inputmode="url" placeholder="Paste a FlyXC link" aria-label="FlyXC link"><button class="wcb fxB" data-act="fximp">Import</button></div><button class="wcb fxB" data-act="fxweb">Plan in FlyXC ›</button></div>` };
+      if (!wp || !f) return { html: `<div class="ws" style="white-space:normal">Waiting for GPS…</div>`, l: 'Next turnpoint' };
       const b = brg(f.lat, f.lon, wp.lat, wp.lon); const arr = alt != null && st.groundElev != null ? alt - dwp / S.wingLD - st.groundElev : null;
       return { l: `Next · ${wp.name} (${st.nextWp + 1}/${st.task.pts.length})`, html: `<div class="row" style="gap:14px;flex:1;align-items:center"><div><div class="ws">Dist</div><div class="num" style="font-size:26px">${fDist(dwp)}</div></div><div><div class="ws">Brg</div><div class="num" style="font-size:26px">${pad3(b)}°</div></div><div><div class="ws">ETA</div><div class="num" style="font-size:26px">${f.spd > 2 ? etaStr(dwp / f.spd) : '--'}</div></div></div><div class="ws">${arr != null ? (arr >= 0 ? 'Arrive ' + A(arr) + ' ' + AU + ' above ground' : 'Short by ' + A(-arr) + ' ' + AU) + ' at L/D ' + S.wingLD : ''}</div>` };
     }
@@ -331,6 +333,7 @@ function openAdd() {
   document.querySelectorAll('.wLayer').forEach((layer) => {
     layer.addEventListener('pointerdown', (e) => {
       const el = e.target.closest('.wg'); if (!el) return; const W = S.layout.find((x) => x.id === el.dataset.id); if (!W) return;
+      if (!wEdit && e.target.closest('input')) return; // typing / pasting into a field inside a widget: no tap, no long-press edit
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, id: W.id });
       if (!wEdit) {
         if (ptrs.size >= 2) { if (lp) { clearTimeout(lp.t); lp = null; } if (ptrs.size === 2 && W.type === 'ta') { const [p, q] = [...ptrs.values()]; if (p.id === q.id) pinch = { W, d0: Math.hypot(p.x - q.x, p.y - q.y) || 1, z0: +effCfg(W).zoom || 1 }; } return; }
