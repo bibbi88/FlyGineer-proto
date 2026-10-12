@@ -63,19 +63,69 @@ const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go t
 const TAP = TAPG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling']];
 const COMMON = [['vis', 'Show when', VIS], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
-const DEF_LAYOUT = [['vario', 18, 2, 6, 3], ['avg', 18, 5, 3, 2], ['alt', 21, 5, 3, 2], ['agl', 18, 7, 3, 2], ['gs', 21, 7, 3, 2], ['ld', 18, 9, 3, 2], ['wind', 21, 9, 3, 2], ['next', 18, 11, 6, 3], ['thermal', 18, 14, 3, 2], ['flight', 21, 14, 3, 2], ['glide', 0, 14, 6, 2]];
 let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
+// default layouts = the owner's own setup (exported 2026-10-12), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
 const DEFS = {
-  map: [['map', 0, 0, 24, 16]].concat(DEF_LAYOUT, [['button', 6, 14, 4, 2, { action: 'pSwitch', color: 'orange' }]]),
-  thermal: [['ta', 0, 0, 8, 11], ['tside', 8, 0, 4, 11], ['t3d', 12, 0, 4, 11], ['vario', 16, 0, 8, 3], ['avg', 16, 3, 4, 2], ['thermal', 20, 3, 4, 2], ['gain', 16, 5, 4, 2], ['ttime', 20, 5, 4, 2], ['wind', 16, 7, 4, 3], ['windDir', 20, 7, 4, 3], ['core', 16, 10, 8, 2], ['compass', 16, 12, 4, 4], ['alt', 20, 12, 4, 2], ['button', 20, 14, 4, 2, { action: 'pSwitch', color: 'orange' }], ['climb', 0, 11, 10, 5], ['turn', 10, 11, 6, 5]],
-  atmos: [['profile', 0, 0, 11, 16], ['temp', 11, 0, 4, 3], ['groundT', 15, 0, 5, 3], ['alt', 20, 0, 4, 3], ['cbase', 11, 3, 6, 4], ['ttop', 17, 3, 7, 4], ['outlook', 11, 7, 13, 5], ['trigger', 11, 12, 13, 3]],
-  air: [['asside', 0, 0, 13, 5], ['aslist', 0, 5, 13, 5], ['asmap', 0, 10, 13, 6], ['places', 13, 0, 11, 7], ['radio', 13, 7, 11, 4], ['notams', 13, 11, 11, 5]]
+  map: [
+    ['map', 0, 0, 96, 64, { bg: 0, showLabel: false, layer: 'sat', rot: 'north', smooth: 'normal', z: 12, follow: true, ret: 0, track: 'plain', trackMin: 15, heading: true, start: true, task: true, air: true, notam: true, places: false, traffic: false, trafficR: 25, trafficA: 1500, gsize: 1, ctl: true, tap: 'none' }],
+    ['vario', 0, 40, 9, 24, { size: 1.15, showLabel: false, win: 1, mode: 'bar', barDir: 'v', range: 5 }],
+    ['avg', 72, 20, 12, 8],
+    ['alt', 87, 22, 9, 7, { units: '', label: 'AMSL [m]' }],
+    ['agl', 72, 28, 12, 8],
+    ['gs', 84, 28, 12, 8],
+    ['ld', 72, 36, 12, 8],
+    ['wind', 84, 36, 12, 8],
+    ['next', 77, 47, 19, 9],
+    ['thermal', 48, 56, 12, 8],
+    ['flight', 73, 56, 12, 8],
+    ['glide', 24, 56, 24, 8],
+    ['button', 85, 56, 11, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'orange', tap: 'none' }],
+    ['vario', 9, 48, 15, 16, { size: 1.15, showLabel: false, win: 0.6, mode: 'dial', barDir: 'v', range: 5 }],
+    ['alt', 87, 15, 9, 7, { units: '', label: 'AMSL [m]' }],
+    ['alt', 60, 57, 9, 7, { units: 'ft', label: 'AMSL [ft]' }]
+  ],
+  thermal: [
+    ['ta', 0, 0, 37, 44, { bg: 85, orient: 'wind', hist: 120, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1.96 }],
+    ['tside', 52, 0, 12, 44, { hist: 180 }],
+    ['vario', 64, 0, 32, 12],
+    ['avg', 64, 12, 16, 8],
+    ['thermal', 80, 12, 16, 8],
+    ['gain', 64, 20, 16, 8],
+    ['ttime', 80, 20, 16, 8],
+    ['wind', 64, 28, 16, 12],
+    ['windDir', 80, 28, 16, 12],
+    ['core', 64, 40, 32, 8],
+    ['compass', 64, 48, 16, 16],
+    ['alt', 80, 48, 16, 8],
+    ['button', 80, 56, 16, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'orange', tap: 'none' }],
+    ['climb', 0, 44, 40, 20],
+    ['turn', 40, 44, 24, 20],
+    ['t3d', 37, 0, 15, 44, { cam: 'downwind', tilt: 25, hist: 300, layers: 'auto', zoom: 1.96, yaw: 0 }]
+  ],
+  atmos: [
+    ['profile', 0, 0, 44, 64],
+    ['temp', 44, 0, 16, 12],
+    ['groundT', 60, 0, 20, 12],
+    ['alt', 80, 0, 16, 12],
+    ['cbase', 44, 12, 24, 16],
+    ['ttop', 68, 12, 28, 16],
+    ['outlook', 44, 28, 52, 20],
+    ['trigger', 44, 48, 52, 12]
+  ],
+  air: [
+    ['asside', 0, 0, 52, 20, { range: 20 }],
+    ['aslist', 0, 20, 52, 20],
+    ['asmap', 0, 40, 52, 24, { map: 'light', radius: 0 }],
+    ['places', 52, 0, 44, 28],
+    ['radio', 52, 28, 44, 16],
+    ['notams', 52, 44, 44, 20, { radius: 50 }]
+  ]
 };
 const PAGEKEY = { pMap: 'map', pThermal: 'thermal', pAtmos: 'atmos', pAir: 'air' };
 const LAYERID = { map: 'wLayer', thermal: 'wLayer_thermal', atmos: 'wLayer_atmos', air: 'wLayer_air' };
 const pageKey = () => PAGEKEY[curPage] || 'map';
-const defLayout = (pk) => (DEFS[pk || pageKey()] || DEFS.map).map(([t, x, y, w, h, c]) => { const W = newW(t, x * GSC, y * GSC, w * GSC, h * GSC); if (c) Object.assign(W.cfg, c); return W; });
+const defLayout = (pk) => (DEFS[pk || pageKey()] || DEFS.map).map(([t, x, y, w, h, c]) => { const W = newW(t, x, y, w, h); if (c) Object.assign(W.cfg, c); return W; });
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};

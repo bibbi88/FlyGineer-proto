@@ -19,8 +19,8 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp
 /* ================= settings ================= */
 const DEF = {
   uVario: 'm/s', uAlt: 'm', uSpd: 'km/h', avgS: 30, wingLD: 9.0, rotDefault: 'north', taOrient: 'wind',
-  layer: 'topo', poiRadius: 20, poiKinds: { town: true, airport: true, peak: true }, cylR: 400, safety: 150,
-  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 0.4, rateT: 0, modeAuto: true, modeEnter: 6, modeHold: 20, thermPage: 'off', thermBack: true, modeChip: true, autoRules: [], notamProxy: '', notamRadius: 50, sound: false, volume: 0.5, wake: true, autoImport: true, openaipKey: '', customUrl: '',
+  layer: 'sat', poiRadius: 20, poiKinds: { town: true, airport: true, peak: true }, cylR: 400, safety: 150,
+  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 0.5, rateT: 0, modeAuto: true, modeEnter: 6, modeHold: 20, thermPage: 'off', thermBack: true, modeChip: true, autoRules: [], notamProxy: '', notamRadius: 50, sound: false, volume: 0.5, wake: true, autoImport: true, openaipKey: '', customUrl: '',
   widgets: ['vario', 'avg', 'alt', 'agl', 'gs', 'ld', 'next', 'thermal', 'flight', 'utc'],
   hidden: []
 };
