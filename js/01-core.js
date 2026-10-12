@@ -24,6 +24,7 @@ const DEF = {
   widgets: ['vario', 'avg', 'alt', 'agl', 'gs', 'ld', 'next', 'thermal', 'flight', 'utc'],
   hidden: []
 };
+const FRESH = !localStorage.getItem('bora.settings'); // first start on this device (no stored settings yet)
 let S = Object.assign({}, DEF, JSON.parse(localStorage.getItem('bora.settings') || '{}'));
 function save() { localStorage.setItem('bora.settings', JSON.stringify(S)); }
 const fVario = (ms) => ms == null || isNaN(ms) ? '--' : (S.uVario === 'kt' ? (ms * 1.94384).toFixed(1) : S.uVario === 'fpm' ? Math.round(ms * 196.85 / 10) * 10 : ms.toFixed(1)).toString().replace(/^(?!-)/, ms >= 0 ? '+' : '');

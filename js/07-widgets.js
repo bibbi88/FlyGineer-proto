@@ -66,7 +66,7 @@ const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stoppe
 const COMMON = [['vis', 'Show when', VIS], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
 let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
-// default layouts = the owner's own setup (exported 2026-10-12), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
+// default layouts = the owner's own setup (exported 2026-10-12, updated 10:40), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
 const DEFS = {
   map: [
     ['map', 0, 0, 96, 64, { bg: 0, showLabel: false, layer: 'sat', rot: 'north', smooth: 'normal', z: 12, follow: true, ret: 0, track: 'plain', trackMin: 15, heading: true, start: true, task: true, air: true, notam: true, places: false, traffic: false, trafficR: 25, trafficA: 1500, gsize: 1, ctl: true, tap: 'none' }],
@@ -87,22 +87,21 @@ const DEFS = {
     ['alt', 60, 57, 9, 7, { units: 'ft', label: 'AMSL [ft]' }]
   ],
   thermal: [
-    ['ta', 0, 0, 37, 44, { bg: 85, orient: 'wind', hist: 120, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1.96 }],
-    ['tside', 52, 0, 12, 44, { hist: 180 }],
-    ['vario', 64, 0, 32, 12],
-    ['avg', 64, 12, 16, 8],
-    ['thermal', 80, 12, 16, 8],
-    ['gain', 64, 20, 16, 8],
-    ['ttime', 80, 20, 16, 8],
-    ['wind', 64, 28, 16, 12],
-    ['windDir', 80, 28, 16, 12],
-    ['core', 64, 40, 32, 8],
-    ['compass', 64, 48, 16, 16],
-    ['alt', 80, 48, 16, 8],
-    ['button', 80, 56, 16, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'orange', tap: 'none' }],
-    ['climb', 0, 44, 40, 20],
-    ['turn', 40, 44, 24, 20],
-    ['t3d', 37, 0, 15, 44, { cam: 'downwind', tilt: 25, hist: 300, layers: 'auto', zoom: 1.96, yaw: 0 }]
+    ['ta', 0, 0, 40, 46, { bg: 85, orient: 'wind', hist: 30, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1.96 }],
+    ['tside', 47, 1, 20, 45, { hist: 180 }],
+    ['vario', 40, 0, 7, 46, { mode: 'bar', barDir: 'v' }],
+    ['avg', 86, 5, 10, 8],
+    ['thermal', 86, 13, 10, 8],
+    ['gain', 86, 21, 10, 8],
+    ['ttime', 32, 46, 9, 7],
+    ['wind', 87, 34, 9, 7],
+    ['core', 86, 47, 10, 9],
+    ['compass', 0, 46, 16, 18],
+    ['alt', 87, 41, 9, 7],
+    ['button', 85, 56, 11, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'orange', tap: 'none' }],
+    ['climb', 40, 46, 18, 8],
+    ['turn', 16, 46, 16, 18],
+    ['thead', 67, 1, 19, 45, { hist: 600, ahead: 1000, hold: false }]
   ],
   atmos: [
     ['profile', 0, 0, 44, 64],
@@ -129,6 +128,8 @@ const pageKey = () => PAGEKEY[curPage] || 'map';
 const defLayout = (pk) => (DEFS[pk || pageKey()] || DEFS.map).map(([t, x, y, w, h, c]) => { const W = newW(t, x, y, w, h); if (c) Object.assign(W.cfg, c); return W; });
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
+  // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only
+  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true });
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};
   if (old && !S.layouts.map) { const k = GSC / (S.layoutGrid || 1); S.layouts.map = old.map((W) => Object.assign({}, W, { x: Math.round(W.x * k), y: Math.round(W.y * k), w: Math.round(W.w * k), h: Math.round(W.h * k) })); }
   Object.keys(LAYERID).forEach((pk) => { if (!Array.isArray(S.layouts[pk]) || !S.layouts[pk].length) S.layouts[pk] = defLayout(pk); S.layouts[pk] = S.layouts[pk].filter((W) => WT[W.type]); });
