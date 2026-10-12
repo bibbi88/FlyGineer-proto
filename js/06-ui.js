@@ -829,6 +829,9 @@ function renderWeb() {
   document.querySelectorAll('[data-web]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.web === webCur)));
   const f = st.fix || { lat: 63.1, lon: 21.6 }; const area = $('webArea'); $('webExtra').innerHTML = '';
   let url = '', html = '';
+  // our own planner: a native page next to the frame (kept alive, so the map and the draft survive switching tabs)
+  const plan = webCur === 'plan'; $('planArea').style.display = plan ? 'flex' : 'none'; $('webArea').style.display = plan ? 'none' : '';
+  if (plan) { const ob = $('fxUse'); if (ob) ob.remove(); $('webOpen').onclick = () => window.open(PL.pts && PL.pts.length > 1 ? 'https://flyxc.app/?p=' + encodeURIComponent(encodePolyline(PL.pts)) : 'https://flyxc.app/', '_blank'); plMount(); return; }
   if (webCur === 'windy') url = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=9&overlay=wind&product=ecmwf&level=surface&lat=${f.lat.toFixed(3)}&lon=${f.lon.toFixed(3)}&detailLat=${f.lat.toFixed(3)}&detailLon=${f.lon.toFixed(3)}&marker=true`;
   if (webCur === 'flyxc') { url = flyxcUrl(); $('webExtra').innerHTML = `<button class="pill" id="impAuto" aria-pressed="${S.autoImport}">Auto-import: ${S.autoImport ? 'on' : 'off'}</button>`; }
   if (webCur === 'flyk') url = S.flykUrl || 'https://flyk.com/map?lang=en';
