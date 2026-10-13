@@ -140,18 +140,40 @@ function renderReplayBar() {
 }
 
 
-/* ================= vario sound ================= */
+/* ================= vario sound (settings in Display & sound → Acoustic vario) ================= */
 const beep = {
-  ctx: null, osc: null, gain: null, v: 0, timer: null, on: false,
-  init() { if (this.ctx) return; this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.osc = this.ctx.createOscillator(); this.gain = this.ctx.createGain(); this.osc.type = 'square'; this.gain.gain.value = 0; this.osc.connect(this.gain).connect(this.ctx.destination); this.osc.start(); this.loop(); },
+  ctx: null, osc: null, gain: null, v: 0, timer: null, on: false, test: null,
+  init() { if (this.ctx) return; this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.osc = this.ctx.createOscillator(); this.gain = this.ctx.createGain(); this.osc.type = S.vWave || 'square'; this.gain.gain.value = 0; this.osc.connect(this.gain).connect(this.ctx.destination); this.osc.start(); this.loop(); },
   update(v) { this.v = v; },
+  // play a fixed climb rate for a few seconds (the Test buttons), even with the sound off
+  testRate(v, sec) { this.init(); if (this.ctx.state === 'suspended') this.ctx.resume(); this.test = { v, until: Date.now() + (sec || 3) * 1000 }; clearTimeout(this.timer); this.loop(); },
   loop() {
-    const v = this.v, g = this.gain, now = this.ctx.currentTime, vol = S.sound ? S.volume * 0.25 : 0;
+    const testing = this.test && Date.now() < this.test.until; if (!testing) this.test = null;
+    const damp = +S.vDamp || 0, v = testing ? this.test.v : damp > 0 ? (avgVario(damp) ?? this.v) : this.v, g = this.gain, now = this.ctx.currentTime;
+    const vol = (S.sound || testing ? (S.volume ?? 0.5) : 0) * 0.25, lift = S.vLift ?? 0.2, f0 = +S.vF0 || 520, fk = +S.vFk || 110, rate = clamp(+S.vRate || 1, 0.3, 3);
+    if (this.osc.type !== (S.vWave || 'square')) this.osc.type = S.vWave || 'square';
     let next = 0.3;
-    if (v > 0.2) { const f = 520 + v * 110, per = clamp(0.55 - v * 0.09, 0.12, 0.55); this.osc.frequency.setValueAtTime(f, now); g.gain.setValueAtTime(vol, now); g.gain.setValueAtTime(0, now + per * 0.55); next = per; }
-    else if (v < -2.5) { this.osc.frequency.setValueAtTime(220 + v * 10, now); g.gain.setValueAtTime(vol * 0.7, now); next = 0.3; }
+    if (v > lift) { const per = clamp((0.55 - (v - lift) * 0.09) / rate, 0.08, 1.2); this.osc.frequency.setValueAtTime(f0 + v * fk, now); g.gain.setValueAtTime(vol, now); g.gain.setValueAtTime(0, now + per * 0.55); next = per; }
+    else if (S.vBuzz && v > lift - 0.8) { this.osc.frequency.setValueAtTime(f0 * 0.75, now); g.gain.setValueAtTime(vol * 0.35, now); g.gain.setValueAtTime(0, now + 0.04); next = 0.6; }   // near lift: soft tick
+    else if (S.vSinkOn !== false && v < (S.vSink ?? -2.5)) { this.osc.frequency.setValueAtTime(Math.max(120, 220 + v * 10), now); g.gain.setValueAtTime(vol * 0.7, now); next = 0.3; }
     else g.gain.setValueAtTime(0, now);
     this.timer = setTimeout(() => this.loop(), next * 1000);
   }
 };
+/* ================= voice messages (speech synthesis; Display & sound → Voice messages) ================= */
+const LANGS = { auto: '', en: 'en-GB', sv: 'sv-SE', fi: 'fi-FI' };
+const VTXT = {
+  en: { therm: 'Thermal', sum: (a, g, t) => `Thermal average ${a}, gained ${g}, ${t}`, tp: (n, nx) => `${n} reached. Next ${nx}`, goal: 'Goal reached', airIn: (n) => `Inside airspace ${n}`, airNear: (n, d) => `Airspace ${n} in ${d}`, alt: (h, a) => `Altitude ${h}${a ? ', ' + a + ' above ground' : ''}`, test: 'Voice messages on' },
+  sv: { therm: 'Termik', sum: (a, g, t) => `Termik medel ${a}, vunnit ${g}, ${t}`, tp: (n, nx) => `${n} nådd. Nästa ${nx}`, goal: 'Mål nått', airIn: (n) => `Inne i luftrum ${n}`, airNear: (n, d) => `Luftrum ${n} om ${d}`, alt: (h, a) => `Höjd ${h}${a ? ', ' + a + ' över marken' : ''}`, test: 'Röstmeddelanden på' },
+  fi: { therm: 'Terminen', sum: (a, g, t) => `Terminen keskiarvo ${a}, nousu ${g}, ${t}`, tp: (n, nx) => `${n} saavutettu. Seuraava ${nx}`, goal: 'Maali saavutettu', airIn: (n) => `Ilmatilan ${n} sisällä`, airNear: (n, d) => `Ilmatila ${n} ${d} päässä`, alt: (h, a) => `Korkeus ${h}${a ? ', ' + a + ' maanpinnasta' : ''}`, test: 'Ääniviestit päällä' }
+};
+const vt = () => VTXT[S.voiceLang] || VTXT[(navigator.language || 'en').slice(0, 2)] || VTXT.en;
+function say(text, force) {
+  if ((!S.voice && !force) || !window.speechSynthesis || !text) return;
+  try { const u = new SpeechSynthesisUtterance(String(text)); u.volume = clamp((S.voiceVol ?? 100) / 100, 0, 1); u.rate = clamp(+S.voiceRate || 1, 0.5, 2); const lg = LANGS[S.voiceLang]; if (lg) u.lang = lg; else if (navigator.language) u.lang = navigator.language; speechSynthesis.speak(u); } catch (e) { }
+}
+// spoken values: numbers as words the speech engine reads well
+const UNITW = { en: ['meters', 'feet'], sv: ['meter', 'fot'], fi: ['metriä', 'jalkaa'] };
+const sayAlt = (m) => { const k = UNITW[S.voiceLang] ? S.voiceLang : (navigator.language || 'en').slice(0, 2), w = UNITW[k] || UNITW.en; return fAlt(m) + ' ' + w[S.uAlt === 'ft' ? 1 : 0]; };
+const sayV = (ms) => fVario(ms).replace('+', '') + (S.uVario === 'kt' ? ' knots' : S.uVario === 'fpm' ? ' feet per minute' : '');
 

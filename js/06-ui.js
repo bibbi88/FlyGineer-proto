@@ -859,10 +859,11 @@ const SECS = [['data', 'Vario & GPS'], ['widgets', 'Map widgets'], ['units', 'Un
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
-const SNUM = { avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
+const SNUM = { volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
 function numField(key, hint) { const [min, max, step, unit, label] = SNUM[key]; return `<div class="field"><span class="k">${label}${hint ? ' · ' + hint : ''}</span><span class="row"><button class="pill step" data-sn="${key}" data-sdir="-1" aria-label="Less">−</button><input type="number" class="numin" inputmode="decimal" data-sni="${key}" value="${S[key]}" min="${min}" max="${max}" step="${step}" aria-label="${label}, ${unit}"><span class="unit">${unit}</span><button class="pill step" data-sn="${key}" data-sdir="1" aria-label="More">+</button></span></div>`; }
 function setNum(key, v) { const [min, max, step] = SNUM[key], d = (String(step).split('.')[1] || '').length; if (!isFinite(v)) return; applySet(key, String(clamp(+(Math.round(v / step) * step).toFixed(d), min, max))); renderSettings(); }
 function renderSettings() {
+  if (S.volPct == null) S.volPct = Math.round((S.volume ?? 0.5) * 100);
   $('setNav').innerHTML = SECS.map(([k, n]) => `<button data-sec="${k}" aria-current="${k === setSec}">${n}</button>`).join('');
   let h = '';
   if (setSec === 'data') h = `<div class="card sec"><h2>Vario & GPS</h2>
@@ -910,9 +911,21 @@ function renderSettings() {
     <div class="field"><span class="k"></span><button class="btn primary" id="bmCopy">Copy bookmark code</button></div>`;
   if (setSec === 'web') h = `<div class="card sec"><h2>Web pages</h2><div class="field"><label for="fUrl">Flyk page address</label><input type="url" id="fUrl" value="${esc(S.flykUrl)}" placeholder="https://flyk.com/map?lang=en"></div>
 <div class="field"><label for="cUrl">My page address</label><input type="url" id="cUrl" value="${esc(S.customUrl)}" placeholder="https://…"></div><div class="muted">Pages can use your location once you allow it for this app. Some sites refuse to be shown inside another page; use Open in browser for those.</div></div>`;
-  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}
-    <div class="field"><label for="vol">Volume</label><input type="range" id="vol" min="0" max="1" step="0.1" value="${S.volume}" style="flex:1;height:40px"></div>
-    ${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>`;
+  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
+    <div class="card sec"><h2>Acoustic vario</h2>
+    ${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}${numField('volPct')}
+    ${numField('vLift', 'beeps start')}${seg('vSinkOn', [[true, 'On'], [false, 'Off']], 'Sink alarm')}${S.vSinkOn !== false ? numField('vSink') : ''}
+    ${seg('vBuzz', [[false, 'Off'], [true, 'On']], 'Near-lift ticks')}<div class="muted">Soft ticks when the air is just below the climb tone, to find weak lift.</div>
+    ${numField('vF0')}${numField('vFk')}${numField('vRate', 'faster beeps in stronger lift')}${seg('vWave', [['square', 'Beep'], ['triangle', 'Soft'], ['sine', 'Pure']], 'Tone')}${numField('vDamp', '0 = instant')}
+    <div class="field"><span class="k">Test</span><span class="row" style="flex-wrap:wrap"><button class="btn" data-vtest="0.8">+0.8</button><button class="btn" data-vtest="2">+2</button><button class="btn" data-vtest="4">+4</button><button class="btn" data-vtest="${(S.vSink ?? -2.5) - 0.5}">Sink</button></span></div>
+    <div class="muted">The Bora vario has its own beeper; this is the tablet's sound. Tests play for 3 s even with the sound off.</div></div>
+    <div class="card sec"><h2>Voice messages</h2>
+    ${seg('voice', [[false, 'Off'], [true, 'On']], 'Voice')}${'speechSynthesis' in window ? '' : '<div class="muted">This browser cannot speak.</div>'}
+    ${seg('voiceLang', [['auto', 'Tablet language'], ['en', 'English'], ['sv', 'Svenska'], ['fi', 'Suomi']], 'Language')}${numField('voiceVol')}${numField('voiceRate')}
+    ${seg('vcTherm', [[true, 'On'], [false, 'Off']], '“Thermal” when circling starts')}${seg('vcSum', [[true, 'On'], [false, 'Off']], 'Thermal summary when leaving')}
+    ${seg('vcTp', [[true, 'On'], [false, 'Off']], 'Turnpoint and goal reached')}${seg('vcAir', [[true, 'On'], [false, 'Off']], 'Airspace warnings')}${numField('vcAlt', '0 = off')}
+    <div class="field"><span class="k">Test</span><button class="btn" id="voiceTest">Say something</button></div>
+    <div class="muted">Your own spoken messages: Settings → Automatic actions → “Say a message” for any event (with a delay if you like).</div></div>`;
   if (setSec === 'modes') h = `<div class="card sec"><h2>Display update</h2>
     ${numField('rate')}
     <div class="muted">Faster is smoother on the map and dials, slower saves battery. Sound and measurements always run at full speed.</div></div>
@@ -958,7 +971,8 @@ function renderSettings() {
   on('cylR', 'onchange', (e) => { S.cylR = +e.target.value; save(); drawTask(); });
   on('cUrl', 'onchange', (e) => { S.customUrl = e.target.value.trim(); save(); });
   on('fUrl', 'onchange', (e) => { S.flykUrl = e.target.value.trim(); save(); });
-  on('vol', 'oninput', (e) => { S.volume = +e.target.value; save(); });
+  on('voiceTest', 'onclick', () => { say(vt().test + '. ' + vt().alt(sayAlt(altNow() ?? 1000), ''), true); });
+  document.querySelectorAll('[data-vtest]').forEach((b) => (b.onclick = () => beep.testRate(+b.dataset.vtest, 3)));
   on('fsBtn', 'onclick', () => document.documentElement.requestFullscreen?.());
 }
 function applySet(key, raw) {
@@ -967,6 +981,8 @@ function applySet(key, raw) {
   if (key === 'theme') document.body.classList.toggle('dark', v === 'dark');
   if (key === 'navMode') { document.body.classList.toggle('pinned', v === 'pinned'); setNav(false); setTimeout(() => MAPS.forEach((I) => I.m.invalidateSize()), 250); }
   if (key === 'sound' && v) beep.init();
+  if (key === 'volPct') { S.volume = v / 100; save(); }
+  if (key === 'voice' && v) say(vt().test, true);
   if (key === 'wake') wake();
   if (key === 'titles') renderWidgets();
   if (key === 'rate' || key === 'rateT') loop();

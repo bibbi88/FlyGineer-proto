@@ -13,6 +13,7 @@ const isPageBtn = (W) => W.type === 'button' && /^p[A-Z]/.test(effCfg(W).action 
 function runAction(a, text) {
   switch (a) {
     case 'message': toast(text || 'Automatic action'); break;
+    case 'say': say(text || '', true); break;
     case 'soundOn': if (!S.sound) applySet('sound', 'true'); toast('Vario sound on'); break;
     case 'soundOff': if (S.sound) applySet('sound', 'false'); toast('Vario sound off'); break;
     case 'titles': S.titles = S.titles === 'hide' ? 'each' : 'hide'; save(); renderWidgets(); toast(S.titles === 'hide' ? 'Widget titles hidden' : 'Widget titles shown'); break;
@@ -218,7 +219,7 @@ function setMode(on) {
   fireEvent(on ? 'thermalStart' : 'thermalStop');
 }
 const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'layoutGrid', 'widgets', 'hidden', 'mapMigrated']);
-const IMPORT_OK = new Set(['titles', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules']);
+const IMPORT_OK = new Set(['titles', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
   const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)) };
@@ -264,11 +265,11 @@ function openImport(txt, fname) {
 
 /* ================= automatic actions: when an event happens, optionally after a delay, do something ================= */
 const AUTO_EVENTS = [['thermalStart', 'Started thermalling'], ['thermalStop', 'Stopped thermalling'], ['takeoff', 'Takeoff'], ['turnpoint', 'Turnpoint reached']];
-const RULE_ACTS = ['pThermal', 'pMap', 'pAtmos', 'pAir', 'prev', 'center', 'soundOn', 'soundOff', 'time', 'start', 'message'];
-const ruleActLabel = (a) => (a === 'message' ? 'Show a message' : (BTN[a] || [a])[0]);
+const RULE_ACTS = ['pThermal', 'pMap', 'pAtmos', 'pAir', 'prev', 'center', 'soundOn', 'soundOff', 'time', 'start', 'message', 'say'];
+const ruleActLabel = (a) => (a === 'message' ? 'Show a message' : a === 'say' ? 'Say a message (voice)' : (BTN[a] || [a])[0]);
 const evLabel = (e) => (AUTO_EVENTS.find((x) => x[0] === e) || [e, e])[1];
 st.autoQ = [];
-function ruleSummary(r) { return `When ${evLabel(r.event).toLowerCase()}${+r.delay > 0 ? ', after ' + r.delay + ' s' : ''} → ${ruleActLabel(r.action).toLowerCase()}${r.action === 'message' && r.text ? ': “' + r.text + '”' : ''}`; }
+function ruleSummary(r) { return `When ${evLabel(r.event).toLowerCase()}${+r.delay > 0 ? ', after ' + r.delay + ' s' : ''} → ${ruleActLabel(r.action).toLowerCase()}${(r.action === 'message' || r.action === 'say') && r.text ? ': “' + r.text + '”' : ''}`; }
 function execRule(r) {
   const nav = /^p[A-Z]/.test(r.action) || r.action === 'prev';
   if (nav && (wEdit || !PAGEKEY[curPage])) return;                                                                          // never pull you out of Settings, Web or the widget editor
@@ -277,7 +278,8 @@ function execRule(r) {
 }
 function scheduleAuto(sec) { setTimeout(runAutoPending, sec * 1000 / (st.replay ? st.replay.speed : 1) + 40); }
 function fireEvent(ev) {
-  if (st.force) return;                                                                                                     // the thermal-tab preview never triggers anything
+  if (st.force) return;
+  voiceEvent(ev);                                                                                                     // the thermal-tab preview never triggers anything
   if (ev === 'thermalStop') st.autoQ = st.autoQ.filter((p) => p.ev !== 'thermalStart'); if (ev === 'thermalStart') st.autoQ = st.autoQ.filter((p) => p.ev !== 'thermalStop');
   (S.autoRules || []).forEach((r) => { if (r.on === false || r.event !== ev) return; const d = +r.delay || 0; if (d <= 0) execRule(r); else { st.autoQ.push({ ev, rule: r, due: nowT() + d * 1000 }); scheduleAuto(d); } });
 }
@@ -291,7 +293,7 @@ function ruleCard(r, i) {
     <div class="opt"><span class="lbl">When</span><div class="row" style="flex-wrap:wrap">${ev}</div></div>
     <div class="opt"><span class="lbl">After · 0 = immediately</span><div class="row"><button class="pill step" data-ari="${i}" data-arst="-1" aria-label="Less">−</button><input type="number" class="numin" inputmode="decimal" data-ari="${i}" data-arn="delay" value="${r.delay || 0}" min="0" max="600" step="1" aria-label="Delay in seconds"><span class="unit">s</span><button class="pill step" data-ari="${i}" data-arst="1" aria-label="More">+</button></div></div>
     <div class="opt"><label class="lbl" for="arA${i}">Do</label><select id="arA${i}" data-ari="${i}" data-arsel="action" style="height:48px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);width:100%">${acts}</select></div>
-    ${r.action === 'message' ? `<div class="opt"><label class="lbl" for="arT${i}">Message</label><input type="text" id="arT${i}" data-ari="${i}" data-artx="1" value="${esc(r.text || '')}" placeholder="Text to show" style="height:48px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);width:100%"></div>` : ''}
+    ${r.action === 'message' || r.action === 'say' ? `<div class="opt"><label class="lbl" for="arT${i}">${r.action === 'say' ? 'Words to say' : 'Message'}</label><input type="text" id="arT${i}" data-ari="${i}" data-artx="1" value="${esc(r.text || '')}" placeholder="Text to show" style="height:48px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);width:100%"></div>` : ''}
     <div class="muted" style="font-size:14px">${esc(ruleSummary(r))}</div></div>`;
 }
 function autoSection() {
@@ -306,3 +308,20 @@ function ruleEdit(i, field, val) { const r = (S.autoRules || [])[i]; if (!r) ret
 
 // turnpoint popup: Skip / Back one / Go to (re-renders the popup)
 document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-wpgo]'); if (!b || b.disabled) return; goWp(+b.dataset.wpgo); if (detState) openDetails(detState.W); });
+
+/* ================= voice messages for events (Display & sound → Voice messages) ================= */
+function voiceEvent(ev) {
+  if (!S.voice) return; const T = vt();
+  if (ev === 'thermalStart' && S.vcTherm) say(T.therm);
+  if (ev === 'thermalStop' && S.vcSum !== false && st.thermal) { const th = st.thermal, a = altNow(), dur = (nowT() - th.t0) / 1000;
+    if (a != null && th.alt0 != null && dur > 30) { const g = a - th.alt0, m = Math.floor(dur / 60), sec = Math.round(dur % 60); say(T.sum(sayV(g / dur), sayAlt(g), m ? `${m} min ${sec} s` : `${sec} s`)); } }
+  if (ev === 'turnpoint' && S.vcTp !== false && st.task) say(st.goalT ? T.goal : T.tp(st.wpHit ? st.wpHit.name : '', st.task.pts[st.nextWp] ? st.task.pts[st.nextWp].name : ''));
+}
+// airspace warnings (when the warning changes) and the altitude every few minutes
+setInterval(() => {
+  if (!S.voice) return; const T = vt();
+  if (S.vcAir !== false) { const s = airStatus(), inn = s.find((x) => x.inside && x.vert === 'in'), near = !inn && s.find((x) => x.d < 2000 && x.vert === 'in'), key = inn ? 'in:' + inn.a.name : near ? 'near:' + near.a.name : '';
+    if (key && key !== st.airSaid) say(inn ? T.airIn(inn.a.name) : T.airNear(near.a.name, fDist(near.d).replace('km', 'kilometers').replace(' m', ' meters'))); st.airSaid = key; }
+  const every = +S.vcAlt || 0, a = altNow();
+  if (every > 0 && st.takeoffT && a != null && nowT() - (st.altSaidT || 0) >= every * 60000) { st.altSaidT = nowT(); say(T.alt(sayAlt(a), st.groundElev != null ? sayAlt(a - st.groundElev) : '')); }
+}, 5000);
