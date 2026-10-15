@@ -6,7 +6,7 @@ const withU = (key, u, fn) => { if (!u) return fn(); const o = S[key]; S[key] = 
 const BTN = {
   thermalOn: ['Thermal mode on', 'THERMAL'], thermalOff: ['Thermal mode off', 'GLIDE'], thermalToggle: ['Toggle thermal mode', 'THERMAL'],
   pMap: ['Show Map page', 'MAP'], pThermal: ['Show Thermal page', 'THERMAL PAGE'], pAtmos: ['Show Atmosphere page', 'ATMOSPHERE'], pAir: ['Show Airspace page', 'AIRSPACE'], pPlan: ['Show XC planner', 'PLANNER'], prev: ['Previous page', 'BACK'],
-  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN'], fai: ['FAI triangle on/off', 'FAI'], copyTask: ['Copy task (FlyXC link)', 'COPY TASK'], skipWp: ['Skip to the next turnpoint', 'SKIP TP']
+  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN'], fai: ['FAI triangle on/off', 'FAI'], copyTask: ['Copy task (FlyXC link)', 'COPY TASK'], skipWp: ['Skip to the next turnpoint', 'SKIP TP'], edit: ['Edit widgets', 'EDIT']
 };
 const WT = {
   vario: { n: 'Vario', d: 'Climb rate as number, bar or dial; averaging in 0.1 s steps', w: 6, h: 3, o: [['mode', 'Display', [['number', 'Number'], ['bar', 'Bar'], ['dial', 'Dial']]], ['barDir', 'Bar direction', [['auto', 'Auto'], ['v', 'Vertical'], ['h', 'Horizontal']]], ['win', 'Averaging', numOpt(0, 120, 0.1, 's', [0, 0.5, 1, 2, 5, 10], { zero: 'None', hint: '0 = no averaging', def: 0, snap: 0.1 })], ['range', 'Bar / dial scale', [[3, '±3 m/s'], [5, '±5 m/s'], [10, '±10 m/s']]], ['units', 'Units', U_V]] },
@@ -61,10 +61,13 @@ const WT = {
   radio: { n: 'Radio', d: 'Frequencies from airspace', w: 11, h: 4, o: [] },
   notams: { n: 'NOTAM', d: 'From ais.fi, tap to read', w: 11, h: 5, def: { radius: 50 }, o: [['radius', 'Within', [[25, '25 km'], [50, '50 km'], [100, '100 km']]]] }
 };
-const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['heights', 'Heights in m and ft'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
+// when held: info is shown only while you hold; actions run once
+const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times']]], ['Action', [['pages', 'Page menu'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
+const HOLD = HOLDG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling'], ['tow', 'Towing and after release']];
-const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
+const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
 let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
 // default layouts = the owner's own setup (exported 2026-10-12 11:10), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
@@ -323,11 +326,13 @@ function numRow(key, name, spec, cur) {
   return `<div class="opt"><span class="lbl">${name}${spec.hint ? ' · ' + spec.hint : ''}</span><div class="row"><button class="pill step" data-ns="${key}" data-dir="-1" aria-label="Less">−</button><input type="number" class="numin" inputmode="decimal" data-ni="${key}" value="${isNum ? v : ''}" placeholder="${(spec.extra || []).some((x) => x[0] === cur) ? '—' : ''}" min="${spec.min}" max="${spec.max}" step="${spec.snap ?? spec.step}" aria-label="${name}, ${spec.unit}"><span class="unit">${v === 0 && spec.zero ? spec.zero : spec.unit}</span><button class="pill step" data-ns="${key}" data-dir="1" aria-label="More">+</button></div>${pres ? `<div class="row" style="flex-wrap:wrap">${pres}</div>` : ''}</div>`;
 }
 function snapNum(spec, v) { const g = spec.snap ?? spec.step, d = (String(g).split('.')[1] || '').length; return clamp(+(Math.round(v / g) * g).toFixed(d), spec.min, spec.max); }
-function tapRow(key, name, cur) {
-  const g = TAPG.find(([, l]) => l.some((x) => x[0] === cur)) || TAPG[0], btn = (v, n, extra) => `<button class="pill ${extra || ''}" data-ok="${key}" data-ov="${v}" aria-pressed="${String(cur) === String(v)}">${n}</button>`;
-  return `<div class="opt"><span class="lbl">${name}</span><div class="row">${TAPG.map(([n, l]) => `<button class="pill" data-ok="${key}" data-ov="${l[0][0]}" data-grp="${n}" aria-pressed="${g[0] === n}">${n}</button>`).join('')}</div>${g[1].length > 1 ? `<div class="row sub">${g[1].map(([v, n]) => btn(v, n)).join('')}</div>` : ''}</div>`;
+function tapRow(key, name, cur, G) {
+  const GR0 = G || TAPG, g = GR0.find(([, l]) => l.some((x) => x[0] === cur)) || GR0[0], btn = (v, n, extra) => `<button class="pill ${extra || ''}" data-ok="${key}" data-ov="${v}" aria-pressed="${String(cur) === String(v)}">${n}</button>`;
+  return `<div class="opt"><span class="lbl">${name}</span><div class="row">${GR0.map(([n, l]) => `<button class="pill" data-ok="${key}" data-ov="${l[0][0]}" data-grp="${n}" aria-pressed="${g[0] === n}">${n}</button>`).join('')}</div>${g[1].length > 1 ? `<div class="row sub">${g[1].map(([v, n]) => btn(v, n)).join('')}</div>` : ''}</div>`;
 }
-function optRow(key, name, opts, cur) { if (key === 'tap') return tapRow(key, name, cur); if (!Array.isArray(opts)) return numRow(key, name, opts, cur); return `<div class="opt"><span class="lbl">${name}</span><div class="row">${opts.map(([v, n]) => `<button class="pill" data-ok="${key}" data-ov="${v}" aria-pressed="${String(cur) === String(v)}">${n}</button>`).join('')}</div></div>`; }
+function optRow(key, name, opts, cur) { if (key === 'tap') return tapRow(key, name, cur, TAPG); if (key === 'hold') return tapRow(key, name, cur, HOLDG);
+  if (opts === 'INFO') { const sel = Array.isArray(cur) && cur.length ? cur : ['heights']; return `<div class="opt"><span class="lbl">${name} · tap to add or remove</span><div class="row">${INFO_KEYS().map(([k, n]) => `<button class="pill" data-info="${k}" aria-pressed="${sel.includes(k)}">${esc(n)}</button>`).join('')}</div></div>`; }
+  if (opts === 'TEXT') return `<div class="opt"><label class="lbl" for="wsInfoText">${name}</label><input type="text" id="wsInfoText" value="${esc(cur || '')}" placeholder="Optional text shown on top, e.g. radio channel"></div>`; if (!Array.isArray(opts)) return numRow(key, name, opts, cur); return `<div class="opt"><span class="lbl">${name}</span><div class="row">${opts.map(([v, n]) => `<button class="pill" data-ok="${key}" data-ov="${v}" aria-pressed="${String(cur) === String(v)}">${n}</button>`).join('')}</div></div>`; }
 let sheetMode = 'normal', sheetFor = null;
 function sheetSide(W) { const side = S.sheetSide || ((W.x + W.w / 2) / GC > 0.5 ? 'left' : 'right'); $('wSheet').classList.toggle('left', side === 'left'); }
 function closeSheet() { $('wSheet').classList.remove('on'); wSel = null; if (st.force && st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } sheetFor = null; renderWidgets(); }
@@ -335,8 +340,8 @@ function openSheet(id) {
   const W = S.layout.find((x) => x.id === id); if (!W) return; if (sheetFor !== id) { sheetMode = 'normal'; sheetFor = id; if (st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } } wSel = id; const T = WT[W.type];
   const tm = sheetMode === 'thermal', hasT = !!W.cfgT, D = tm && hasT ? W.cfgT : W.cfg;
   const read = (k, d) => { const v = tm && hasT && W.cfgT[k] !== undefined ? W.cfgT[k] : W.cfg[k]; return v ?? d; };
-  const dflt = (k, o) => (T.def && T.def[k] !== undefined ? T.def[k] : k === 'tap' ? defTap(W) : Array.isArray(o) ? o[0][0] : o.def ?? o.presets[0]);
-  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay' || k === 'towKeep')) && !(k === 'towKeep' && W.cfg.vis !== 'tow') && !(!tm && k === 'showLabel') && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
+  const dflt = (k, o) => (T.def && T.def[k] !== undefined ? T.def[k] : k === 'tap' ? defTap(W) : k === 'hold' ? defHold(W) : k === 'infoItems' ? ['heights'] : k === 'infoText' ? '' : Array.isArray(o) ? o[0][0] : o.def ?? o.presets[0]);
+  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay' || k === 'towKeep')) && !(k === 'towKeep' && W.cfg.vis !== 'tow') && !((k === 'infoItems' || k === 'infoText') && read('tap', defTap(W)) !== 'custom' && read('hold', defHold(W)) !== 'custom') && !(!tm && k === 'showLabel') && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
   const typeOpts = Object.entries(WT).map(([k, t]) => `<option value="${k}" ${k === W.type ? 'selected' : ''}>${t.n}</option>`).join('');
   const tabs = `<div class="row"><button class="pill grow" data-sm="normal" aria-pressed="${!tm}">Normal${hasT && !tm ? ' •' : ''}</button><button class="pill grow" data-sm="thermal" aria-pressed="${tm}">When thermaling${hasT ? ' •' : ''}</button></div>`;
   let body;
@@ -366,6 +371,8 @@ function openSheet(id) {
   q('[data-nv]', (b) => (b.onclick = () => { const raw = b.dataset.nval; D[b.dataset.nv] = raw !== '' && !isNaN(+raw) ? +raw : raw; saveLayout(); openSheet(W.id); }));
   q('[data-ns]', (b) => (b.onclick = () => { const k = b.dataset.ns, sp = spec(k), c = D[k] ?? W.cfg[k] ?? dflt(k, sp), base = typeof c === 'number' ? c : sp.def ?? sp.min; D[k] = snapNum(sp, base + (+b.dataset.dir) * sp.step); saveLayout(); openSheet(W.id); }));
   q('[data-ni]', (i) => (i.onchange = () => { const k = i.dataset.ni, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) D[k] = snapNum(spec(k), v); saveLayout(); openSheet(W.id); }));
+  q('[data-info]', (b) => (b.onclick = () => { const k = b.dataset.info, cur = Array.isArray(D.infoItems) ? D.infoItems.slice() : (Array.isArray(W.cfg.infoItems) ? W.cfg.infoItems.slice() : ['heights']); const i = cur.indexOf(k); if (i >= 0) cur.splice(i, 1); else cur.push(k); D.infoItems = cur; saveLayout(); openSheet(W.id); }));
+  if ($('wsInfoText')) $('wsInfoText').oninput = (e) => { D.infoText = e.target.value.slice(0, 120); saveLayout(); };
   q('[data-ok]', (b) => (b.onclick = () => { const raw = b.dataset.ov; D[b.dataset.ok] = raw === 'true' ? true : raw === 'false' ? false : raw !== '' && !isNaN(+raw) ? +raw : raw; saveLayout(); openSheet(W.id); }));
   q('[data-wsz]', (b) => (b.onclick = () => { const k = b.dataset.wsz; if (k === 'w+') W.w = Math.min(GC - W.x, W.w + 2); if (k === 'w-') W.w = Math.max(6, W.w - 2); if (k === 'h+') W.h = Math.min(GR - W.y, W.h + 2); if (k === 'h-') W.h = Math.max(4, W.h - 2); saveLayout(); openSheet(W.id); }));
   q('[data-wsi]', (i) => (i.onchange = () => { const k = i.dataset.wsi, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) { const n = Math.round(v * GSC / 2) * 2; if (k === 'w') W.w = clamp(n, 6, GC - W.x); else W.h = clamp(n, 4, GR - W.y); } saveLayout(); openSheet(W.id); }));
@@ -409,8 +416,9 @@ function openAdd() {
       if (!wEdit) {
         if (ptrs.size >= 2) { if (lp) { clearTimeout(lp.t); lp = null; } if (ptrs.size === 2 && W.type === 'ta') { const [p, q] = [...ptrs.values()]; if (p.id === q.id) pinch = { W, d0: Math.hypot(p.x - q.x, p.y - q.y) || 1, z0: +effCfg(W).zoom || 1 }; } return; }
         if (pinch) return;
-        const ae = e.target.closest('[data-act]'), hp = !ae && (effCfg(W).tap || defTap(W)) === 'heights';   // height widgets: hold = heights in feet while held
-        lp = { x: e.clientX, y: e.clientY, W, act: ae ? ae.dataset.act : null, hp, t: setTimeout(() => { if (hp) { lp.held = true; holdPop(true); return; } lp = null; if (isPageBtn(W)) pageMenu(); else enterEdit(W.id); }, hp ? 300 : ae ? 900 : 600) };
+        // hold = the widget's "When held" behaviour (info shown while held, or an action); editing is in the menu
+        const ae = e.target.closest('[data-act]'), ha = ae ? 'none' : effCfg(W).hold || defHold(W), me = { x: e.clientX, y: e.clientY, W, act: ae ? ae.dataset.act : null, ha };
+        me.t = setTimeout(() => { if (lp !== me) return; me.held = true; me.shown = runHold(W, ha); }, 400); lp = me;
         return;
       }
       e.preventDefault(); el.setPointerCapture(e.pointerId);
@@ -436,11 +444,13 @@ function openAdd() {
     const up = (e) => {
       ptrs.delete(e.pointerId);
       if (pinch) { if (ptrs.size < 2) { save(); pinch = null; } return; }
-      if (lp) { clearTimeout(lp.t); const l1 = lp; lp = null; if (l1.held) { holdPop(false); return; } st.tapGuard = Date.now(); if (l1.act) widgetAct(l1.W, l1.act); else handleTap(l1.W); return; }
+      if (lp) { clearTimeout(lp.t); const l1 = lp; lp = null; if (l1.held) { endHold(l1.shown); return; } st.tapGuard = Date.now(); if (l1.act) widgetAct(l1.W, l1.act); else handleTap(l1.W); return; }
       if (!drag) return; const d = drag; drag = null; if (!d.moved) openSheet(d.W.id); else saveLayout();
     };
     layer.addEventListener('pointerup', up);
-    layer.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); if (lp) { clearTimeout(lp.t); if (lp.held) holdPop(false); } lp = null; drag = null; if (ptrs.size < 2) pinch = null; });
+    // a popup shown while holding covers the widget, so the release lands on it: end the hold wherever the finger lifts
+    if (!window._holdEnd) { window._holdEnd = true; const endIt = () => { if (lp && lp.held) { const l1 = lp; lp = null; clearTimeout(l1.t); endHold(l1.shown); ptrs.clear(); } }; window.addEventListener('pointerup', endIt, true); window.addEventListener('pointercancel', endIt, true); }
+    layer.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); if (lp) { clearTimeout(lp.t); if (lp.held) endHold(lp.shown); } lp = null; drag = null; if (ptrs.size < 2) pinch = null; });
     layer.addEventListener('contextmenu', (e) => e.preventDefault());
     layer.addEventListener('wheel', (e) => { if (wEdit) return; const el = e.target.closest('.wg[data-type="ta"]'); if (!el) return; const W = S.layout.find((x) => x.id === el.dataset.id); if (!W) return; e.preventDefault(); cfgW(W).zoom = clamp((+effCfg(W).zoom || 1) * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 0.25, 8); renderWidgets(); clearTimeout(window._zt); window._zt = setTimeout(save, 400); }, { passive: false });
   });

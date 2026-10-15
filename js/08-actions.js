@@ -1,5 +1,7 @@
 'use strict';
 /* ================= widget tap actions & detail popups ================= */
+// default "When held": the page button opens the page menu, height widgets show heights in feet, maps and buttons nothing, other widgets their details
+function defHold(W) { return W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' ? 'none' : 'details'; }
 function defTap(W) { return W.type === 'time' ? 'time' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
 let detT = null, detState = null;
 function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); } catch (e) { toast('Full screen not available here'); } }
@@ -29,10 +31,14 @@ function runAction(a, text) {
     case 'pSwitch': goPage(pageKey() === 'thermal' ? 'pMap' : 'pThermal'); break;
     case 'fullscreen': toggleFull(); break;
     case 'copyTask': copyTask(); break;
+    case 'edit': if (PAGEKEY[curPage]) enterEdit(); break;
     case 'skipWp': if (!st.task) toast('No task loaded'); else if (st.nextWp >= st.task.pts.length - 1) toast('The next point is the goal'); else goWp(st.nextWp + 1); break;
     case 'fai': S.fai = !S.fai; save(); renderWidgets(); toast(S.fai ? 'FAI triangle on: the map shows where the 3rd point must be' : 'FAI triangle off'); break;
   }
 }
+// height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
+function switchUnits(W) { const D = cfgW(W), cur = effCfg(W).units || (S.uAlt === 'ft' ? 'ft' : 'm'), nx = cur === 'ft' ? 'm' : 'ft'; D.units = nx;
+  if (W.cfg.label) W.cfg.label = W.cfg.label.replace(/\[(m|ft)\]/, '[' + nx + ']').replace(/\((m|ft)\)/, '(' + nx + ')'); saveLayout(); toast(nx === 'ft' ? 'Height in feet' : 'Height in meters'); }
 function handleTap(W) {
   if (W.type === 'button') return runAction(effCfg(W).action);
   const a = effCfg(W).tap || defTap(W);
@@ -41,9 +47,9 @@ function handleTap(W) {
   if (a === 'fullscreen') return toggleFull();
   if (a === 'fai') return runAction('fai');
   if (a === 'heights') return openHeights();
+  if (a === 'custom') return openInfo(effCfg(W).label || 'Info', () => infoHTML(W));
   // height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
-  if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); const D = cfgW(W), cur = effCfg(W).units || (S.uAlt === 'ft' ? 'ft' : 'm'), nx = cur === 'ft' ? 'm' : 'ft'; D.units = nx;
-    if (W.cfg.label) W.cfg.label = W.cfg.label.replace(/\[(m|ft)\]/, '[' + nx + ']').replace(/\((m|ft)\)/, '(' + nx + ')'); saveLayout(); toast(nx === 'ft' ? 'Height in feet' : 'Height in meters'); return; }
+  if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); return switchUnits(W); }
   if (a === 'vmode') { if (W.type !== 'vario') return; const o = ['number', 'bar', 'dial'], D = cfgW(W); D.mode = o[(o.indexOf(effCfg(W).mode || 'number') + 1) % 3]; saveLayout(); return; }
   if (a === 'sound') { applySet('sound', String(!S.sound)); toast('Vario sound ' + (S.sound ? 'on' : 'off')); return; }
   if (a[0] === 'p') return showPage(a);
@@ -339,16 +345,46 @@ function heightsHTML() {
   const row = (k, m, sub) => `<div class="hRow"><span class="lbl">${k}</span><span class="hFt num">${m != null ? ft(m) : '--'}<small> ft</small></span><span class="hM num">${m != null ? mm(m) + ' m' : sub}</span></div>`;
   return row('AMSL', a, 'no altitude') + row('AGL', agl, 'needs terrain data');
 }
-function openHeights() {
-  const draw = () => { const b = document.getElementById('hBody'); if (b) b.innerHTML = heightsHTML(); };
-  $('dlgBody').innerHTML = `<div class="row" style="justify-content:space-between"><span class="num" style="font-size:26px">Height</span><button class="btn primary" id="dlgClose">Close</button></div><div id="hBody">${heightsHTML()}</div>`;
+// a popup that stays (tap) and refreshes every second
+function openInfo(title, fn) {
+  const draw = () => { const b = document.getElementById('hBody'); if (b) b.innerHTML = fn(); };
+  $('dlgBody').innerHTML = `<div class="row" style="justify-content:space-between"><span class="num" style="font-size:26px">${esc(title)}</span><button class="btn primary" id="dlgClose">Close</button></div><div id="hBody">${fn()}</div>`;
   $('dlg').style.display = 'flex'; $('dlgClose').onclick = () => { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; };
   clearInterval(detT); detT = setInterval(() => { if ($('dlg').style.display === 'none') { clearInterval(detT); detT = null; return; } draw(); }, 1000);
 }
+function openHeights() { openInfo('Height', heightsHTML); }
+// custom info: the chosen values (any text widget's value, or heights in m and ft) and an optional note
+const INFO_KEYS = () => [['heights', 'Heights m/ft']].concat(Object.keys(WT).filter((k) => !WT[k].canvas && !['button', 'map', 'next', 'fai'].includes(k)).map((k) => [k, WT[k].n]));
+function infoHTML(W) {
+  const c = effCfg(W), items = Array.isArray(c.infoItems) && c.infoItems.length ? c.infoItems : ['heights'];
+  let h = c.infoText ? `<div class="infoTxt">${esc(c.infoText)}</div>` : '';
+  items.forEach((k) => {
+    if (k === 'heights') { h += heightsHTML(); return; } if (!WT[k]) return;
+    let d; try { d = wData({ id: 'info', type: k, cfg: { size: 'auto' } }, { w: 400, h: 110 }); } catch (e) { return; }
+    h += `<div class="hRow"><span class="lbl">${esc(d.l || WT[k].n)}</span>${d.html ? `<span style="grid-column:2/4">${d.html}</span>` : `<span class="hFt num">${esc(String(d.v ?? '--'))}<small> ${esc(d.u || '')}</small></span><span class="hM">${esc(d.s || '')}</span>`}</div>`;
+  });
+  return h;
+}
+const timeHTML = () => { const d = new Date(); return `<div class="hRow"><span class="lbl">Local</span><span class="hFt num">${pad2(d.getHours())}:${pad2(d.getMinutes())}</span><span class="hM"></span></div><div class="hRow"><span class="lbl">UTC</span><span class="hFt num">${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}</span><span class="hM"></span></div>`; };
+// "When held": info shown while held (returns how to hide it), or an action run once
+function runHold(W, a) {
+  if (a === 'none') return null;
+  if (a === 'heights') { holdPop(true, heightsHTML); return 'pop'; }
+  if (a === 'custom') { holdPop(true, () => infoHTML(W)); return 'pop'; }
+  if (a === 'time') { holdPop(true, timeHTML); return 'pop'; }
+  if (a === 'details') { if (W.type === 'button') return null; openDetails(W); return 'dlg'; }
+  if (a === 'pages') { pageMenu(); return null; }
+  if (a === 'edit') { enterEdit(W.id); return null; }
+  if (a === 'units') { if (['alt', 'agl', 'tow', 'gain'].includes(W.type)) switchUnits(W); return null; }
+  if (a === 'sound' || a === 'fullscreen' || a === 'fai' || /^p[A-Z]/.test(a)) { runAction(a === 'sound' ? 'sound' : a); return null; }
+  return null;
+}
+function endHold(shown) { if (shown === 'pop') holdPop(false); if (shown === 'dlg') closeDetails(); }
 let holdT = null;
-function holdPop(on) {
+function holdPop(on, fn) {
+  fn = fn || heightsHTML;
   let p = document.getElementById('holdPop');
   if (!on) { if (p) p.style.display = 'none'; clearInterval(holdT); holdT = null; return; }
   if (!p) { p = document.createElement('div'); p.id = 'holdPop'; p.className = 'card'; document.body.appendChild(p); }
-  p.innerHTML = heightsHTML(); p.style.display = 'flex'; clearInterval(holdT); holdT = setInterval(() => { p.innerHTML = heightsHTML(); }, 500);
+  p.innerHTML = fn(); p.style.display = 'flex'; clearInterval(holdT); holdT = setInterval(() => { p.innerHTML = fn(); }, 500);
 }
