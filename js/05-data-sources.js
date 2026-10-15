@@ -20,7 +20,7 @@ async function loadOpenAIP() {
 }
 /* built-in airspace: OpenAir files from XCSoar's data repository, kept in data/airspace/ by a GitHub workflow (.github/workflows/airspace.yml).
    S.airSrc 'xcsoar' (these files, countries S.airCountries, loaded again when the files change) or 'own' (OpenAIP or a file you picked) */
-const AIR_NAMES = { fi: 'Finland', se: 'Sweden', no: 'Norway', ee: 'Estonia' };
+const AIR_NAMES = { fi: 'Finland (XContest)', fi_oaip: 'Finland (OpenAIP)', se: 'Sweden', no: 'Norway', ee: 'Estonia' };
 async function loadXcsoarAir(force) {
   if (S.airSrc !== 'xcsoar') return;
   try {
@@ -30,7 +30,7 @@ async function loadXcsoarAir(force) {
     if (!cs.length) { if (S.airUpd) { st.airspaces = []; localStorage.removeItem('bora.air'); S.airUpd = ''; save(); drawAirspaces(); } return; }
     let all = []; for (const c of cs) { const r = await fetch('data/airspace/' + idx.countries[c].file, { cache: 'no-store' }); if (!r.ok) throw new Error(c + ': HTTP ' + r.status); all = all.concat(parseOpenAir(await r.text())); }
     st.airspaces = all; localStorage.setItem('bora.air', JSON.stringify(all)); S.airUpd = key; save(); drawAirspaces();
-    toast(all.length + ' airspaces loaded (XCSoar: ' + cs.map((c) => idx.countries[c].name).join(', ') + ')');
+    toast(all.length + ' airspaces loaded (built in: ' + cs.map((c) => idx.countries[c].name).join(', ') + ')');
     if (typeof renderSettings === 'function' && curPage === 'pSet' && setSec === 'air') renderSettings();
   } catch (e) { if (force) toast('Airspace update failed: ' + e.message + (st.airspaces.length ? ' · keeping the stored ones' : '')); }
 }
@@ -63,8 +63,14 @@ function airKind(a) {
   const t = typeof a.type === 'string' ? a.type : '';
   if (t) return /^(CTR|TMA|CTA|ATZ|MATZ|TIZ|TIA|FIZ|UTA|OCA|AWY)$/.test(t) ? 'ctrl' : /^(R|P|PROHIBITED|RESTRICTED)$/.test(t) ? 'restr' : /^(Q|D|DANGER)$/.test(t) ? 'danger' : /^(TSA|TRA)$/.test(t) ? 'tsa' : /^(RMZ|TMZ)$/.test(t) ? 'rmz' : 'other';
   if (typeof a.type === 'number') return OAIP_KIND[a.type] || (/^[A-E]$/.test(a.cls) ? 'ctrl' : 'other');
-  const c = String(a.cls || '').toUpperCase(); // OpenAir 1: AC holds the kind
-  return /^(R|P)$/.test(c) ? 'restr' : /^(Q|D)$/.test(c) ? 'danger' : /^(CTR|TMZ|RMZ)$/.test(c) ? (c === 'CTR' ? 'ctrl' : 'rmz') : /^[A-E]$/.test(c) ? 'ctrl' : 'other';
+  // OpenAir 1 (e.g. XContest exports): AC holds a class or a kind, and class D covers both CTR/TMA and danger areas, so the name decides first
+  const c = String(a.cls || '').toUpperCase(), n = String(a.name || '').toUpperCase();
+  if (/\b(CTR|TMA|CTA|ATZ|FIZ|TIZ|TIA)\b/.test(n)) return 'ctrl';
+  if (/\b(TSA|TRA)\b|^[A-Z]{2}(TSA|TRA)\d/.test(n)) return 'tsa';
+  if (/\b(RMZ|TMZ)\b/.test(n)) return 'rmz';
+  if (/^[A-Z]{2}D\d/.test(n)) return 'danger';
+  if (/^[A-Z]{2}[RP]\d/.test(n)) return 'restr';
+  return /^(R|P)$/.test(c) ? 'restr' : /^(Q|D)$/.test(c) ? 'danger' : c === 'CTR' ? 'ctrl' : /^(TMZ|RMZ|RAS)$/.test(c) ? 'rmz' : /^[A-EG]$/.test(c) ? 'ctrl' : 'other';
 }
 let airShownC = { k: null, l: [] };
 function airShown() {
@@ -72,8 +78,7 @@ function airShown() {
   if (airShownC.k !== k) airShownC = { k, l: st.airspaces.filter((a) => on.includes(airKind(a))) };
   return airShownC.l;
 }
-function airColor(a) { if (typeof a.type === 'string' && a.type) return /^(R|P|Q|D|DANGER|TRA|TSA|ADIZ|OFR)$/.test(a.type) || /restrict|danger|prohib/i.test(a.name) ? css('--restr') : css('--air');
-  return /^(R|P|Q|D)$/.test(a.cls) || /restrict|danger|prohib/i.test(a.name) ? css('--restr') : css('--air'); }
+function airColor(a) { return ['restr', 'danger', 'tsa'].includes(airKind(a)) || /restrict|danger|prohib/i.test(a.name) ? css('--restr') : css('--air'); }
 function drawAirspaces() { st.airVer = (st.airVer || 0) + 1; }
 function inPoly(lat, lon, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [yi, xi] = poly[i], [yj, xj] = poly[j]; if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) c = !c; } return c; }
 function edgeDist(lat, lon, poly) { let best = 1e12; for (let i = 0; i < poly.length - 1; i += Math.max(1, Math.floor(poly.length / 200))) { const [x1, y1] = enu(lat, lon, poly[i][0], poly[i][1]); const [x2, y2] = enu(lat, lon, poly[i + 1][0], poly[i + 1][1]); const dx = x2 - x1, dy = y2 - y1; const t = clamp(-(x1 * dx + y1 * dy) / (dx * dx + dy * dy || 1), 0, 1); best = Math.min(best, Math.hypot(x1 + t * dx, y1 + t * dy)); } return best; }

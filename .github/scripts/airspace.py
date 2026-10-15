@@ -2,11 +2,13 @@
 
 XCSoar's repository (https://download.xcsoar.org/repository) is a plain text list of entries:
 name=..., uri=..., type=airspace, area=fi, update=YYYY-MM-DD. The app reads data/airspace/index.json.
+Entries marked "manual": true in index.json (files the owner downloaded, e.g. from airspace.xcontest.org) are kept as they are.
 """
 import json, os, sys, urllib.request, datetime
 
 REPO = 'https://download.xcsoar.org/repository'
-AREAS = {'fi': 'Finland', 'se': 'Sweden', 'no': 'Norway', 'ee': 'Estonia'}
+# repository area -> (key and file name in data/airspace, name shown in the app); 'fi' is the owner's XContest file (manual)
+AREAS = {'fi': ('fi_oaip', 'Finland (OpenAIP)'), 'se': ('se', 'Sweden'), 'no': ('no', 'Norway'), 'ee': ('ee', 'Estonia')}
 OUT = 'data/airspace'
 
 def get(url):
@@ -35,21 +37,21 @@ for e in air:
 os.makedirs(OUT, exist_ok=True)
 ipath = os.path.join(OUT, 'index.json')
 old = json.load(open(ipath)) if os.path.exists(ipath) else {}
-idx = {'source': 'XCSoar data repository (download.xcsoar.org)', 'countries': {}}
-for area, cname in AREAS.items():
+idx = {'source': 'XCSoar data repository (download.xcsoar.org) + manual files', 'countries': {k: v for k, v in old.get('countries', {}).items() if v.get('manual')}}
+for area, (key, cname) in AREAS.items():
     cand = [e for e in air if (e.get('area') or '').lower() == area and e.get('uri')]
     if not cand:
         print(f'!! no airspace file for {area}')
-        if area in old.get('countries', {}):
-            idx['countries'][area] = old['countries'][area]
+        if key in old.get('countries', {}):
+            idx['countries'][key] = old['countries'][key]
         continue
     e = sorted(cand, key=lambda e: e.get('update', ''))[-1]
     try:
         raw = get(e['uri'])
     except Exception as err:
         print(f'!! {area}: {err}')
-        if area in old.get('countries', {}):
-            idx['countries'][area] = old['countries'][area]
+        if key in old.get('countries', {}):
+            idx['countries'][key] = old['countries'][key]
         continue
     try:
         txt = raw.decode('utf-8-sig')
@@ -59,9 +61,9 @@ for area, cname in AREAS.items():
     if n < 3:
         print(f'!! {area}: only {n} airspaces in {e["uri"]}, skipped')
         continue
-    with open(os.path.join(OUT, area + '.txt'), 'w', encoding='utf-8', newline='\n') as f:
+    with open(os.path.join(OUT, key + '.txt'), 'w', encoding='utf-8', newline='\n') as f:
         f.write(txt)
-    idx['countries'][area] = {'name': cname, 'file': area + '.txt', 'airspaces': n, 'update': e.get('update') or datetime.date.today().isoformat(), 'from': e['uri']}
+    idx['countries'][key] = {'name': cname, 'file': key + '.txt', 'airspaces': n, 'update': e.get('update') or datetime.date.today().isoformat(), 'from': e['uri']}
     print(f'ok {area}: {n} airspaces, update {e.get("update")}')
 
 if not idx['countries']:
