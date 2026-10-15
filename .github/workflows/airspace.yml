@@ -1,0 +1,30 @@
+name: Airspace from XCSoar
+# Keeps data/airspace/ (OpenAir files from XCSoar's data repository) up to date.
+# Runs on pushes to dev (the branch GitHub Pages serves), by hand, and weekly (schedules only run from the default branch).
+on:
+  push:
+    branches: [dev]
+    paths-ignore: ['data/airspace/**']
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+permissions:
+  contents: write
+concurrency: airspace
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - name: Fetch airspace files
+        run: python3 .github/scripts/airspace.py
+      - name: Commit if changed
+        run: |
+          git add data/airspace
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Airspace: update from XCSoar data repository"
+          git push origin HEAD:dev
