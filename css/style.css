@@ -114,6 +114,11 @@ body.wedit .wbg.live,body.wedit .wbg.live *{pointer-events:none!important}
 .wcb.wide{width:auto;padding:0 12px;white-space:nowrap}
 .wcb[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 body.wedit .wctl{display:none}
+/* map buttons keep their place while editing (hidden), so their outlines can be drawn above the widgets */
+body.wedit .wg[data-type="map"]:not(.compact) .wctl.l,body.wedit .wg[data-type="map"]:not(.compact) .wctl.r{display:flex;visibility:hidden}
+.ctlGhost{position:absolute;inset:0;z-index:9000;pointer-events:none}
+.ctlGhost i{position:absolute;border:2px dashed rgba(30,80,200,.85);border-radius:10px;background:rgba(30,80,200,.12)}
+.ctlGhost i.hit{border-color:#B42318;background:rgba(180,35,24,.22)}
 body.wedit{--x:0}
 body.wedit .wg{outline:2px dashed var(--sink);outline-offset:-2px;cursor:move}
 body.wedit .wg.hidnow{opacity:.45}

@@ -762,7 +762,22 @@ function renderWidgets() {
     if (el._bgc !== bgc) { el.classList.toggle('tint', !!d.bgc); if (d.bgc) { el.style.background = d.bgc; el.style.borderColor = 'transparent'; el.style.color = d.col || ''; } else { Object.assign(el.style, el._st); el.style.color = ''; } el._bgc = bgc; }
     if (el._last !== html) { el.innerHTML = html; el._last = html; }
   });
-  updateBackOverlay(layer);
+  updateBackOverlay(layer); ctlGhosts(layer, lr);
+}
+
+/* while editing: outlines of the map widgets' own buttons (style, orientation, zoom, follow), drawn above every widget, so nothing gets placed on them; red when a widget covers one */
+function ctlGhosts(layer, lr) {
+  let gv = layer.querySelector(':scope > .ctlGhost');
+  if (!wEdit) { if (gv) gv.remove(); return; }
+  if (!gv) { gv = document.createElement('div'); gv.className = 'ctlGhost'; layer.appendChild(gv); }
+  const wr = [...layer.querySelectorAll('.wg')].filter((e) => e.style.display !== 'none').map((e) => ({ e, z: +e.style.zIndex || 0, r: e.getBoundingClientRect() }));
+  let h = '';
+  wr.filter((w) => w.e.dataset.type === 'map').forEach((m) => m.e.querySelectorAll('.wctl .wcb').forEach((bt) => {
+    const r = bt.getBoundingClientRect(); if (!r.width) return;
+    const hit = wr.some((w) => w.e !== m.e && w.z > m.z && w.r.left < r.right && w.r.right > r.left && w.r.top < r.bottom && w.r.bottom > r.top);
+    h += `<i class="${hit ? 'hit' : ''}" style="left:${(r.left - lr.left).toFixed(0)}px;top:${(r.top - lr.top).toFixed(0)}px;width:${r.width.toFixed(0)}px;height:${r.height.toFixed(0)}px"></i>`;
+  }));
+  if (gv._h !== h) { gv.innerHTML = h; gv._h = h; }
 }
 
 /* "Back to me": one button per page, drawn above every widget and above the replay bar, so nothing can cover it */
