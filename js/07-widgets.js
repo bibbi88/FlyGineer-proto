@@ -353,7 +353,7 @@ function openSheet(id) {
   else body = `<div class="muted" style="line-height:1.4">Shown live on the page now. These settings replace the normal ones only while thermaling is detected; everything you leave alone stays as in Normal.</div>
     <div class="opt"><span class="lbl">Different settings when thermaling</span><div class="row"><button class="pill" data-tm="off" aria-pressed="${!hasT}">Off</button><button class="pill" data-tm="on" aria-pressed="${hasT}">On</button></div></div>${hasT ? opts + '<div class="row"><button class="btn" data-tm="clear">Clear thermal changes</button></div>' : ''}`;
   $('wSheet').innerHTML = `<div class="row wsHead" id="wsHead"><span class="grip" aria-hidden="true">⠿</span><h2>${T.n}</h2><button class="btn" id="wsFlip" aria-label="Move settings to the other side">⇄</button><button class="btn primary" id="wsClose">Close</button></div>${tabs}${body}`;
-  sheetSide(W); $('wSheet').classList.add('on'); renderWidgets();
+  sheetSide(W); $('wSheet').classList.add('on'); renderWidgets(); bannerAvoid(document.querySelector(`.wg[data-id="${W.id}"]`));
   { const sh0 = $('wSheet'), hd = $('wsHead'); $('wsFlip').onclick = () => { S.sheetSide = sh0.classList.contains('left') ? 'right' : 'left'; save(); sheetSide(W); };
     hd.onpointerdown = (e) => { if (e.target.closest('button')) return; hd.setPointerCapture(e.pointerId); const sx = e.clientX; let dx = 0; sh0.style.transition = 'none';
       hd.onpointermove = (m) => { dx = m.clientX - sx; sh0.style.transform = `translateX(${dx}px)`; };
@@ -439,7 +439,7 @@ function openAdd() {
         if (c.includes('b')) W.h = clamp(Math.round(drag.oh + dy), MH, GR - drag.oy);
         else { const ny = clamp(Math.round(drag.oy + dy), 0, drag.oy + drag.oh - MH); W.h = drag.oh + (drag.oy - ny); W.y = ny; }
       }
-      renderWidgets();
+      renderWidgets(); bannerAvoid(drag.el);
     });
     const up = (e) => {
       ptrs.delete(e.pointerId);
@@ -455,7 +455,14 @@ function openAdd() {
     layer.addEventListener('wheel', (e) => { if (wEdit) return; const el = e.target.closest('.wg[data-type="ta"]'); if (!el) return; const W = S.layout.find((x) => x.id === el.dataset.id); if (!W) return; e.preventDefault(); cfgW(W).zoom = clamp((+effCfg(W).zoom || 1) * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 0.25, 8); renderWidgets(); clearTimeout(window._zt); window._zt = setTimeout(save, 400); }, { passive: false });
   });
 })();
-$('wDone').onclick = exitEdit; $('wAdd').onclick = openAdd;
+$('wDone').onclick = exitEdit; $('wAdd').onclick = openAdd; $('wFlip').onclick = () => $('wBanner').classList.toggle('bottom');
+// the edit bar moves to the other edge (top / bottom) when the widget you move, resize or configure is under it, if that edge is free
+function bannerAvoid(el) {
+  const b = $('wBanner'); if (!b || !el || !document.body.classList.contains('wedit')) return; const r = el.getBoundingClientRect(), br = b.getBoundingClientRect();
+  const over = (y0, y1) => r.left < br.right && r.right > br.left && r.top < y1 && r.bottom > y0;
+  if (!over(br.top, br.bottom)) return; const h = br.height, bottom = b.classList.contains('bottom'), y0 = bottom ? 8 : innerHeight - 8 - h;
+  if (!over(y0, y0 + h)) b.classList.toggle('bottom');
+}
 $('editBtn').onclick = () => { setNav(false); if (!PAGEKEY[curPage]) showPage('pMap'); setTimeout(() => enterEdit(), 80); };
 $('wReset').onclick = () => { const pk = pageKey(), old = S.layouts[pk]; S.layouts[pk] = defLayout(pk); saveLayout(); toast('Layout reset', [['Undo', () => { S.layouts[pk] = old; save(); renderWidgets(); }]]); };
 window.addEventListener('resize', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
