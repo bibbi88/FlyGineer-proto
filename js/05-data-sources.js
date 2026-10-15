@@ -55,9 +55,9 @@ function parseOpenAir(txt) {
   });
   push(); return out.filter((a) => !/^(FIR|UIR|NONE)$/.test(a.type || '')); // whole-country regions would always count as inside
 }
-/* which airspace kinds are shown, warned about and spoken (S.airTypes); default: controlled and prohibited/restricted */
+/* which airspace kinds are shown, warned about and spoken (S.airTypes); default: all */
 const AIR_KINDS = [['ctrl', 'CTR / TMA / CTA / ATZ'], ['restr', 'Prohibited & restricted'], ['danger', 'Danger'], ['tsa', 'TSA / TRA (military)'], ['rmz', 'RMZ / TMZ'], ['other', 'Other (ADIZ, gliding sectors …)']];
-const AIR_KIND_DEF = ['ctrl', 'restr'];
+const AIR_KIND_DEF = ['ctrl', 'restr', 'danger', 'tsa', 'rmz', 'other'];
 const OAIP_KIND = { 1: 'restr', 2: 'danger', 3: 'restr', 4: 'ctrl', 5: 'rmz', 6: 'rmz', 7: 'ctrl', 8: 'tsa', 9: 'tsa', 13: 'ctrl', 14: 'ctrl', 26: 'ctrl' }; // OpenAIP API type numbers
 function airKind(a) {
   const t = typeof a.type === 'string' ? a.type : '';
