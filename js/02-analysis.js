@@ -12,6 +12,7 @@ function analyse(f) {
   if (st.circling && !was) st.thermal = { t0: now, alt0: altNow(), lat0: f.lat, lon0: f.lon };
   if (!st.circling && was && st.thermal) { st.thermal.end = now; const dur = (now - st.thermal.t0) / 1000; const a1 = altNow(); if (dur >= 30 && a1 != null && st.thermal.alt0 != null) { st.thermals.push({ t0: st.thermal.t0, t1: now, alt0: st.thermal.alt0, alt1: a1, avg: (a1 - st.thermal.alt0) / dur, lat: f.lat, lon: f.lon }); rememberThermal(st.thermals[st.thermals.length - 1]); } }
   if (st.thermal && !st.circling && now - (st.thermal.end || now) > 30000) st.thermal = null;
+  towDetect(f);
   // last full circle
   let acc = 0, i = fx.length - 1; const circ = [];
   while (i > 0 && fx[i].t > now - 60000) { if (fx[i].trk == null || fx[i - 1].trk == null) break; acc += angDiff(fx[i - 1].trk, fx[i].trk); circ.push(fx[i]); if (Math.abs(acc) >= 360) break; i--; }
@@ -48,6 +49,25 @@ function analyse(f) {
     else { st.goalT = nowT(); toast('Goal reached'); }
     fireEvent('turnpoint'); } }
 }
+/* ================= tow launch (winch / vehicle tow) =================
+   A tow starts when, right after takeoff (or within 90 s of the previous release: step towing), you climb at ≥ S.towMin m/s
+   in a straight line for 5 s without circling. It ends at release: climb below 0.3 m/s for 4 s, or circling. */
+function towDetect(f) {
+  if (S.towDetect === false || !st.takeoffT) return; const now = f.t, a = altNow(); if (a == null) return;
+  const tows = st.tows || (st.tows = []), T = tows[tows.length - 1], v5 = avgVario(5, now);
+  if (T && T.active) {
+    if (a > T.top) { T.top = a; T.tTop = now; } T.t1 = now; T.alt1 = a;
+    if (v5 != null && v5 < 0.3) { T.low = T.low || now; } else T.low = 0;
+    if ((T.low && now - T.low >= 4000) || st.circling) { T.active = false; T.t1 = T.tTop; T.alt1 = T.top; st.towEnd = now; fireEvent('towEnd'); }
+    return;
+  }
+  const early = now - st.takeoffT < 90000 || (T && now - st.towEnd < 90000); if (!early || st.circling || v5 == null || v5 < (+S.towMin || 1) || !(f.spd > 4)) return;
+  const fx = st.fixes.filter((p) => p.t > now - 6000 && p.trk != null); if (fx.length < 3) return;
+  const straight = fx.every((p) => Math.abs(angDiff(fx[0].trk, p.trk)) < 30); if (!straight) return;
+  const h0 = st.varioHist.find((h) => h.t >= now - 5000) || { t: now, alt: a };
+  tows.push({ n: tows.length + 1, t0: h0.t, alt0: h0.alt ?? a, t1: now, alt1: a, top: a, tTop: now, active: true }); fireEvent('towStart');
+}
+const towNow = () => { const T = st.tows && st.tows[st.tows.length - 1]; return T || null; };
 function avgSpd(sec, now) { const a = st.fixes.filter((p) => p.t > now - sec * 1000 && p.spd != null); return a.length ? a.reduce((s, p) => s + p.spd, 0) / a.length : null; }
 function windFromSpd() { if (!st.wind) return null; const sp = Math.hypot(st.wind.vx, st.wind.vy); const to = wrap360(Math.atan2(st.wind.vx, st.wind.vy) * R2D); return { spd: sp, from: wrap360(to + 180), to }; }
 

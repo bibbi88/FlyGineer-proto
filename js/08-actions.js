@@ -1,6 +1,6 @@
 'use strict';
 /* ================= widget tap actions & detail popups ================= */
-function defTap(W) { return W.type === 'time' ? 'time' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
+function defTap(W) { return W.type === 'time' ? 'time' : W.type === 'alt' || W.type === 'agl' ? 'units' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
 let detT = null, detState = null;
 function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); } catch (e) { toast('Full screen not available here'); } }
 document.addEventListener('fullscreenchange', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
@@ -40,6 +40,9 @@ function handleTap(W) {
   if (a === 'time') return showTime();
   if (a === 'fullscreen') return toggleFull();
   if (a === 'fai') return runAction('fai');
+  // height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
+  if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); const D = cfgW(W), cur = effCfg(W).units || (S.uAlt === 'ft' ? 'ft' : 'm'), nx = cur === 'ft' ? 'm' : 'ft'; D.units = nx;
+    if (W.cfg.label) W.cfg.label = W.cfg.label.replace(/\[(m|ft)\]/, '[' + nx + ']').replace(/\((m|ft)\)/, '(' + nx + ')'); saveLayout(); toast(nx === 'ft' ? 'Height in feet' : 'Height in meters'); return; }
   if (a === 'vmode') { if (W.type !== 'vario') return; const o = ['number', 'bar', 'dial'], D = cfgW(W); D.mode = o[(o.indexOf(effCfg(W).mode || 'number') + 1) % 3]; saveLayout(); return; }
   if (a === 'sound') { applySet('sound', String(!S.sound)); toast('Vario sound ' + (S.sound ? 'on' : 'off')); return; }
   if (a[0] === 'p') return showPage(a);
@@ -219,7 +222,7 @@ function setMode(on) {
   fireEvent(on ? 'thermalStart' : 'thermalStop');
 }
 const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'layoutGrid', 'widgets', 'hidden', 'mapMigrated']);
-const IMPORT_OK = new Set(['titles', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt']);
+const IMPORT_OK = new Set(['titles', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
   const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)) };
@@ -264,7 +267,7 @@ function openImport(txt, fname) {
 }
 
 /* ================= automatic actions: when an event happens, optionally after a delay, do something ================= */
-const AUTO_EVENTS = [['thermalStart', 'Started thermalling'], ['thermalStop', 'Stopped thermalling'], ['takeoff', 'Takeoff'], ['turnpoint', 'Turnpoint reached']];
+const AUTO_EVENTS = [['thermalStart', 'Started thermalling'], ['thermalStop', 'Stopped thermalling'], ['takeoff', 'Takeoff'], ['turnpoint', 'Turnpoint reached'], ['towStart', 'Tow started'], ['towEnd', 'Released from tow']];
 const RULE_ACTS = ['pThermal', 'pMap', 'pAtmos', 'pAir', 'prev', 'center', 'soundOn', 'soundOff', 'time', 'start', 'message', 'say'];
 const ruleActLabel = (a) => (a === 'message' ? 'Show a message' : a === 'say' ? 'Say a message (voice)' : (BTN[a] || [a])[0]);
 const evLabel = (e) => (AUTO_EVENTS.find((x) => x[0] === e) || [e, e])[1];
@@ -315,6 +318,7 @@ function voiceEvent(ev) {
   if (ev === 'thermalStart' && S.vcTherm) say(T.therm);
   if (ev === 'thermalStop' && S.vcSum !== false && st.thermal) { const th = st.thermal, a = altNow(), dur = (nowT() - th.t0) / 1000;
     if (a != null && th.alt0 != null && dur > 30) { const g = a - th.alt0, m = Math.floor(dur / 60), sec = Math.round(dur % 60); say(T.sum(sayV(g / dur), sayAlt(g), m ? `${m} min ${sec} s` : `${sec} s`)); } }
+  if (ev === 'towEnd' && S.vcTow !== false) { const T = towNow(); if (T) { const d = Math.max(1, (T.t1 - T.t0) / 1000); say(T_tow(T.alt1 - T.alt0, d)); } }
   if (ev === 'turnpoint' && S.vcTp !== false && st.task) say(st.goalT ? T.goal : T.tp(st.wpHit ? st.wpHit.name : '', st.task.pts[st.nextWp] ? st.task.pts[st.nextWp].name : ''));
 }
 // airspace warnings (when the warning changes) and the altitude every few minutes
@@ -325,3 +329,5 @@ setInterval(() => {
   const every = +S.vcAlt || 0, a = altNow();
   if (every > 0 && st.takeoffT && a != null && nowT() - (st.altSaidT || 0) >= every * 60000) { st.altSaidT = nowT(); say(T.alt(sayAlt(a), st.groundElev != null ? sayAlt(a - st.groundElev) : '')); }
 }, 5000);
+// spoken tow summary
+const T_tow = (g, d) => { const L = { en: ['Released. Tow gain', 'average'], sv: ['Släppt. Bogsering vann', 'medel'], fi: ['Irrotettu. Hinauksen nousu', 'keskiarvo'] }[S.voiceLang] || ['Released. Tow gain', 'average']; return `${L[0]} ${sayAlt(g)}, ${L[1]} ${sayV(g / d)}`; };

@@ -726,7 +726,7 @@ function renderWidgets() {
     const T = WT[W.type]; if (!T) return; const E = effW(W), ins = W.type === 'map' ? 0 : 2;
     let el = layer.querySelector(`.wg[data-id="${W.id}"]`);
     if (!el || el.dataset.type !== W.type || el.dataset.cv !== (isCv(W) ? '1' : '0')) { if (el) { disposeW(el); el.remove(); } el = mkWidget(W, layer); }
-    const vis = W.cfg.vis || 'always', cond = vis === 'always' || (vis === 'thermal' && !!st.thermMode) || (vis === 'glide' && !st.thermMode), vdl = vis === 'always' ? 0 : +W.cfg.visDelay || 0, since = nowT() - (st.modeSince || 0);
+    const vis = W.cfg.vis || 'always', tw = towNow(), cond = vis === 'always' || (vis === 'thermal' && !!st.thermMode) || (vis === 'glide' && !st.thermMode) || (vis === 'tow' && !!tw && (tw.active || nowT() - (st.towEnd || 0) < (W.cfg.towKeep ?? 60) * 1000)), vdl = vis === 'always' || vis === 'tow' ? 0 : +W.cfg.visDelay || 0, since = nowT() - (st.modeSince || 0);
     const shown = cond && (vdl <= 0 || since >= vdl * 1000 || since < 0);
     el.dataset.vis = vis; el.dataset.vd = vdl > 0 ? ' +' + vdl + ' s' : ''; el.classList.toggle('hidnow', !shown && wEdit);
     if (!shown && !wEdit) { if (el.style.display !== 'none') el.style.display = 'none'; el._gone = true; return; }
@@ -859,7 +859,7 @@ const SECS = [['data', 'Vario & GPS'], ['widgets', 'Map widgets'], ['units', 'Un
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
-const SNUM = { volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
+const SNUM = { volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
 function numField(key, hint) { const [min, max, step, unit, label] = SNUM[key]; return `<div class="field"><span class="k">${label}${hint ? ' · ' + hint : ''}</span><span class="row"><button class="pill step" data-sn="${key}" data-sdir="-1" aria-label="Less">−</button><input type="number" class="numin" inputmode="decimal" data-sni="${key}" value="${S[key]}" min="${min}" max="${max}" step="${step}" aria-label="${label}, ${unit}"><span class="unit">${unit}</span><button class="pill step" data-sn="${key}" data-sdir="1" aria-label="More">+</button></span></div>`; }
 function setNum(key, v) { const [min, max, step] = SNUM[key], d = (String(step).split('.')[1] || '').length; if (!isFinite(v)) return; applySet(key, String(clamp(+(Math.round(v / step) * step).toFixed(d), min, max))); renderSettings(); }
 function renderSettings() {
@@ -923,12 +923,13 @@ function renderSettings() {
     ${seg('voice', [[false, 'Off'], [true, 'On']], 'Voice')}${'speechSynthesis' in window ? '' : '<div class="muted">This browser cannot speak.</div>'}
     ${seg('voiceLang', [['auto', 'Tablet language'], ['en', 'English'], ['sv', 'Svenska'], ['fi', 'Suomi']], 'Language')}${numField('voiceVol')}${numField('voiceRate')}
     ${seg('vcTherm', [[true, 'On'], [false, 'Off']], '“Thermal” when circling starts')}${seg('vcSum', [[true, 'On'], [false, 'Off']], 'Thermal summary when leaving')}
-    ${seg('vcTp', [[true, 'On'], [false, 'Off']], 'Turnpoint and goal reached')}${seg('vcAir', [[true, 'On'], [false, 'Off']], 'Airspace warnings')}${numField('vcAlt', '0 = off')}
+    ${seg('vcTp', [[true, 'On'], [false, 'Off']], 'Turnpoint and goal reached')}${seg('vcTow', [[true, 'On'], [false, 'Off']], 'Tow summary at release')}${seg('vcAir', [[true, 'On'], [false, 'Off']], 'Airspace warnings')}${numField('vcAlt', '0 = off')}
     <div class="field"><span class="k">Test</span><button class="btn" id="voiceTest">Say something</button></div>
     <div class="muted">Your own spoken messages: Settings → Automatic actions → “Say a message” for any event (with a delay if you like).</div></div>`;
   if (setSec === 'modes') h = `<div class="card sec"><h2>Display update</h2>
     ${numField('rate')}
     <div class="muted">Faster is smoother on the map and dials, slower saves battery. Sound and measurements always run at full speed.</div></div>
+    <div class="card sec"><h2>Tow launch</h2>${seg('towDetect', [[true, 'On'], [false, 'Off']], 'Detect towing')}${numField('towMin')}<div class="muted">A tow is a straight climb of at least this rate for 5 s, starting within 90 s of takeoff (or of the previous release, for step towing). It ends when the climb stops for 4 s or you start circling. Show the Tow widget only then: its "Show when" is "Towing and after release".</div></div>
     <div class="card sec"><h2>Thermal mode</h2>
     ${seg('modeAuto', [[true, 'On'], [false, 'Off']], 'Detect thermaling')}
     ${numField('modeEnter')}

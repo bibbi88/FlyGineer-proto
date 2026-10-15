@@ -20,6 +20,7 @@ const WT = {
   reqld: { n: 'Required glide', d: 'To next turnpoint', w: 3, h: 2, o: [] },
   wind: { n: 'Wind', d: 'Measured while circling', w: 3, h: 2, o: [['units', 'Units', U_S]] },
   fai: { n: 'FAI triangle', d: 'FAI calculator: triangle size, shortest leg, way to the FAI sector; tap = on/off', w: 6, h: 3, def: { tap: 'fai' }, o: [] },
+  tow: { n: 'Tow', d: 'Tow launch: time, height gain and average climb; set Show when → Towing', w: 8, h: 3, def: { vis: 'tow', towKeep: 60 }, o: [['units', 'Height units', U_A]] },
   next: { n: 'Next turnpoint', d: 'Distance, bearing, arrival', w: 6, h: 3, o: [['units', 'Height units', U_A]] },
   dist: { n: 'Distance to turnpoint', d: 'Next turnpoint only', w: 3, h: 2, o: [] },
   thermal: { n: 'Thermal average', d: 'Since entering the thermal', w: 3, h: 2, o: [['units', 'Units', U_V]] },
@@ -60,10 +61,10 @@ const WT = {
   radio: { n: 'Radio', d: 'Frequencies from airspace', w: 11, h: 4, o: [] },
   notams: { n: 'NOTAM', d: 'From ais.fi, tap to read', w: 11, h: 5, def: { radius: 50 }, o: [['radius', 'Within', [[25, '25 km'], [50, '50 km'], [100, '100 km']]]] }
 };
-const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
-const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling']];
-const COMMON = [['vis', 'Show when', VIS], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
+const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling'], ['tow', 'Towing and after release']];
+const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
 let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
 // default layouts = the owner's own setup (exported 2026-10-12 11:10), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
@@ -210,6 +211,13 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
       if (!z.ready) return { l: 'FAI triangle · on', v: '--', s: !z.B || z.c < 500 ? 'fly away from the start: the sectors appear after 0.5 km' : 'waiting for GPS…' };
       return { l: z.ok ? 'FAI triangle · ✓ FAI' : 'FAI triangle', ...(z.ok ? { bgc: '#1F8A4C', col: '#FFFFFF' } : {}), html: `<div class="row" style="gap:14px;flex:1;align-items:center;flex-wrap:wrap">${cell('Triangle', km(z.P))}${cell('Shortest leg', Math.round(z.mn * 100) + ' %', z.ok ? '' : css('--sink'))}${z.ok ? '' : cell('To FAI sector', km(z.toSec))}${cell('Back to start', km(z.b))}</div><div class="ws">start → TP ${km(z.c)} · FAI needs every leg ≥ 28 %</div>` };
     }
+    case 'tow': {
+      const T = towNow(), mmss = (s) => Math.floor(s / 60) + ':' + pad2(Math.floor(s % 60)), cell = (k, v, u) => `<div><div class="ws">${k}</div><div class="num" style="white-space:nowrap;font-size:${clamp(Math.min(bx.h * 0.3, bx.w / 13), 16, 60).toFixed(0)}px">${v}${u ? `<span style="font-size:.45em;font-weight:600"> ${u}</span>` : ''}</div></div>`;
+      if (!T) return { l: 'Tow', v: '--', s: S.towDetect === false ? 'tow detection is off (Settings → Update & thermal mode)' : 'no tow yet' };
+      const dur = Math.max(1, (T.t1 - T.t0) / 1000), g = T.alt1 - T.alt0, tot = (st.tows || []).reduce((s0, x) => s0 + (x.alt1 - x.alt0), 0);
+      return { l: (T.active ? 'Towing' : 'Tow') + ((st.tows || []).length > 1 ? ' ' + T.n : ''), ...(T.active ? { bgc: '#1E50C8', col: '#FFFFFF' } : {}),
+        html: `<div class="row" style="gap:16px;flex:1;align-items:center;justify-content:space-around">${cell('Time', mmss(dur))}${cell('Gain', (g >= 0 ? '+' : '') + A(g), AU)}${cell('Average', V(g / dur), VU())}</div><div class="ws">${T.active ? 'towing…' : 'released at ' + A(T.alt1) + ' ' + AU}${(st.tows || []).length > 1 ? ' · all tows ' + (tot >= 0 ? '+' : '') + A(tot) + ' ' + AU : ''}</div>` };
+    }
     case 'next': {
       // no task: open FlyXC on the Web page, or paste a FlyXC link you already have
       if (!st.task) return { l: 'Next turnpoint', html: `<div class="fxW"><div class="row"><input class="fxIn" type="url" inputmode="url" placeholder="Paste a FlyXC link" aria-label="FlyXC link"><button class="wcb fxB" data-act="fximp">Import</button></div><button class="wcb fxB" data-act="fxweb">Plan a route ›</button></div>` };
@@ -328,7 +336,7 @@ function openSheet(id) {
   const tm = sheetMode === 'thermal', hasT = !!W.cfgT, D = tm && hasT ? W.cfgT : W.cfg;
   const read = (k, d) => { const v = tm && hasT && W.cfgT[k] !== undefined ? W.cfgT[k] : W.cfg[k]; return v ?? d; };
   const dflt = (k, o) => (T.def && T.def[k] !== undefined ? T.def[k] : k === 'tap' ? defTap(W) : Array.isArray(o) ? o[0][0] : o.def ?? o.presets[0]);
-  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay')) && !(!tm && k === 'showLabel') && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
+  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay' || k === 'towKeep')) && !(k === 'towKeep' && W.cfg.vis !== 'tow') && !(!tm && k === 'showLabel') && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
   const typeOpts = Object.entries(WT).map(([k, t]) => `<option value="${k}" ${k === W.type ? 'selected' : ''}>${t.n}</option>`).join('');
   const tabs = `<div class="row"><button class="pill grow" data-sm="normal" aria-pressed="${!tm}">Normal${hasT && !tm ? ' •' : ''}</button><button class="pill grow" data-sm="thermal" aria-pressed="${tm}">When thermaling${hasT ? ' •' : ''}</button></div>`;
   let body;
@@ -364,10 +372,10 @@ function openSheet(id) {
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
 const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'] };
-const ADD_NEW = ['button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
+const ADD_NEW = ['tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
   ['Thermal', ['ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
-  ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'temp']],
+  ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'tow', 'temp']],
   ['Speed, wind & glide', ['gs', 'trk', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
   ['Map & task', ['map', 'next', 'dist', 'fai', 'button:fai', 'button:copyTask']],
   ['Buttons', ['button:pSwitch', 'button:fullscreen', 'button']],

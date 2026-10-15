@@ -24,7 +24,8 @@ const DEF = {
   // acoustic vario: lift tone from vLift m/s, sink alarm below vSink, pitch vF0 + vFk per m/s, beep speed, waveform, near-lift buzzer, sound damping
   vLift: 0.2, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
   // voice messages (speech synthesis)
-  voice: false, voiceVol: 100, voiceRate: 1, voiceLang: 'auto', vcTherm: false, vcSum: true, vcTp: true, vcAir: true, vcAlt: 0, wake: true, autoImport: true, openaipKey: '', customUrl: '',
+  voice: false, voiceVol: 100, voiceRate: 1, voiceLang: 'auto', vcTherm: false, vcSum: true, vcTp: true, vcAir: true, vcAlt: 0, vcTow: true,
+  towDetect: true, towMin: 1, wake: true, autoImport: true, openaipKey: '', customUrl: '',
   widgets: ['vario', 'avg', 'alt', 'agl', 'gs', 'ld', 'next', 'thermal', 'flight', 'utc'],
   hidden: []
 };
