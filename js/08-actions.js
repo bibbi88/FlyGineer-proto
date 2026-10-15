@@ -1,6 +1,6 @@
 'use strict';
 /* ================= widget tap actions & detail popups ================= */
-function defTap(W) { return W.type === 'time' ? 'time' : W.type === 'alt' || W.type === 'agl' ? 'units' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
+function defTap(W) { return W.type === 'time' ? 'time' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
 let detT = null, detState = null;
 function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); } catch (e) { toast('Full screen not available here'); } }
 document.addEventListener('fullscreenchange', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
@@ -40,6 +40,7 @@ function handleTap(W) {
   if (a === 'time') return showTime();
   if (a === 'fullscreen') return toggleFull();
   if (a === 'fai') return runAction('fai');
+  if (a === 'heights') return openHeights();
   // height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
   if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); const D = cfgW(W), cur = effCfg(W).units || (S.uAlt === 'ft' ? 'ft' : 'm'), nx = cur === 'ft' ? 'm' : 'ft'; D.units = nx;
     if (W.cfg.label) W.cfg.label = W.cfg.label.replace(/\[(m|ft)\]/, '[' + nx + ']').replace(/\((m|ft)\)/, '(' + nx + ')'); saveLayout(); toast(nx === 'ft' ? 'Height in feet' : 'Height in meters'); return; }
@@ -222,7 +223,7 @@ function setMode(on) {
   fireEvent(on ? 'thermalStart' : 'thermalStop');
 }
 const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'layoutGrid', 'widgets', 'hidden', 'mapMigrated']);
-const IMPORT_OK = new Set(['titles', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin']);
+const IMPORT_OK = new Set(['titles', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
   const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)) };
@@ -331,3 +332,23 @@ setInterval(() => {
 }, 5000);
 // spoken tow summary
 const T_tow = (g, d) => { const L = { en: ['Released. Tow gain', 'average'], sv: ['Släppt. Bogsering vann', 'medel'], fi: ['Irrotettu. Hinauksen nousu', 'keskiarvo'] }[S.voiceLang] || ['Released. Tow gain', 'average']; return `${L[0]} ${sayAlt(g)}, ${L[1]} ${sayV(g / d)}`; };
+
+/* ================= heights in m and ft: tap a height widget (popup that stays), hold it (shown while held) ================= */
+function heightsHTML() {
+  const a = altNow(), g = st.groundElev, agl = a != null && g != null ? a - g : null, ft = (m) => Math.round(m * 3.28084).toLocaleString('en').replace(/,/g, ' '), mm = (m) => Math.round(m).toLocaleString('en').replace(/,/g, ' ');
+  const row = (k, m, sub) => `<div class="hRow"><span class="lbl">${k}</span><span class="hFt num">${m != null ? ft(m) : '--'}<small> ft</small></span><span class="hM num">${m != null ? mm(m) + ' m' : sub}</span></div>`;
+  return row('AMSL', a, 'no altitude') + row('AGL', agl, 'needs terrain data');
+}
+function openHeights() {
+  const draw = () => { const b = document.getElementById('hBody'); if (b) b.innerHTML = heightsHTML(); };
+  $('dlgBody').innerHTML = `<div class="row" style="justify-content:space-between"><span class="num" style="font-size:26px">Height</span><button class="btn primary" id="dlgClose">Close</button></div><div id="hBody">${heightsHTML()}</div>`;
+  $('dlg').style.display = 'flex'; $('dlgClose').onclick = () => { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; };
+  clearInterval(detT); detT = setInterval(() => { if ($('dlg').style.display === 'none') { clearInterval(detT); detT = null; return; } draw(); }, 1000);
+}
+let holdT = null;
+function holdPop(on) {
+  let p = document.getElementById('holdPop');
+  if (!on) { if (p) p.style.display = 'none'; clearInterval(holdT); holdT = null; return; }
+  if (!p) { p = document.createElement('div'); p.id = 'holdPop'; p.className = 'card'; document.body.appendChild(p); }
+  p.innerHTML = heightsHTML(); p.style.display = 'flex'; clearInterval(holdT); holdT = setInterval(() => { p.innerHTML = heightsHTML(); }, 500);
+}

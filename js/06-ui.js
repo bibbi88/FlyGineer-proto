@@ -748,10 +748,12 @@ function renderWidgets() {
     }
     const d = wData(E, b); const lab = esc(E.cfg.label || d.l || '');
     const mul = E.cfg.size === 'auto' || !E.cfg.size ? 1 : +E.cfg.size;
-    let html = showL ? `<div class="wl"><span>${lab}</span><span>${esc(d.u || '')}${d.arrow != null ? ` <svg width="14" height="14" viewBox="0 0 14 14" style="vertical-align:-2px"><g transform="rotate(${d.arrow} 7 7)"><path d="M7 1l4 8H3z" fill="currentColor"/><line x1="7" y1="8" x2="7" y2="13" stroke="currentColor" stroke-width="2"/></g></svg>` : ''}</span></div>` : '';
+    // small boxes (phones, tight layouts): the value gets the room first; the sub line goes below ~70 px, the title below ~48 px (kept while editing)
+    const noSub = !d.html && b.h < 70, showT = showL && (wEdit || d.html || b.h >= 48); if (noSub) d.s = '';
+    let html = showT ? `<div class="wl"><span>${lab}</span><span>${esc(d.u || '')}${d.arrow != null ? ` <svg width="14" height="14" viewBox="0 0 14 14" style="vertical-align:-2px"><g transform="rotate(${d.arrow} 7 7)"><path d="M7 1l4 8H3z" fill="currentColor"/><line x1="7" y1="8" x2="7" y2="13" stroke="currentColor" stroke-width="2"/></g></svg>` : ''}</span></div>` : '';
     if (d.html) html += d.html;
     else {
-      const txt = String(d.v ?? '--'); const avail = b.h - 8 - (showL ? 16 : 0) - (d.s ? 16 : 0);
+      const txt = String(d.v ?? '--'); const avail = b.h - 8 - (showT ? 16 : 0) - (d.s ? 16 : 0);
       const fs = Math.max(12, Math.min(avail * 0.95, (b.w - 18) / Math.max(2.2, txt.length * (d.btn ? 0.68 : 0.5))) * mul);
       html += `<div class="wv" style="font-size:${fs.toFixed(0)}px;${d.col ? 'color:' + d.col : ''}${d.center ? ';justify-content:center;text-align:center' : ''}">${esc(txt)}</div>` + (d.s ? `<div class="ws">${esc(d.s)}</div>` : '');
     }
@@ -911,7 +913,7 @@ function renderSettings() {
     <div class="field"><span class="k"></span><button class="btn primary" id="bmCopy">Copy bookmark code</button></div>`;
   if (setSec === 'web') h = `<div class="card sec"><h2>Web pages</h2><div class="field"><label for="fUrl">Flyk page address</label><input type="url" id="fUrl" value="${esc(S.flykUrl)}" placeholder="https://flyk.com/map?lang=en"></div>
 <div class="field"><label for="cUrl">My page address</label><input type="url" id="cUrl" value="${esc(S.customUrl)}" placeholder="https://…"></div><div class="muted">Pages can use your location once you allow it for this app. Some sites refuse to be shown inside another page; use Open in browser for those.</div></div>`;
-  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
+  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('corner', [['auto', 'Auto'], ['full', 'Clock, status, menu'], ['menu', 'Menu only']], 'Top-right buttons')}<div class="muted">Auto shows only the menu button on small screens (phones), so the buttons don't cover your widgets.</div>${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
     <div class="card sec"><h2>Acoustic vario</h2>
     ${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}${numField('volPct')}
     ${numField('vLift', 'beeps start')}${seg('vSinkOn', [[true, 'On'], [false, 'Off']], 'Sink alarm')}${S.vSinkOn !== false ? numField('vSink') : ''}
@@ -976,6 +978,7 @@ function renderSettings() {
   document.querySelectorAll('[data-vtest]').forEach((b) => (b.onclick = () => beep.testRate(+b.dataset.vtest, 3)));
   on('fsBtn', 'onclick', () => document.documentElement.requestFullscreen?.());
 }
+function cornerMode() { document.body.classList.toggle('cornerFull', S.corner === 'full'); document.body.classList.toggle('cornerMenu', S.corner === 'menu'); }
 function applySet(key, raw) {
   const v = raw === 'true' ? true : raw === 'false' ? false : isNaN(+raw) ? raw : +raw;
   S[key] = v; save();
@@ -985,6 +988,7 @@ function applySet(key, raw) {
   if (key === 'volPct') { S.volume = v / 100; save(); }
   if (key === 'voice' && v) say(vt().test, true);
   if (key === 'wake') wake();
+  if (key === 'corner') cornerMode();
   if (key === 'titles') renderWidgets();
   if (key === 'rate' || key === 'rateT') loop();
   if (key === 'autoImport' || key === 'taOrient') { /* stored */ }
@@ -1056,7 +1060,7 @@ $('rpSpeeds').onclick = (e) => { const b = e.target.closest('[data-sp]'); if (b 
 $('rpSeek').oninput = () => { if (st.replay) { st.replay.dragging = true; const r = st.replay, a = r.pts[0].t, b = r.pts[r.pts.length - 1].t; const d = new Date(a + $('rpSeek').value / 1000 * (b - a)); $('rpTime').textContent = pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + 'Z'; } };
 $('rpSeek').onchange = () => { if (st.replay) { st.replay.dragging = false; $('rpTime')._t = $('rpSeek')._v = null; seekReplay($('rpSeek').value / 1000); } };
 $('setBtn').onclick = () => openSettings(); $('statusBtn').onclick = () => openSettings('data'); $('timeBtn').onclick = showTime;
-$('dlg').onclick = (e) => { if (e.target.id === 'dlg') { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; } };
+$('dlg').onclick = (e) => { if (Date.now() - (st.tapGuard || 0) < 500) return; /* the click that follows the tap that opened it */ if (e.target.id === 'dlg') { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; } };
 document.querySelectorAll('[data-web]').forEach((b) => (b.onclick = () => { webCur = b.dataset.web; renderWeb(); }));
 $('setNav').onclick = (e) => { const b = e.target.closest('[data-sec]'); if (b) { setSec = b.dataset.sec; renderSettings(); } };
 $('setBody').addEventListener('change', (e) => {

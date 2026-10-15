@@ -61,7 +61,7 @@ const WT = {
   radio: { n: 'Radio', d: 'Frequencies from airspace', w: 11, h: 4, o: [] },
   notams: { n: 'NOTAM', d: 'From ais.fi, tap to read', w: 11, h: 5, def: { radius: 50 }, o: [['radius', 'Within', [[25, '25 km'], [50, '50 km'], [100, '100 km']]]] }
 };
-const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['time', 'Both times']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['heights', 'Heights in m and ft'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling'], ['tow', 'Towing and after release']];
 const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
@@ -409,8 +409,8 @@ function openAdd() {
       if (!wEdit) {
         if (ptrs.size >= 2) { if (lp) { clearTimeout(lp.t); lp = null; } if (ptrs.size === 2 && W.type === 'ta') { const [p, q] = [...ptrs.values()]; if (p.id === q.id) pinch = { W, d0: Math.hypot(p.x - q.x, p.y - q.y) || 1, z0: +effCfg(W).zoom || 1 }; } return; }
         if (pinch) return;
-        const ae = e.target.closest('[data-act]');
-        lp = { x: e.clientX, y: e.clientY, W, act: ae ? ae.dataset.act : null, t: setTimeout(() => { lp = null; if (isPageBtn(W)) pageMenu(); else enterEdit(W.id); }, ae ? 900 : 600) };
+        const ae = e.target.closest('[data-act]'), hp = !ae && (effCfg(W).tap || defTap(W)) === 'heights';   // height widgets: hold = heights in feet while held
+        lp = { x: e.clientX, y: e.clientY, W, act: ae ? ae.dataset.act : null, hp, t: setTimeout(() => { if (hp) { lp.held = true; holdPop(true); return; } lp = null; if (isPageBtn(W)) pageMenu(); else enterEdit(W.id); }, hp ? 300 : ae ? 900 : 600) };
         return;
       }
       e.preventDefault(); el.setPointerCapture(e.pointerId);
@@ -419,7 +419,7 @@ function openAdd() {
     layer.addEventListener('pointermove', (e) => {
       const pp = ptrs.get(e.pointerId); if (pp) { pp.x = e.clientX; pp.y = e.clientY; }
       if (pinch && ptrs.size >= 2) { const [p, q] = [...ptrs.values()]; cfgW(pinch.W).zoom = clamp(pinch.z0 * Math.hypot(p.x - q.x, p.y - q.y) / pinch.d0, 0.25, 8); renderWidgets(); return; }
-      if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) { clearTimeout(lp.t); lp = null; }
+      if (lp && !lp.held && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) { clearTimeout(lp.t); lp = null; }
       if (!drag) return; const r = layer.getBoundingClientRect(); const dx = (e.clientX - drag.sx) / r.width * GC, dy = (e.clientY - drag.sy) / r.height * GR;
       if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 8) drag.moved = true; if (!drag.moved) return;
       const W = drag.W;
@@ -436,11 +436,11 @@ function openAdd() {
     const up = (e) => {
       ptrs.delete(e.pointerId);
       if (pinch) { if (ptrs.size < 2) { save(); pinch = null; } return; }
-      if (lp) { clearTimeout(lp.t); const l1 = lp; lp = null; if (l1.act) widgetAct(l1.W, l1.act); else handleTap(l1.W); return; }
+      if (lp) { clearTimeout(lp.t); const l1 = lp; lp = null; if (l1.held) { holdPop(false); return; } st.tapGuard = Date.now(); if (l1.act) widgetAct(l1.W, l1.act); else handleTap(l1.W); return; }
       if (!drag) return; const d = drag; drag = null; if (!d.moved) openSheet(d.W.id); else saveLayout();
     };
     layer.addEventListener('pointerup', up);
-    layer.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); if (lp) clearTimeout(lp.t); lp = null; drag = null; if (ptrs.size < 2) pinch = null; });
+    layer.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); if (lp) { clearTimeout(lp.t); if (lp.held) holdPop(false); } lp = null; drag = null; if (ptrs.size < 2) pinch = null; });
     layer.addEventListener('contextmenu', (e) => e.preventDefault());
     layer.addEventListener('wheel', (e) => { if (wEdit) return; const el = e.target.closest('.wg[data-type="ta"]'); if (!el) return; const W = S.layout.find((x) => x.id === el.dataset.id); if (!W) return; e.preventDefault(); cfgW(W).zoom = clamp((+effCfg(W).zoom || 1) * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 0.25, 8); renderWidgets(); clearTimeout(window._zt); window._zt = setTimeout(save, 400); }, { passive: false });
   });

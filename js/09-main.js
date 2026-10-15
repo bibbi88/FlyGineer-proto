@@ -17,6 +17,7 @@ function tick() {
 function boot() {
   if (S.theme === 'dark') document.body.classList.add('dark');
   if (S.navMode === 'pinned') document.body.classList.add('pinned');
+  cornerMode();
   try { const c = JSON.parse(localStorage.getItem('bora.notams') || 'null'); if (c) { NOTAMS = c.list; st.notamAt = c.at; } } catch (e) { }
   try { st.airspaces = JSON.parse(localStorage.getItem('bora.air') || '[]'); } catch (e) { st.airspaces = []; }
   if (typeof L === 'undefined') { document.querySelector('main').innerHTML = '<div style="padding:30px;font-size:18px">The map library could not load. Connect to the internet and reload.</div>'; return; }
