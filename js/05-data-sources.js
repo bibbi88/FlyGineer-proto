@@ -15,8 +15,24 @@ async function loadOpenAIP() {
       lo: lim(a.lowerLimit), hi: lim(a.upperLimit), poly: a.geometry.coordinates[0].map((c) => [c[1], c[0]]),
       freq: (a.frequencies || []).map((q) => ({ v: q.value, n: q.name || a.name }))
     }));
-    localStorage.setItem('bora.air', JSON.stringify(st.airspaces)); drawAirspaces(); toast(st.airspaces.length + ' airspaces loaded from OpenAIP');
+    S.airSrc = 'own'; save(); localStorage.setItem('bora.air', JSON.stringify(st.airspaces)); drawAirspaces(); toast(st.airspaces.length + ' airspaces loaded from OpenAIP');
   } catch (e) { toast('OpenAIP: ' + e.message + ' · check the key'); }
+}
+/* built-in airspace: OpenAir files from XCSoar's data repository, kept in data/airspace/ by a GitHub workflow (.github/workflows/airspace.yml).
+   S.airSrc 'xcsoar' (these files, countries S.airCountries, loaded again when the files change) or 'own' (OpenAIP or a file you picked) */
+const AIR_NAMES = { fi: 'Finland', se: 'Sweden', no: 'Norway', ee: 'Estonia' };
+async function loadXcsoarAir(force) {
+  if (S.airSrc !== 'xcsoar') return;
+  try {
+    const idx = await (await fetch('data/airspace/index.json', { cache: 'no-store' })).json(); st.airIdx = idx;
+    const cs = (S.airCountries || []).filter((c) => idx.countries[c]), key = cs.map((c) => c + ':' + idx.countries[c].update).join(',');
+    if (!force && key === S.airUpd && st.airspaces.length) return;
+    if (!cs.length) { if (S.airUpd) { st.airspaces = []; localStorage.removeItem('bora.air'); S.airUpd = ''; save(); drawAirspaces(); } return; }
+    let all = []; for (const c of cs) { const r = await fetch('data/airspace/' + idx.countries[c].file, { cache: 'no-store' }); if (!r.ok) throw new Error(c + ': HTTP ' + r.status); all = all.concat(parseOpenAir(await r.text())); }
+    st.airspaces = all; localStorage.setItem('bora.air', JSON.stringify(all)); S.airUpd = key; save(); drawAirspaces();
+    toast(all.length + ' airspaces loaded (XCSoar: ' + cs.map((c) => idx.countries[c].name).join(', ') + ')');
+    if (typeof renderSettings === 'function' && curPage === 'pSet' && setSec === 'air') renderSettings();
+  } catch (e) { if (force) toast('Airspace update failed: ' + e.message + (st.airspaces.length ? ' · keeping the stored ones' : '')); }
 }
 function parseOpenAir(txt) {
   const out = []; let cur = null, ctr = null, dir = 1;
@@ -28,6 +44,7 @@ function parseOpenAir(txt) {
     const l = raw.replace(/\*.*$/, '').trim(); if (!l) return; const k = l.slice(0, 2).toUpperCase(), v = l.slice(2).trim();
     if (k === 'AC') { push(); cur = { name: '', cls: v, lo: null, hi: null, poly: [], freq: [] }; dir = 1; }
     else if (!cur) return;
+    else if (k === 'AY') cur.type = v.toUpperCase(); // OpenAir 2 (XCSoar/OpenAIP files): the type is here, AC is the ICAO class (D = class D, not danger)
     else if (k === 'AN') cur.name = v; else if (k === 'AL') cur.lo = lim(v); else if (k === 'AH') cur.hi = lim(v);
     else if (k === 'AF') cur.freq.push({ v: v, n: cur.name });
     else if (k === 'DP') { const p = ll(v); if (p) cur.poly.push(p); }
@@ -36,9 +53,10 @@ function parseOpenAir(txt) {
     else if (k === 'DB' && ctr) { const [p1, p2] = v.split(',').map(ll); if (p1 && p2) cur.poly.push(...arc(ctr, brg(ctr[0], ctr[1], p1[0], p1[1]), brg(ctr[0], ctr[1], p2[0], p2[1]), dist(ctr[0], ctr[1], p1[0], p1[1]), dir)); }
     else if (k === 'DA' && ctr) { const [r, a1, a2] = v.split(',').map(parseFloat); cur.poly.push(...arc(ctr, a1, a2, r * 1852, dir)); }
   });
-  push(); return out;
+  push(); return out.filter((a) => !/^(FIR|UIR|NONE)$/.test(a.type || '')); // whole-country regions would always count as inside
 }
-function airColor(a) { return /^(R|P|Q|D)$/.test(a.cls) || /restrict|danger|prohib/i.test(a.name) ? css('--restr') : css('--air'); }
+function airColor(a) { if (typeof a.type === 'string' && a.type) return /^(R|P|Q|D|DANGER|TRA|TSA|ADIZ|OFR)$/.test(a.type) || /restrict|danger|prohib/i.test(a.name) ? css('--restr') : css('--air');
+  return /^(R|P|Q|D)$/.test(a.cls) || /restrict|danger|prohib/i.test(a.name) ? css('--restr') : css('--air'); }
 function drawAirspaces() { st.airVer = (st.airVer || 0) + 1; }
 function inPoly(lat, lon, poly) { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [yi, xi] = poly[i], [yj, xj] = poly[j]; if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) c = !c; } return c; }
 function edgeDist(lat, lon, poly) { let best = 1e12; for (let i = 0; i < poly.length - 1; i += Math.max(1, Math.floor(poly.length / 200))) { const [x1, y1] = enu(lat, lon, poly[i][0], poly[i][1]); const [x2, y2] = enu(lat, lon, poly[i + 1][0], poly[i + 1][1]); const dx = x2 - x1, dy = y2 - y1; const t = clamp(-(x1 * dx + y1 * dy) / (dx * dx + dy * dy || 1), 0, 1); best = Math.min(best, Math.hypot(x1 + t * dx, y1 + t * dy)); } return best; }

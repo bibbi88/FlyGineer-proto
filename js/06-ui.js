@@ -902,7 +902,13 @@ function renderSettings() {
     <div class="field"><label for="wingLD">Wing glide ratio (empty dot)</label><input type="number" id="wingLD" value="${S.wingLD}" step="0.1" min="3" max="20"></div>
     <div class="field"><label for="safety">Arrival safety height (m)</label><input type="number" id="safety" value="${S.safety}" step="10"></div>
     ${seg('rotDefault', [['north', 'North up'], ['track', 'Track up'], ['bearing', 'Bearing up']], 'New map widgets start in')}${seg('taOrient', [['wind', 'Wind up'], ['winddown', 'Wind down'], ['north', 'North up']], 'Thermal assistant')}</div>`;
-  if (setSec === 'air') h = `<div class="card sec"><h2>Airspace data</h2>
+  if (setSec === 'air') { const ix = st.airIdx && st.airIdx.countries, xc = S.airSrc === 'xcsoar';
+    h = `<div class="card sec"><h2>Airspace data</h2>
+    <div class="field"><span class="k">Source</span><span class="row" style="flex-wrap:wrap"><button class="pill" id="asXc" aria-pressed="${xc}">XCSoar (built in)</button><button class="pill" id="asOwn" aria-pressed="${!xc}">My own (OpenAIP or file)</button></span></div>
+    ${xc ? `<div class="field"><span class="k">Countries</span><span class="row" style="flex-wrap:wrap">${Object.keys(ix || AIR_NAMES).map((c) => `<button class="pill" data-airc="${c}" aria-pressed="${(S.airCountries || []).includes(c)}">${esc((ix && ix[c] ? ix[c].name : AIR_NAMES[c]) || c.toUpperCase())}</button>`).join('')}</span></div>
+    <div class="field"><span class="k">Updated</span><span>${ix ? (S.airCountries || []).filter((c) => ix[c]).map((c) => esc(ix[c].name + ' ' + String(ix[c].update).slice(0, 10))).join(' · ') || '–' : 'not checked yet'}</span><button class="btn" id="asUpd">Update now</button></div>
+    <div class="muted">The national airspace files XCSoar offers (OpenAIP data), copied into the app weekly. The app checks for newer files when it starts with internet and keeps the last ones for offline use.</div>` : ''}
+    <h2 style="margin-top:8px">My own airspace</h2>
     <div class="field"><label for="oaKey">OpenAIP API key</label><input type="password" id="oaKey" value="${esc(S.openaipKey)}" placeholder="from openaip.net → API clients"></div>
     <div class="field"><span class="k"></span><button class="btn primary" id="oaLoad">Load airspace around me</button></div>
     <div class="field"><label for="oaFile">Or an OpenAir file</label><input type="file" id="oaFile" accept=".txt,.air,.openair,text/plain" style="min-height:48px"></div>
@@ -917,7 +923,7 @@ function renderSettings() {
   return new Response(await r.text(), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' } });
 } };</pre>
     ${seg('notamRadius', [[25, '25 km'], [50, '50 km'], [100, '100 km']], 'Show NOTAMs within')}
-    <div class="field"><span class="k"></span><button class="btn primary" id="ntLoad">Load NOTAMs now</button></div></div>`;
+    <div class="field"><span class="k"></span><button class="btn primary" id="ntLoad">Load NOTAMs now</button></div></div>`; }
   if (setSec === 'task') h = `<div class="card sec"><h2>Task</h2><div class="field"><span class="k">Current</span><b>${st.task ? esc(st.task.name) + ' · ' + st.task.pts.length + ' points · ' + (st.task.len / 1000).toFixed(1) + ' km' : 'none'}</b>${st.task ? '<button class="btn" id="taskClear">Remove</button>' : ''}</div>
     <div class="field"><label for="fxUrl">FlyXC link</label><input type="url" id="fxUrl" placeholder="https://flyxc.app/?p=…"><button class="btn primary" id="fxImp">Import</button></div>
     <div class="field"><label for="cylR">Turnpoint radius (m)</label><input type="number" id="cylR" value="${S.cylR}" step="50"></div>
@@ -979,10 +985,14 @@ function renderSettings() {
   on('safety', 'onchange', (e) => { S.safety = +e.target.value; save(); });
   on('oaKey', 'onchange', (e) => { S.openaipKey = e.target.value.trim(); save(); });
   on('oaLoad', 'onclick', async () => { S.openaipKey = $('oaKey').value.trim(); save(); await loadOpenAIP(); renderSettings(); });
-  on('oaFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; const a = parseOpenAir(await fl.text()); st.airspaces = a; localStorage.setItem('bora.air', JSON.stringify(a)); drawAirspaces(); toast(a.length + ' airspaces loaded from file'); renderSettings(); });
+  on('oaFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; const a = parseOpenAir(await fl.text()); S.airSrc = 'own'; save(); st.airspaces = a; localStorage.setItem('bora.air', JSON.stringify(a)); drawAirspaces(); toast(a.length + ' airspaces loaded from file'); renderSettings(); });
   on('ntProxy', 'onchange', (e) => { S.notamProxy = e.target.value.trim(); save(); });
   on('ntLoad', 'onclick', async () => { S.notamProxy = $('ntProxy').value.trim(); save(); await loadNotams(true); });
-  on('oaClear', 'onclick', () => { st.airspaces = []; localStorage.removeItem('bora.air'); drawAirspaces(); renderSettings(); });
+  on('asXc', 'onclick', async () => { S.airSrc = 'xcsoar'; S.airUpd = ''; save(); renderSettings(); await loadXcsoarAir(true); renderSettings(); });
+  on('asOwn', 'onclick', () => { S.airSrc = 'own'; save(); renderSettings(); });
+  on('asUpd', 'onclick', async () => { await loadXcsoarAir(true); renderSettings(); });
+  document.querySelectorAll('[data-airc]').forEach((b) => (b.onclick = async () => { const c = b.dataset.airc, l = new Set(S.airCountries || []); l.has(c) ? l.delete(c) : l.add(c); S.airCountries = [...l]; save(); renderSettings(); await loadXcsoarAir(); renderSettings(); }));
+  on('oaClear', 'onclick', () => { S.airSrc = 'own'; save(); st.airspaces = []; localStorage.removeItem('bora.air'); drawAirspaces(); renderSettings(); });
   on('taskClear', 'onclick', () => { clearTask(); renderSettings(); });
   on('fxImp', 'onclick', () => { if (importFlyXC($('fxUrl').value)) renderSettings(); });
   on('bmCopy', 'onclick', async () => { try { await navigator.clipboard.writeText(bookmarklet()); toast('Bookmark code copied'); } catch (e) { toast('Select the code above and copy it'); } });
