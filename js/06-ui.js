@@ -616,7 +616,7 @@ function asSideDraw(cv, W) {
   for (let a = 1000; a < amax; a += 1000) { c.beginPath(); c.moveTo(38, Y(a)); c.lineTo(Wd, Y(a)); c.stroke(); c.textAlign = 'left'; c.fillText(fAlt(a), 0, Y(a) + 4); }
   const ks = [1, 2, 5, 10, 20, 50].find((k) => (k * 1000 / L0) * (Wd - 50) >= 44) || 50; c.textAlign = 'center'; for (let k = 0; k * 1000 <= L0; k += ks) c.fillText(k + ' km', X(k * 1000), H - 6);
   const g = st.groundElev || 0;
-  st.airspaces.forEach((a) => { let start = null; for (let d = 0; d <= L0; d += 250) { const p = dest(f.lat, f.lon, trk, d), inn = inPoly(p[0], p[1], a.poly); if (inn && start == null) start = d; if ((!inn || d === L0) && start != null) { const lo = limM(a.lo, g), hi = Math.min(limM(a.hi, g), amax), col = airColor(a); c.fillStyle = col + '22'; c.strokeStyle = col; c.lineWidth = 2; c.fillRect(X(start), Y(hi), X(d) - X(start), Y(lo) - Y(hi)); c.strokeRect(X(start), Y(hi), X(d) - X(start), Y(lo) - Y(hi)); c.fillStyle = col; c.textAlign = 'left'; c.fillText(a.name.slice(0, 22), X(start) + 4, Y(hi) + 13); start = null; } } });
+  airShown().forEach((a) => { let start = null; for (let d = 0; d <= L0; d += 250) { const p = dest(f.lat, f.lon, trk, d), inn = inPoly(p[0], p[1], a.poly); if (inn && start == null) start = d; if ((!inn || d === L0) && start != null) { const lo = limM(a.lo, g), hi = Math.min(limM(a.hi, g), amax), col = airColor(a); c.fillStyle = col + '22'; c.strokeStyle = col; c.lineWidth = 2; c.fillRect(X(start), Y(hi), X(d) - X(start), Y(lo) - Y(hi)); c.strokeRect(X(start), Y(hi), X(d) - X(start), Y(lo) - Y(hi)); c.fillStyle = col; c.textAlign = 'left'; c.fillText(a.name.slice(0, 22), X(start) + 4, Y(hi) + 13); start = null; } } });
   c.fillStyle = '#DFE6CF'; c.fillRect(38, Y(g), Wd, H - 22 - Y(g));
   if (st.pred.wing) { const dd = Math.min(L0, st.pred.wing[2]); c.strokeStyle = css('--sink'); c.setLineDash([7, 4]); c.lineWidth = 2.5; c.beginPath(); c.moveTo(X(0), Y(alt)); c.lineTo(X(dd), Y(alt - dd / S.wingLD)); c.stroke(); c.setLineDash([]); }
   c.fillStyle = css('--ink'); c.beginPath(); c.moveTo(X(0) - 2, Y(alt) - 5); c.lineTo(X(0) + 14, Y(alt)); c.lineTo(X(0) - 2, Y(alt) + 5); c.fill();
@@ -645,7 +645,7 @@ function asMapDraw(cv, W, el, b) {
   const key = [st.airVer || 0, st.ntVer || 0, st.placesVer || 0, rad, JSON.stringify(S.poiKinds), Math.round(f.lat * 200) + ',' + Math.round(f.lon * 200)].join('|');
   if (key !== el._okey) {
     el._okey = key; const g = el._ag; g.clearLayers();
-    st.airspaces.forEach((a) => L.polygon(a.poly, { color: airColor(a), weight: 2, fillOpacity: 0.1, interactive: false }).addTo(g));
+    airShown().forEach((a) => L.polygon(a.poly, { color: airColor(a), weight: 2, fillOpacity: 0.1, interactive: false }).addTo(g));
     NOTAMS.filter((n) => n.geo && ntState(n) !== 'over').forEach((n) => { const o = { color: '#9A3D06', weight: 2, dashArray: '6 4', fillOpacity: 0.08, interactive: false }; if (n.geo.poly) L.polygon(n.geo.poly, o).addTo(g); else if (n.geo.r > 0) L.circle(n.geo.pt, Object.assign({ radius: n.geo.r }, o)).addTo(g); else L.circleMarker(n.geo.pt, { radius: 6, color: '#9A3D06', weight: 2, fillOpacity: 0.3, interactive: false }).addTo(g); });
     visiblePlaces().filter((p) => dist(f.lat, f.lon, p.lat, p.lon) <= rad * 1000).forEach((p) => { const mk = L.circleMarker([p.lat, p.lon], { radius: p.kind === 'airport' || p.kind === 'start' ? 7 : 5, color: '#fff', weight: 1.5, fillColor: p.kind === 'start' ? '#2E7D4F' : p.kind === 'airport' ? '#5B2FA6' : p.kind === 'peak' ? '#6B4E2E' : '#111418', fillOpacity: 1, interactive: false }).addTo(g); if (p.rank >= 2 || p.kind === 'airport' || p.kind === 'start') mk.bindTooltip(esc(p.name), { permanent: true, direction: 'right', className: 'wpLabel' }); });
   }
@@ -908,11 +908,12 @@ function renderSettings() {
     ${xc ? `<div class="field"><span class="k">Countries</span><span class="row" style="flex-wrap:wrap">${Object.keys(ix || AIR_NAMES).map((c) => `<button class="pill" data-airc="${c}" aria-pressed="${(S.airCountries || []).includes(c)}">${esc((ix && ix[c] ? ix[c].name : AIR_NAMES[c]) || c.toUpperCase())}</button>`).join('')}</span></div>
     <div class="field"><span class="k">Updated</span><span>${ix ? (S.airCountries || []).filter((c) => ix[c]).map((c) => esc(ix[c].name + ' ' + String(ix[c].update).slice(0, 10))).join(' · ') || '–' : 'not checked yet'}</span><button class="btn" id="asUpd">Update now</button></div>
     <div class="muted">The national airspace files XCSoar offers (OpenAIP data), copied into the app weekly. The app checks for newer files when it starts with internet and keeps the last ones for offline use.</div>` : ''}
+    <div class="field"><span class="k">Show</span><span class="row" style="flex-wrap:wrap">${AIR_KINDS.map(([k, n]) => `<button class="pill" data-airt="${k}" aria-pressed="${(S.airTypes || AIR_KIND_DEF).includes(k)}">${n} <span class="muted">${st.airspaces.filter((a) => airKind(a) === k).length}</span></button>`).join('')}</span></div>
+    <div class="field"><span class="k">Loaded</span><b>${airShown().length} shown of ${st.airspaces.length} airspaces</b>${st.airspaces.length ? '<button class="btn" id="oaClear">Clear</button>' : ''}</div>
     <h2 style="margin-top:8px">My own airspace</h2>
     <div class="field"><label for="oaKey">OpenAIP API key</label><input type="password" id="oaKey" value="${esc(S.openaipKey)}" placeholder="from openaip.net → API clients"></div>
     <div class="field"><span class="k"></span><button class="btn primary" id="oaLoad">Load airspace around me</button></div>
     <div class="field"><label for="oaFile">Or an OpenAir file</label><input type="file" id="oaFile" accept=".txt,.air,.openair,text/plain" style="min-height:48px"></div>
-    <div class="field"><span class="k">Loaded</span><b>${st.airspaces.length} airspaces</b>${st.airspaces.length ? '<button class="btn" id="oaClear">Clear</button>' : ''}</div>
     <h2 style="margin-top:8px">NOTAM from ais.fi</h2>
     <div class="field"><label for="ntProxy">Proxy address (optional)</label><input type="url" id="ntProxy" value="${esc(S.notamProxy)}" placeholder="https://your-worker.workers.dev/?url="></div>
     <div class="muted">Browsers only let a page read ais.fi if ais.fi allows it. If loading fails, put a small proxy in front: a free Cloudflare Worker with this code, then paste its address ending in ?url= above.</div>
@@ -992,6 +993,7 @@ function renderSettings() {
   on('asOwn', 'onclick', () => { S.airSrc = 'own'; save(); renderSettings(); });
   on('asUpd', 'onclick', async () => { await loadXcsoarAir(true); renderSettings(); });
   document.querySelectorAll('[data-airc]').forEach((b) => (b.onclick = async () => { const c = b.dataset.airc, l = new Set(S.airCountries || []); l.has(c) ? l.delete(c) : l.add(c); S.airCountries = [...l]; save(); renderSettings(); await loadXcsoarAir(); renderSettings(); }));
+  document.querySelectorAll('[data-airt]').forEach((b) => (b.onclick = () => { const l = new Set(S.airTypes || AIR_KIND_DEF), k = b.dataset.airt; l.has(k) ? l.delete(k) : l.add(k); S.airTypes = AIR_KINDS.map(([x]) => x).filter((x) => l.has(x)); save(); drawAirspaces(); renderSettings(); }));
   on('oaClear', 'onclick', () => { S.airSrc = 'own'; save(); st.airspaces = []; localStorage.removeItem('bora.air'); drawAirspaces(); renderSettings(); });
   on('taskClear', 'onclick', () => { clearTask(); renderSettings(); });
   on('fxImp', 'onclick', () => { if (importFlyXC($('fxUrl').value)) renderSettings(); });

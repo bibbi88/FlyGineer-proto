@@ -55,6 +55,23 @@ function parseOpenAir(txt) {
   });
   push(); return out.filter((a) => !/^(FIR|UIR|NONE)$/.test(a.type || '')); // whole-country regions would always count as inside
 }
+/* which airspace kinds are shown, warned about and spoken (S.airTypes); default: controlled and prohibited/restricted */
+const AIR_KINDS = [['ctrl', 'CTR / TMA / CTA / ATZ'], ['restr', 'Prohibited & restricted'], ['danger', 'Danger'], ['tsa', 'TSA / TRA (military)'], ['rmz', 'RMZ / TMZ'], ['other', 'Other (ADIZ, gliding sectors …)']];
+const AIR_KIND_DEF = ['ctrl', 'restr'];
+const OAIP_KIND = { 1: 'restr', 2: 'danger', 3: 'restr', 4: 'ctrl', 5: 'rmz', 6: 'rmz', 7: 'ctrl', 8: 'tsa', 9: 'tsa', 13: 'ctrl', 14: 'ctrl', 26: 'ctrl' }; // OpenAIP API type numbers
+function airKind(a) {
+  const t = typeof a.type === 'string' ? a.type : '';
+  if (t) return /^(CTR|TMA|CTA|ATZ|MATZ|TIZ|TIA|FIZ|UTA|OCA|AWY)$/.test(t) ? 'ctrl' : /^(R|P|PROHIBITED|RESTRICTED)$/.test(t) ? 'restr' : /^(Q|D|DANGER)$/.test(t) ? 'danger' : /^(TSA|TRA)$/.test(t) ? 'tsa' : /^(RMZ|TMZ)$/.test(t) ? 'rmz' : 'other';
+  if (typeof a.type === 'number') return OAIP_KIND[a.type] || (/^[A-E]$/.test(a.cls) ? 'ctrl' : 'other');
+  const c = String(a.cls || '').toUpperCase(); // OpenAir 1: AC holds the kind
+  return /^(R|P)$/.test(c) ? 'restr' : /^(Q|D)$/.test(c) ? 'danger' : /^(CTR|TMZ|RMZ)$/.test(c) ? (c === 'CTR' ? 'ctrl' : 'rmz') : /^[A-E]$/.test(c) ? 'ctrl' : 'other';
+}
+let airShownC = { k: null, l: [] };
+function airShown() {
+  const on = S.airTypes || AIR_KIND_DEF, k = (st.airVer || 0) + '|' + st.airspaces.length + '|' + on.join(',');
+  if (airShownC.k !== k) airShownC = { k, l: st.airspaces.filter((a) => on.includes(airKind(a))) };
+  return airShownC.l;
+}
 function airColor(a) { if (typeof a.type === 'string' && a.type) return /^(R|P|Q|D|DANGER|TRA|TSA|ADIZ|OFR)$/.test(a.type) || /restrict|danger|prohib/i.test(a.name) ? css('--restr') : css('--air');
   return /^(R|P|Q|D)$/.test(a.cls) || /restrict|danger|prohib/i.test(a.name) ? css('--restr') : css('--air'); }
 function drawAirspaces() { st.airVer = (st.airVer || 0) + 1; }
@@ -64,7 +81,7 @@ function limM(l, ground) { if (!l) return 0; return l.agl ? (l.gnd ? (ground || 
 function airStatus() {
   const f = st.fix, alt = altNow(); if (!f || alt == null) return [];
   const g = st.groundElev || 0;
-  return st.airspaces.map((a) => {
+  return airShown().map((a) => {
     const inside = inPoly(f.lat, f.lon, a.poly), d = inside ? 0 : edgeDist(f.lat, f.lon, a.poly);
     const lo = limM(a.lo, g), hi = limM(a.hi, g); const vert = alt < lo ? 'below' : alt > hi ? 'above' : 'in';
     return { a, inside, d, lo, hi, vert, alt };
