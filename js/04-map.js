@@ -69,7 +69,7 @@ function drawPlacesInto(g, f, C) {
       : `<span class="plSq" style="width:${sz}px;height:${sz}px;${p.rank >= 2 ? '' : 'border-radius:50%;'}"></span>`;
     const name = lab && (ap || p.rank >= 2 || pk || on(C.plVil, false)) ? `<span class="plName" style="left:${Math.round(sz / 2 + 5)}px;font-size:${fs}px;${p.rank >= 3 ? 'font-weight:800' : ''}">${esc(p.name)}${ap && p.sub ? ` <small>${esc(p.sub)}</small>` : ''}</span>` : '';
     const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ className: 'plMk', html: `<span class="plDot">${dot}</span>${name}`, iconSize: [0, 0], iconAnchor: [0, 0] }), interactive: true, keyboard: false, zIndexOffset: ap ? 300 : p.rank * 50 }).addTo(g);
-    mk.on('click', (e) => { L.DomEvent.stopPropagation(e); st.tapGuard = Date.now(); openPoiInfo(p, C.plRel); });
+    mk.on('click', (e) => { L.DomEvent.stopPropagation(e); st.tapGuard = Date.now(); openPoiInfo(p, C.plRel, C); });
   });
 }
 /* ADS-B traffic (adsb.fi open data, personal non-commercial use, attribution required) */

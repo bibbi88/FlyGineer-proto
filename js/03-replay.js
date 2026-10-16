@@ -168,9 +168,9 @@ const VTXT = {
   fi: { therm: 'Terminen', sum: (a, g, t) => `Terminen keskiarvo ${a}, nousu ${g}, ${t}`, tp: (n, nx) => `${n} saavutettu. Seuraava ${nx}`, goal: 'Maali saavutettu', airIn: (n) => `Ilmatilan ${n} sisällä`, airNear: (n, d) => `Ilmatila ${n} ${d} päässä`, alt: (h, a) => `Korkeus ${h}${a ? ', ' + a + ' maanpinnasta' : ''}`, test: 'Ääniviestit päällä' }
 };
 const vt = () => VTXT[S.voiceLang] || VTXT[(navigator.language || 'en').slice(0, 2)] || VTXT.en;
-function say(text, force) {
+function say(text, force, lang) { // lang: 'en' / 'sv' / 'fi' overrides the voice language (radio message)
   if ((!S.voice && !force) || !window.speechSynthesis || !text) return;
-  try { const u = new SpeechSynthesisUtterance(String(text)); u.volume = clamp((S.voiceVol ?? 100) / 100, 0, 1); u.rate = clamp(+S.voiceRate || 1, 0.5, 2); const lg = LANGS[S.voiceLang]; if (lg) u.lang = lg; else if (navigator.language) u.lang = navigator.language; speechSynthesis.speak(u); } catch (e) { }
+  try { const u = new SpeechSynthesisUtterance(String(text)); u.volume = clamp((S.voiceVol ?? 100) / 100, 0, 1); u.rate = clamp(+S.voiceRate || 1, 0.5, 2); const lg = LANGS[lang || S.voiceLang]; if (lg) u.lang = lg; else if (navigator.language) u.lang = navigator.language; speechSynthesis.speak(u); } catch (e) { }
 }
 // spoken values: numbers as words the speech engine reads well
 const UNITW = { en: ['meters', 'feet'], sv: ['meter', 'fot'], fi: ['metriä', 'jalkaa'] };

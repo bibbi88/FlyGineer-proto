@@ -415,29 +415,34 @@ function airListHTML(W) {
   return `<div class="muted">Within ${R / 1000} km · ${near.length} airspace${near.length === 1 ? '' : 's'}${near.length > s.length ? ', nearest ' + s.length + ' shown' : ''}${c.band === 'height' ? ' · at your height or above' : ''}</div>` + (rows || '<div class="muted">None nearby</div>') + (c.radio === false || c.radio === 'false' ? '' : radio);
 }
 /* a place tapped on the map: where you are relative to it (for radio calls) or where it is from you, and a ready radio message */
-const DIR8 = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
-const dir8 = (b) => DIR8[Math.round(wrap360(b) / 45) % 8];
-function radioCall(p) {
+// radio message words per language (cfg.radioLang): directions, units, phrases; Finnish avoids inflecting the place name ("paikasta X")
+const RADIO_TXT = {
+  en: { dir: ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'], at: (km, d, n) => `${km} kilometres ${d} of ${n}`, over: (n) => `overhead ${n}`, ft: 'feet', m: 'metres', th: 'thermalling', dec: '.' },
+  sv: { dir: ['norr', 'nordost', 'öster', 'sydost', 'söder', 'sydväst', 'väster', 'nordväst'], at: (km, d, n) => `${km} kilometer ${d} om ${n}`, over: (n) => `över ${n}`, ft: 'fot', m: 'meter', th: 'i termik', dec: ',' },
+  fi: { dir: ['pohjoiseen', 'koilliseen', 'itään', 'kaakkoon', 'etelään', 'lounaaseen', 'länteen', 'luoteeseen'], at: (km, d, n) => `paikasta ${n} ${km} kilometriä ${d}`, over: (n) => `${n} yllä`, ft: 'jalkaa', m: 'metriä', th: 'termiikissä', dec: ',' } };
+const radioLang = (C) => { const l = (C && C.radioLang) || 'en'; return l === 'voice' ? (RADIO_TXT[S.voiceLang] ? S.voiceLang : (navigator.language || 'en').slice(0, 2)) : l; };
+function radioCall(p, C) {
+  C = C || {}; const alU = C.radioAlt || S.radioAlt || 'ft', cs = C.callsign || S.callsign || 'Paraglider', T = RADIO_TXT[radioLang(C)] || RADIO_TXT.en; // map widget options (older: Settings)
   const f = st.fix, a = altNow(); if (!f) return '';
-  const d = dist(p.lat, p.lon, f.lat, f.lon), b = brg(p.lat, p.lon, f.lat, f.lon), km = d < 3000 ? (Math.round(d / 100) / 10).toFixed(1) : String(Math.round(d / 1000));
-  const where = d < 500 ? `overhead ${p.name}` : `${km} kilometres ${dir8(b)} of ${p.name}`;
+  const d = dist(p.lat, p.lon, f.lat, f.lon), b = brg(p.lat, p.lon, f.lat, f.lon), km = (d < 3000 ? (Math.round(d / 100) / 10).toFixed(1) : String(Math.round(d / 1000))).replace('.', T.dec);
+  const where = d < 500 ? T.over(p.name) : T.at(km, T.dir[Math.round(wrap360(b) / 45) % 8], p.name);
   const ft = a != null ? Math.round(a * 3.28084 / 100) * 100 : null, m = a != null ? Math.round(a / 10) * 10 : null;
-  const alt = a == null ? '' : S.radioAlt === 'm' ? `, ${m} metres` : S.radioAlt === 'both' ? `, ${ft} feet, ${m} metres` : `, ${ft} feet`;
-  return `${S.callsign || 'Paraglider'}, ${where}${alt}${st.thermMode ? ', thermalling' : ''}.`;
+  const alt = a == null ? '' : alU === 'm' ? `, ${m} ${T.m}` : alU === 'both' ? `, ${ft} ${T.ft}, ${m} ${T.m}` : `, ${ft} ${T.ft}`;
+  return `${cs}, ${where}${alt}${st.thermMode ? ', ' + T.th : ''}.`;
 }
-function poiInfoHTML(p, rel) {
+function poiInfoHTML(p, rel, C) {
   const f = st.fix; if (!f) return '<div class="muted">Waiting for a position</div>';
   const d = dist(f.lat, f.lon, p.lat, p.lon), toP = brg(f.lat, f.lon, p.lat, p.lon), fromP = wrap360(toP + 180);
   const me = `You are <b>${fDist(d)} ${compass(fromP)}</b> of ${esc(p.name)}`, it = `${esc(p.name)} is <b>${fDist(d)} ${compass(toP)}</b> of you`;
   return `<div style="font-size:24px;line-height:1.3">${rel === 'poi' ? it : me}</div><div class="muted" style="font-size:15px;margin-top:4px">${rel === 'poi' ? me : it} · to it ${pad3(toP)}°${p.sub ? ' · ' + esc(p.sub) : ''}</div>
-    <div class="lbl" style="margin-top:12px">Radio message</div><div class="card" style="font-size:20px;line-height:1.35;padding:12px 14px">${esc(radioCall(p))}</div>
+    <div class="lbl" style="margin-top:12px">Radio message</div><div class="card" style="font-size:20px;line-height:1.35;padding:12px 14px">${esc(radioCall(p, C))}</div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn" data-poi="say" style="min-height:56px">🔊 Say it</button><button class="btn" data-poi="rel" style="min-height:56px">${rel === 'poi' ? 'Show me relative to it' : 'Show it relative to me'}</button></div>
-    <div class="muted" style="margin-top:6px">Callsign and altitude units: Settings → Airspace data → Radio message.</div>`;
+    <div class="muted" style="margin-top:6px">Callsign and altitude units: map widget settings (Radio callsign).</div>`;
 }
-function openPoiInfo(p, rel) {
+function openPoiInfo(p, rel, C) {
   let r = rel === 'poi' ? 'poi' : 'me';
-  openInfo(p.name, () => poiInfoHTML(p, r));
-  $('hBody').onclick = (e) => { const b = e.target.closest('[data-poi]'); if (!b) return; if (b.dataset.poi === 'say') say(radioCall(p), true); else r = r === 'poi' ? 'me' : 'poi'; $('hBody').innerHTML = poiInfoHTML(p, r); };
+  openInfo(p.name, () => poiInfoHTML(p, r, C));
+  $('hBody').onclick = (e) => { const b = e.target.closest('[data-poi]'); if (!b) return; if (b.dataset.poi === 'say') say(radioCall(p, C), true, radioLang(C)); else r = r === 'poi' ? 'me' : 'poi'; $('hBody').innerHTML = poiInfoHTML(p, r, C); };
 }
 function openHeights() { openInfo('Height', heightsHTML); }
 // custom info: the chosen values (any text widget's value, or heights in m and ft) and an optional note
