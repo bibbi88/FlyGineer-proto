@@ -231,7 +231,7 @@ function setMode(on) {
   fireEvent(on ? 'thermalStart' : 'thermalStop');
 }
 const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'layoutGrid', 'widgets', 'hidden', 'mapMigrated']);
-const IMPORT_OK = new Set(['titles', 'airMaxAlt', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
+const IMPORT_OK = new Set(['titles', 'airMaxAlt', 'warnBar', 'warnDist', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
   const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)), pages: S.pages.map((p) => ({ id: p.id, name: p.name })) };
@@ -359,7 +359,7 @@ function voiceEvent(ev) {
 // airspace warnings (when the warning changes) and the altitude every few minutes
 setInterval(() => {
   if (!S.voice) return; const T = vt();
-  if (S.vcAir !== false) { const s = airStatus(), inn = s.find((x) => x.inside && x.vert === 'in'), near = !inn && s.find((x) => x.d < 2000 && x.vert === 'in'), key = inn ? 'in:' + inn.a.name : near ? 'near:' + near.a.name : '';
+  if (S.vcAir !== false) { const s = airStatus(), inn = s.find((x) => x.inside && x.vert === 'in'), near = !inn && s.find((x) => x.d < (+S.warnDist || 2000) && x.vert === 'in'), key = inn ? 'in:' + inn.a.name : near ? 'near:' + near.a.name : '';
     if (key && key !== st.airSaid) say(inn ? T.airIn(inn.a.name) : T.airNear(near.a.name, fDist(near.d).replace('km', 'kilometers').replace(' m', ' meters'))); st.airSaid = key; }
   const every = +S.vcAlt || 0, a = altNow();
   if (every > 0 && st.takeoffT && a != null && nowT() - (st.altSaidT || 0) >= every * 60000) { st.altSaidT = nowT(); say(T.alt(sayAlt(a), st.groundElev != null ? sayAlt(a - st.groundElev) : '')); }

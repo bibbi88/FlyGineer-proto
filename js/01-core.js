@@ -25,7 +25,7 @@ const DEF = {
   vLift: 0.2, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
   // voice messages (speech synthesis)
   voice: false, voiceVol: 100, voiceRate: 1, voiceLang: 'auto', vcTherm: false, vcSum: true, vcTp: true, vcAir: true, vcAlt: 0, vcTow: true,
-  towDetect: true, towMin: 1, corner: 'auto', wake: true, autoImport: true, openaipKey: '', airCountries: ['fi'], airUpd: '', airMaxAlt: 3000, customUrl: '',
+  towDetect: true, towMin: 1, corner: 'auto', wake: true, autoImport: true, openaipKey: '', airCountries: ['fi'], airUpd: '', airMaxAlt: 3000, warnBar: true, warnDist: 2000, customUrl: '',
   widgets: ['vario', 'avg', 'alt', 'agl', 'gs', 'ld', 'next', 'thermal', 'flight', 'utc'],
   hidden: []
 };

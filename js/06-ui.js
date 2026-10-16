@@ -55,7 +55,8 @@ function renderTop() {
 }
 function renderWarn() {
   const s = airStatus(), w = $('warnBar');
-  const hit = s.find((x) => x.inside && x.vert === 'in') || s.find((x) => x.d < 2000 && x.vert === 'in') || s.find((x) => x.inside && x.vert === 'below' && x.lo - x.alt < 150);
+  if (S.warnBar === false || S.warnBar === 'false') { w.style.display = 'none'; return; }
+  const hit = s.find((x) => x.inside && x.vert === 'in') || s.find((x) => x.d < (+S.warnDist || 2000) && x.vert === 'in') || s.find((x) => x.inside && x.vert === 'below' && x.lo - x.alt < 150);
   if (!hit) { w.style.display = 'none'; return; }
   w.style.display = 'block';
   w.innerHTML = hit.inside && hit.vert === 'in' ? `<b>Inside ${esc(hit.a.name)}</b> · ${fmtLim(hit.a.lo)} – ${fmtLim(hit.a.hi)}` : hit.inside ? `<b>${Math.round(hit.lo - hit.alt)} m below ${esc(hit.a.name)}</b> floor` : `<b>${esc(hit.a.name)} in ${fDist(hit.d)}</b> · ${fmtLim(hit.a.lo)} – ${fmtLim(hit.a.hi)}`;
@@ -876,7 +877,7 @@ const SECS = [['data', 'Vario & GPS'], ['widgets', 'Pages & widgets'], ['units',
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
-const SNUM = { airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
+const SNUM = { warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
 function numField(key, hint) { const [min, max, step, unit, label] = SNUM[key]; return `<div class="field"><span class="k">${label}${hint ? ' · ' + hint : ''}</span><span class="row"><button class="pill step" data-sn="${key}" data-sdir="-1" aria-label="Less">−</button><input type="number" class="numin" inputmode="decimal" data-sni="${key}" value="${S[key]}" min="${min}" max="${max}" step="${step}" aria-label="${label}, ${unit}"><span class="unit">${unit}</span><button class="pill step" data-sn="${key}" data-sdir="1" aria-label="More">+</button></span></div>`; }
 function setNum(key, v) { const [min, max, step] = SNUM[key], d = (String(step).split('.')[1] || '').length; if (!isFinite(v)) return; applySet(key, String(clamp(+(Math.round(v / step) * step).toFixed(d), min, max))); renderSettings(); }
 function renderSettings() {
@@ -915,6 +916,8 @@ function renderSettings() {
     <div class="muted">Finland (XContest): the export you downloaded from airspace.xcontest.org (send a new one to update it). The others are the national files XCSoar offers (OpenAIP data), refreshed automatically. The app checks for newer files when it starts with internet and keeps the last ones for offline use.</div>` : ''}
     <div class="field"><span class="k">Show</span><span class="row" style="flex-wrap:wrap">${AIR_KINDS.map(([k, n]) => `<button class="pill" data-airt="${k}" aria-pressed="${(S.airTypes || AIR_KIND_DEF).includes(k)}">${n} <span class="muted">${st.airspaces.filter((a) => airKind(a) === k).length}</span></button>`).join('')}</span></div>
     ${numField('airMaxAlt', '0 = show all')}
+    ${seg('warnBar', [[true, 'Show'], [false, 'Hide']], 'Warning bar on the Map page')}
+    ${numField('warnDist')}
     <div class="field"><span class="k">Loaded</span><b>${airShown().length} shown of ${st.airspaces.length} airspaces</b>${st.airspaces.length ? '<button class="btn" id="oaClear">Clear</button>' : ''}</div>
     <h2 style="margin-top:8px">My own airspace</h2>
     <div class="field"><label for="oaKey">OpenAIP API key</label><input type="password" id="oaKey" value="${esc(S.openaipKey)}" placeholder="from openaip.net → API clients"></div>
@@ -968,7 +971,7 @@ function renderSettings() {
     ${numField('rateT', '0 = same')}
     ${seg('thermPage', [['off', 'Stay'], ['pThermal', 'Thermal'], ['pMap', 'Map'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']].concat(S.pages.map((p) => [p.id, p.name])), 'Show page when thermaling')}
     ${seg('thermBack', [[true, 'Yes'], [false, 'No']], 'Go back when gliding again')}
-    ${seg('modeChip', [[true, 'Show'], [false, 'Hide']], 'THERMAL button in the corner')}
+    ${seg('modeChip', [[true, 'Show'], [false, 'Hide']], 'THERMAL / THERMAL? button in the corner')}
     <div class="field"><span class="k">Try it now</span><button class="btn ${st.force ? 'warn' : ''}" id="modeTest">${st.force ? 'Stop test' : 'Test thermal mode'}</button><b>${st.thermMode ? 'Thermal mode is ON' : 'Normal mode'}</b></div>
     <div class="muted">The corner button shows <b>THERMAL?</b> when circling is seen (tap to start thermal mode now) and <b>THERMAL</b> while it's on (tap for the thermal page, tap again to go back, hold to leave thermal mode). Any widget can be shown only while thermalling or only after it stopped, and the <b>Button</b> widget can switch mode or page. Each widget can have its own settings while thermaling: long-press a widget, then open the <b>When thermaling</b> tab. For example a closer, north-up map and a shorter vario average.</div></div>`;
   if (setSec === 'backup') h = `<div class="card sec"><h2>Export and import</h2>
