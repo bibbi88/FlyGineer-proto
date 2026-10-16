@@ -356,7 +356,7 @@ function openInfo(title, fn, W) { // W: adds a Settings button that opens this w
 }
 // airspaces near you (within the widget's radius, default 10 km) and their radio frequencies
 function airListHTML(W) {
-  const c = W ? effCfg(W) : {}, R = (+c.radius || 20) * 1000, all = airStatus(), near = all.filter((x) => x.d <= R && (c.band !== 'height' || x.vert !== 'below' || x.inside)), s = near.slice(0, clamp(+c.rows || 25, 3, 50));
+  const c = W ? effCfg(W) : {}, R = (+c.radius || 20) * 1000, all = airStatus(), near = all.filter((x) => x.d <= R && (c.band !== 'height' || x.vert !== 'above')), s = near.slice(0, clamp(+c.rows || 25, 3, 50));
   if (!st.airspaces.length) return '<div class="muted">No airspace data loaded · Settings → Airspace data</div>';
   if (!st.fix) return '<div class="muted">Waiting for a position</div>';
   const st2 = (x) => x.inside ? (x.vert === 'in' ? '<b style="color:var(--restr)">INSIDE</b>' : x.vert === 'below' ? `<b>${fAlt(x.lo - x.alt)} ${S.uAlt}</b> below floor` : 'above top') : `<b>${fDist(x.d)}</b> · ${x.vert === 'below' ? 'below floor' : x.vert === 'above' ? 'above top' : 'at your height'}`;
