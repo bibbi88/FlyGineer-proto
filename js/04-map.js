@@ -68,7 +68,8 @@ function drawPlacesInto(g, f, C) {
       : pk ? `<svg width="${sz + 4}" height="${sz + 4}" viewBox="0 0 12 12"><path d="M6 1L11 11H1Z" fill="#6B4E2E" stroke="#fff" stroke-width="1.2"/></svg>`
       : `<span class="plSq" style="width:${sz}px;height:${sz}px;${p.rank >= 2 ? '' : 'border-radius:50%;'}"></span>`;
     const name = lab && (ap || p.rank >= 2 || pk || on(C.plVil, false)) ? `<span class="plName" style="left:${Math.round(sz / 2 + 5)}px;font-size:${fs}px;${p.rank >= 3 ? 'font-weight:800' : ''}">${esc(p.name)}${ap && p.sub ? ` <small>${esc(p.sub)}</small>` : ''}</span>` : '';
-    L.marker([p.lat, p.lon], { icon: L.divIcon({ className: 'plMk', html: `<span class="plDot">${dot}</span>${name}`, iconSize: [0, 0], iconAnchor: [0, 0] }), interactive: false, zIndexOffset: ap ? 300 : p.rank * 50 }).addTo(g);
+    const mk = L.marker([p.lat, p.lon], { icon: L.divIcon({ className: 'plMk', html: `<span class="plDot">${dot}</span>${name}`, iconSize: [0, 0], iconAnchor: [0, 0] }), interactive: true, keyboard: false, zIndexOffset: ap ? 300 : p.rank * 50 }).addTo(g);
+    mk.on('click', (e) => { L.DomEvent.stopPropagation(e); st.tapGuard = Date.now(); openPoiInfo(p, C.plRel); });
   });
 }
 /* ADS-B traffic (adsb.fi open data, personal non-commercial use, attribution required) */

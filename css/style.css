@@ -362,7 +362,7 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .wg[data-type="map"] .wcb.big svg{width:calc(var(--mb,56px) * .5);height:calc(var(--mb,56px) * .5)}
 .wg[data-type="map"] .wcb.big span{font-size:calc(var(--mb,56px) * .27)!important}
 .plMk{overflow:visible}
-.plDot{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:block;line-height:0}
+.plDot{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:block;line-height:0;padding:12px;cursor:pointer}
 .plSq{display:block;background:#111418;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
-.plName{position:absolute;left:12px;top:0;transform:translateY(-50%);white-space:nowrap;font-weight:700;color:#111418;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff;pointer-events:none}
+.plName{position:absolute;left:12px;top:0;transform:translateY(-50%);white-space:nowrap;font-weight:700;color:#111418;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff;cursor:pointer;padding:6px 0}
 .plName small{font-weight:600;font-size:.8em;color:#5B2FA6}

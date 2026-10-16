@@ -919,6 +919,10 @@ function renderSettings() {
     <div class="muted">The warning bar is a widget: Airspace warning (edit a page → Add widget). The distance below is its default and is used by the Airspace button and voice.</div>
     ${numField('warnDist')}
     <div class="field"><span class="k">Loaded</span><b>${airShown().length} shown of ${st.airspaces.length} airspaces</b>${st.airspaces.length ? '<button class="btn" id="oaClear">Clear</button>' : ''}</div>
+    <h2 style="margin-top:8px">Radio message</h2>
+    <div class="field"><label for="callsign">Callsign</label><input type="text" id="callsign" maxlength="40" value="${esc(S.callsign || '')}" placeholder="e.g. Paraglider OH-123"></div>
+    ${seg('radioAlt', [['ft', 'Feet'], ['m', 'Metres'], ['both', 'Both']], 'Altitude in the message')}
+    <div class="muted">Tap a place on the map: you get your position relative to it and a radio message to read out.</div>
     <h2 style="margin-top:8px">My own airspace</h2>
     <div class="field"><label for="oaKey">OpenAIP API key</label><input type="password" id="oaKey" value="${esc(S.openaipKey)}" placeholder="from openaip.net → API clients"></div>
     <div class="field"><span class="k"></span><button class="btn primary" id="oaLoad">Load airspace around me</button></div>
@@ -1011,6 +1015,7 @@ function renderSettings() {
   on('pgNewName', 'oninput', (e) => (st.pgName = e.target.value));
   on('pgAdd', 'onclick', () => { const P = pageAdd($('pgNewName').value, st.pgFrom || ''); st.pgFrom = ''; st.pgName = ''; toast(`Page “${P.name}” added`); showPage(P.id); setTimeout(() => enterEdit(), 80); });
   document.querySelectorAll('[data-ntsrc]').forEach((b) => (b.onclick = () => { const l = new Set(S.notamSrc || NT_DEF), k = b.dataset.ntsrc; l.has(k) ? l.delete(k) : l.add(k); S.notamSrc = NT_SRC.map(([x]) => x).filter((x) => l.has(x)); save(); renderSettings(); loadNotams(true); }));
+  on('callsign', 'onchange', (e) => { S.callsign = e.target.value.trim(); save(); });
   on('oaClear', 'onclick', () => { S.airSrc = 'own'; save(); st.airspaces = []; localStorage.removeItem('bora.air'); drawAirspaces(); renderSettings(); });
   on('taskClear', 'onclick', () => { clearTask(); renderSettings(); });
   on('fxImp', 'onclick', () => { if (importFlyXC($('fxUrl').value)) renderSettings(); });

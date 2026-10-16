@@ -253,7 +253,7 @@ function setMode(on) {
   fireEvent(on ? 'thermalStart' : 'thermalStop');
 }
 const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'layoutGrid', 'widgets', 'hidden', 'mapMigrated']);
-const IMPORT_OK = new Set(['titles', 'airMaxAlt', 'warnBar', 'warnDist', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
+const IMPORT_OK = new Set(['titles', 'callsign', 'radioAlt', 'airMaxAlt', 'warnBar', 'warnDist', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
   const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)), pages: S.pages.map((p) => ({ id: p.id, name: p.name })) };
@@ -413,6 +413,31 @@ function airListHTML(W) {
   const fr = []; s.forEach((x) => (x.a.freq || []).forEach((q) => { if (!fr.find((y) => y.v === q.v)) fr.push({ v: q.v, n: q.n || x.a.name, on: x.inside && x.vert === 'in' }); }));
   const radio = fr.length ? `<div class="lbl" style="margin-top:10px">Radio</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">${fr.slice(0, 12).map((q) => `<div class="freq ${q.on ? 'on' : ''}"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(q.n)}</div><div class="num" style="font-size:26px">${esc(q.v)}</div></div>`).join('')}</div>` : '<div class="muted" style="margin-top:10px">No radio frequencies in the airspace data nearby.</div>';
   return `<div class="muted">Within ${R / 1000} km · ${near.length} airspace${near.length === 1 ? '' : 's'}${near.length > s.length ? ', nearest ' + s.length + ' shown' : ''}${c.band === 'height' ? ' · at your height or above' : ''}</div>` + (rows || '<div class="muted">None nearby</div>') + (c.radio === false || c.radio === 'false' ? '' : radio);
+}
+/* a place tapped on the map: where you are relative to it (for radio calls) or where it is from you, and a ready radio message */
+const DIR8 = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+const dir8 = (b) => DIR8[Math.round(wrap360(b) / 45) % 8];
+function radioCall(p) {
+  const f = st.fix, a = altNow(); if (!f) return '';
+  const d = dist(p.lat, p.lon, f.lat, f.lon), b = brg(p.lat, p.lon, f.lat, f.lon), km = d < 3000 ? (Math.round(d / 100) / 10).toFixed(1) : String(Math.round(d / 1000));
+  const where = d < 500 ? `overhead ${p.name}` : `${km} kilometres ${dir8(b)} of ${p.name}`;
+  const ft = a != null ? Math.round(a * 3.28084 / 100) * 100 : null, m = a != null ? Math.round(a / 10) * 10 : null;
+  const alt = a == null ? '' : S.radioAlt === 'm' ? `, ${m} metres` : S.radioAlt === 'both' ? `, ${ft} feet, ${m} metres` : `, ${ft} feet`;
+  return `${S.callsign || 'Paraglider'}, ${where}${alt}${st.thermMode ? ', thermalling' : ''}.`;
+}
+function poiInfoHTML(p, rel) {
+  const f = st.fix; if (!f) return '<div class="muted">Waiting for a position</div>';
+  const d = dist(f.lat, f.lon, p.lat, p.lon), toP = brg(f.lat, f.lon, p.lat, p.lon), fromP = wrap360(toP + 180);
+  const me = `You are <b>${fDist(d)} ${compass(fromP)}</b> of ${esc(p.name)}`, it = `${esc(p.name)} is <b>${fDist(d)} ${compass(toP)}</b> of you`;
+  return `<div style="font-size:24px;line-height:1.3">${rel === 'poi' ? it : me}</div><div class="muted" style="font-size:15px;margin-top:4px">${rel === 'poi' ? me : it} · to it ${pad3(toP)}°${p.sub ? ' · ' + esc(p.sub) : ''}</div>
+    <div class="lbl" style="margin-top:12px">Radio message</div><div class="card" style="font-size:20px;line-height:1.35;padding:12px 14px">${esc(radioCall(p))}</div>
+    <div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn" data-poi="say" style="min-height:56px">🔊 Say it</button><button class="btn" data-poi="rel" style="min-height:56px">${rel === 'poi' ? 'Show me relative to it' : 'Show it relative to me'}</button></div>
+    <div class="muted" style="margin-top:6px">Callsign and altitude units: Settings → Airspace data → Radio message.</div>`;
+}
+function openPoiInfo(p, rel) {
+  let r = rel === 'poi' ? 'poi' : 'me';
+  openInfo(p.name, () => poiInfoHTML(p, r));
+  $('hBody').onclick = (e) => { const b = e.target.closest('[data-poi]'); if (!b) return; if (b.dataset.poi === 'say') say(radioCall(p), true); else r = r === 'poi' ? 'me' : 'poi'; $('hBody').innerHTML = poiInfoHTML(p, r); };
 }
 function openHeights() { openInfo('Height', heightsHTML); }
 // custom info: the chosen values (any text widget's value, or heights in m and ft) and an optional note
