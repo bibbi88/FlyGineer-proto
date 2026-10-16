@@ -77,8 +77,9 @@ function airKind(a) {
 }
 let airShownC = { k: null, l: [] };
 function airShown() {
-  const on = S.airTypes || AIR_KIND_DEF, k = (st.airVer || 0) + '|' + st.airspaces.length + '|' + on.join(',');
-  if (airShownC.k !== k) airShownC = { k, l: st.airspaces.filter((a) => on.includes(airKind(a))) };
+  const on = S.airTypes || AIR_KIND_DEF, top = +S.airMaxAlt > 0 ? +S.airMaxAlt : Infinity, k = (st.airVer || 0) + '|' + st.airspaces.length + '|' + on.join(',') + '|' + top;
+  // S.airMaxAlt: airspace whose floor is at or above this height (m AMSL, FL converted) is never reached (default 3000 m; 0 = show all)
+  if (airShownC.k !== k) airShownC = { k, l: st.airspaces.filter((a) => on.includes(airKind(a)) && limM(a.lo, 0) < top) };
   return airShownC.l;
 }
 function airColor(a) { return ['restr', 'danger', 'tsa'].includes(airKind(a)) || /restrict|danger|prohib/i.test(a.name) ? css('--restr') : css('--air'); }
