@@ -921,8 +921,8 @@ function renderSettings() {
     <div class="field"><label for="callsign">Callsign</label><input type="text" id="callsign" maxlength="40" value="${esc(S.callsign || '')}" placeholder="e.g. Paraglider OH-123"></div>
     ${seg('radioLang', [['en', 'English'], ['sv', 'Svenska'], ['fi', 'Suomi'], ['voice', 'As voice messages']], 'Language')}
     ${seg('radioAlt', [['ft', 'Feet'], ['m', 'Metres'], ['both', 'Both']], 'Altitude')}
-    <div class="field"><label for="radioTpl">Message</label><input type="text" id="radioTpl" maxlength="160" value="${esc(S.radioTpl || '')}" placeholder="${esc(RADIO_TPL)}" style="flex:1;min-width:240px"><button class="btn" id="radioTplReset">Default</button></div>
-    <div class="muted">Words in braces are filled in: {callsign} {where} (e.g. 2.3 kilometres north-west of X, or overhead X) {dist} {km} {dir} {place} {alt} {ft} {m} {thermal} (“, thermalling” while in thermal mode). Empty = default.</div>
+    <div class="field"><label for="radioTpl">Message</label><input type="text" id="radioTpl" maxlength="160" value="${esc(S.radioTpl || RADIO_TPL)}" style="flex:1;min-width:240px"><button class="btn" id="radioTplReset">Default</button></div>
+    <div class="muted">Words in braces are filled in: {callsign} {where} (e.g. 2.3 kilometres north-west of X, or overhead X) {dist} {km} {dir} {place} {alt} {ft} {m} {thermal} (“, thermalling” while in thermal mode). Default puts the standard message back.</div>
     <div class="field"><span class="k">Example</span><div class="card" style="font-size:18px;padding:10px 12px;flex:1" id="radioEx">${st.fix ? esc(radioCall(ex)) : 'needs a position'}</div><button class="btn" id="radioSay">🔊 Say it</button></div></div>`; }
   if (setSec === 'air') { const ix = st.airIdx && st.airIdx.countries, xc = S.airSrc === 'xcsoar';
     h = `<div class="card sec"><h2>Airspace data</h2>
@@ -1028,7 +1028,7 @@ function renderSettings() {
   on('pgAdd', 'onclick', () => { const P = pageAdd($('pgNewName').value, st.pgFrom || ''); st.pgFrom = ''; st.pgName = ''; toast(`Page “${P.name}” added`); showPage(P.id); setTimeout(() => enterEdit(), 80); });
   document.querySelectorAll('[data-ntsrc]').forEach((b) => (b.onclick = () => { const l = new Set(S.notamSrc || NT_DEF), k = b.dataset.ntsrc; l.has(k) ? l.delete(k) : l.add(k); S.notamSrc = NT_SRC.map(([x]) => x).filter((x) => l.has(x)); save(); renderSettings(); loadNotams(true); }));
   on('callsign', 'onchange', (e) => { S.callsign = e.target.value.trim(); save(); renderSettings(); });
-  on('radioTpl', 'onchange', (e) => { S.radioTpl = e.target.value.trim(); save(); renderSettings(); });
+  on('radioTpl', 'onchange', (e) => { const v = e.target.value.trim(); S.radioTpl = v === RADIO_TPL ? '' : v; save(); renderSettings(); }); // the default text is shown and editable; unchanged or emptied = default
   on('radioTplReset', 'onclick', () => { S.radioTpl = ''; save(); renderSettings(); });
   on('radioSay', 'onclick', () => { const t = $('radioEx') && $('radioEx').textContent; if (t && st.fix) say(t, true, radioLang()); });
   on('oaClear', 'onclick', () => { S.airSrc = 'own'; save(); st.airspaces = []; localStorage.removeItem('bora.air'); drawAirspaces(); renderSettings(); });
