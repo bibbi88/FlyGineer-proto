@@ -49,6 +49,19 @@ function taskStyle(C, live) {
   const w = clamp(+(live ? C.towpW : C.taskW) || (live ? 4 : 5), 1, 16), style = (live ? C.towpStyle : C.taskStyle) || (live ? 'dashed' : 'solid');
   return { col, halo: LIGHT_COL.has(col) ? '#111418' : '#FFFFFF', w, dash: lineDash(style, w), cap: style === 'dotted' ? 'round' : 'butt' };
 }
+// line back to start (map options home*): 'fai' = with the FAI sectors (default, as before), 'always', 'off'; legs TP → you → start or only you → start; colour, style, width, distance label
+function homeLine(I, C, f) {
+  const mode = C.home || 'fai', fs = mode === 'off' || !f ? null : faiState(true), show = fs && fs.A && (mode === 'always' || (mode === 'fai' && S.fai && fs.B && fs.c >= 500));
+  if (!show) { I.faiLive.remove(); if (I.homeLab) I.homeLab.remove(); return; }
+  const col = TASK_COL[C.homeCol] || TASK_COL.green, w = clamp(+C.homeW || 3, 1, 16), style = C.homeStyle || 'dashed', k = [col, w, style].join('|');
+  if (I.homeK !== k) { I.homeK = k; I.faiLive.setStyle({ color: col, weight: w, dashArray: lineDash(style, w), lineCap: style === 'dotted' ? 'round' : 'butt' }); }
+  const tri = (C.homeLeg || 'tri') === 'tri' && fs.B && fs.c >= 500, me = [f.lat, f.lon], A = [fs.A.lat, fs.A.lon];
+  I.faiLive.setLatLngs(tri ? [[fs.B.lat, fs.B.lon], me, A] : [me, A]).addTo(I.m);
+  if (C.homeLab !== false && C.homeLab !== 'false') { const d = dist(f.lat, f.lon, A[0], A[1]), mid = [(me[0] + A[0]) / 2, (me[1] + A[1]) / 2], h = `<span class="homeLab" style="border-color:${col}">⌂ ${fDist(d)}</span>`;
+    if (!I.homeLab) I.homeLab = L.marker(mid, { icon: L.divIcon({ className: 'homeMk', html: h, iconSize: [0, 0] }), interactive: false, zIndexOffset: 800 });
+    I.homeLab.setLatLng(mid); if (!I.m.hasLayer(I.homeLab)) I.homeLab.addTo(I.m); const e = I.homeLab.getElement(); if (e && e._h !== h) { e.innerHTML = h; e._h = h; } }
+  else if (I.homeLab) I.homeLab.remove();
+}
 function drawTaskInto(g, C) {
   if (!st.task) return; const pts = st.task.pts.map((p) => [p.lat, p.lon]), T = taskStyle(C || {}, false), nx = st.nextWp;
   const done = pts.slice(0, Math.max(1, nx)), todo = pts.slice(Math.max(0, nx - 1));
@@ -204,7 +217,7 @@ function mapDraw(cv, E, el, b) {
   // FAI triangle assistant: sectors redraw when the start or the farthest point moves (~100 m); the dashed legs to you follow every fix
   { const fs = S.fai ? faiState() : null, ok = fs && fs.B && fs.c >= 500, k = ok ? [fs.A.lat, fs.A.lon, fs.B.lat, fs.B.lon].map((v) => v.toFixed(3)).join(',') : 'off';
     if (I.k.fai !== k) { I.k.fai = k; I.g.fai.clearLayers(); if (ok) faiDrawInto(I.g.fai, fs); }
-    if (ok && f) I.faiLive.setLatLngs([[fs.B.lat, fs.B.lon], [f.lat, f.lon], [fs.A.lat, fs.A.lon]]).addTo(m); else I.faiLive.remove(); }
+    homeLine(I, C, f); }
   ov('air', I.g.air, drawAirInto, 'a' + (st.airVer || 0));
   ov('notam', I.g.notam, drawNotamInto, 'n' + (st.ntVer || 0));
   { const pl = C.places === true || C.places === 'true'; const k = pl ? [st.placesVer, S.poiRadius, C.plAir, C.plTown, C.plVil, C.plPeak, C.plSize, C.plLab, f ? Math.round(f.lat * 100) + ',' + Math.round(f.lon * 100) : ''].join('|') : 'off'; if (I.k.places !== k) { I.k.places = k; I.g.places.clearLayers(); if (pl && f) drawPlacesInto(I.g.places, f, C); } }

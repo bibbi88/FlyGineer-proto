@@ -376,3 +376,5 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .mlist .btn{min-height:64px;justify-content:flex-start;gap:12px;font-size:18px}
 .mlist .btn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 #mapMenu{position:fixed;z-index:2200;background:var(--card)}
+.homeMk{overflow:visible}
+.homeLab{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font:700 13px var(--txt);color:#111418;background:rgba(255,255,255,.9);border:2px solid;border-radius:8px;padding:1px 6px;pointer-events:none}
