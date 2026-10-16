@@ -48,14 +48,14 @@ function renderTop() {
   $('dB').className = 'dot ' + (st.bora ? 'on' : '');
   $('dT').className = 'dot ' + (st.baro?.temp != null ? 'on' : '');
   $('dD').className = 'dot ' + (st.sim || st.replay ? 'on' : '');
-  { const chip = $('modeChip'), show = S.modeChip !== false && S.modeChip !== 'false', cand = !st.thermMode && st.circling && st.manual !== 'off';
+  { const chip = $('modeChip'), show = S.modeChip !== false && S.modeChip !== 'false' && !S.infoWMig, cand = !st.thermMode && st.circling && st.manual !== 'off';
     chip.style.display = show && (st.thermMode || cand) ? 'flex' : 'none'; chip.classList.toggle('cand', !st.thermMode);
     const tx = st.thermMode ? 'THERMAL' : 'THERMAL?'; if (chip.textContent !== tx) chip.textContent = tx;
     chip.setAttribute('aria-label', st.thermMode ? 'Thermal mode on. Tap to open the thermal page, hold to leave thermal mode' : 'Circling detected. Tap to start thermal mode'); }
 }
 function renderWarn() {
   const s = airStatus(), w = $('warnBar');
-  if (S.warnBar === false || S.warnBar === 'false') { w.style.display = 'none'; return; }
+  if (S.warnBar === false || S.warnBar === 'false' || S.infoWMig) { w.style.display = 'none'; return; } // now the Airspace warning widget
   const hit = s.find((x) => x.inside && x.vert === 'in') || s.find((x) => x.d < (+S.warnDist || 2000) && x.vert === 'in') || s.find((x) => x.inside && x.vert === 'below' && x.lo - x.alt < 150);
   if (!hit) { w.style.display = 'none'; return; }
   w.style.display = 'block';
@@ -747,7 +747,7 @@ function renderWidgets() {
       if (wl.children[1].textContent !== (el._sub || '')) wl.children[1].textContent = el._sub || '';
       return;
     }
-    const d = wData(E, b); const lab = esc(E.cfg.label || d.l || '');
+    const d = wData(E, b); const lab = esc(E.cfg.label || d.l || ''); el.classList.toggle('void', !!d.hide && !wEdit); // nothing to show (warning, thermal mode chip): invisible and lets taps through
     const mul = E.cfg.size === 'auto' || !E.cfg.size ? 1 : +E.cfg.size;
     // small boxes (phones, tight layouts): the value gets the room first; the sub line goes below ~70 px, the title below ~48 px (kept while editing)
     const noSub = !d.html && b.h < 70, showT = showL && (wEdit || d.html || b.h >= 48); if (noSub) d.s = '';
@@ -916,7 +916,7 @@ function renderSettings() {
     <div class="muted">Finland (XContest): the export you downloaded from airspace.xcontest.org (send a new one to update it). The others are the national files XCSoar offers (OpenAIP data), refreshed automatically. The app checks for newer files when it starts with internet and keeps the last ones for offline use.</div>` : ''}
     <div class="field"><span class="k">Show</span><span class="row" style="flex-wrap:wrap">${AIR_KINDS.map(([k, n]) => `<button class="pill" data-airt="${k}" aria-pressed="${(S.airTypes || AIR_KIND_DEF).includes(k)}">${n} <span class="muted">${st.airspaces.filter((a) => airKind(a) === k).length}</span></button>`).join('')}</span></div>
     ${numField('airMaxAlt', +S.airMaxAlt > 0 ? '≈ FL' + Math.round(S.airMaxAlt / 30.48) : 'showing all')}
-    ${seg('warnBar', [[true, 'Show'], [false, 'Hide']], 'Warning bar on the Map page')}
+    <div class="muted">The warning bar is a widget: Airspace warning (edit a page → Add widget). The distance below is its default and is used by the Airspace button and voice.</div>
     ${numField('warnDist')}
     <div class="field"><span class="k">Loaded</span><b>${airShown().length} shown of ${st.airspaces.length} airspaces</b>${st.airspaces.length ? '<button class="btn" id="oaClear">Clear</button>' : ''}</div>
     <h2 style="margin-top:8px">My own airspace</h2>
@@ -971,7 +971,7 @@ function renderSettings() {
     ${numField('rateT', '0 = same')}
     ${seg('thermPage', [['off', 'Stay'], ['pThermal', 'Thermal'], ['pMap', 'Map'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']].concat(S.pages.map((p) => [p.id, p.name])), 'Show page when thermaling')}
     ${seg('thermBack', [[true, 'Yes'], [false, 'No']], 'Go back when gliding again')}
-    ${seg('modeChip', [[true, 'Show'], [false, 'Hide']], 'THERMAL / THERMAL? button in the corner')}
+    <div class="muted">THERMAL / THERMAL? is a widget: Thermal mode (edit a page → Add widget).</div>
     <div class="field"><span class="k">Try it now</span><button class="btn ${st.force ? 'warn' : ''}" id="modeTest">${st.force ? 'Stop test' : 'Test thermal mode'}</button><b>${st.thermMode ? 'Thermal mode is ON' : 'Normal mode'}</b></div>
     <div class="muted">The corner button shows <b>THERMAL?</b> when circling is seen (tap to start thermal mode now) and <b>THERMAL</b> while it's on (tap for the thermal page, tap again to go back, hold to leave thermal mode). Any widget can be shown only while thermalling or only after it stopped, and the <b>Button</b> widget can switch mode or page. Each widget can have its own settings while thermaling: long-press a widget, then open the <b>When thermaling</b> tab. For example a closer, north-up map and a shorter vario average.</div></div>`;
   if (setSec === 'backup') h = `<div class="card sec"><h2>Export and import</h2>

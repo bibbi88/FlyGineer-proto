@@ -349,3 +349,12 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .emptyHint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-size:18px;color:var(--muted,#667085);pointer-events:none}
 .emptyHint b{font-size:26px;color:var(--ink)}
 .emptyHint button{pointer-events:auto;min-height:56px;font-size:18px}
+.wg.void{visibility:hidden;pointer-events:none}
+.awBox{flex:1;align-self:center;max-width:100%;min-height:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:2px 10px;border-radius:10px;font-size:15px;line-height:1.2;overflow:hidden}
+.awBox.warn{background:var(--warnbg);border:2px solid var(--warn);color:var(--ink)}
+.awBox.red{background:var(--restr);border:2px solid var(--restr);color:#fff}
+.tcBox{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;border-radius:12px;border:2px solid var(--tc);font-weight:700;letter-spacing:.06em;white-space:nowrap;overflow:hidden}
+.tcBox.on{background:var(--tc);color:#fff}
+.tcBox.cand{background:var(--card);color:var(--tc)}
+.tcBox.idle{background:var(--card);color:var(--muted);border-color:var(--line)}
+.wg[data-type="airwarn"],.wg[data-type="thchip"]{padding:2px}

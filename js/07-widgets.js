@@ -34,6 +34,8 @@ const WT = {
   climb: { n: 'Climb history', d: 'Climb and sink bars over time; time span and scale settable', w: 6, h: 3, canvas: true, o: [['time', 'Time shown', numOpt(10, 3600, 10, 's', [60, 120, 300, 600], { def: 120, hint: 'seconds back' })], ['scale', 'Scale (top of the bars)', numOpt(0.5, 20, 0.5, 'm/s', [3, 5, 8], { def: 5, snap: 0.5, hint: 'sink shown down to 60 %' })]] },
   cloud: { n: 'Cloud base & top', d: 'From the forecast', w: 4, h: 2, o: [['units', 'Units', U_A]] },
   place: { n: 'Nearest place', d: 'For radio calls', w: 6, h: 2, o: [['kind', 'Places', [['any', 'All'], ['start', 'Start only'], ['town', 'Towns'], ['airport', 'Airports']]]] },
+  airwarn: { n: 'Airspace warning', d: 'Shows only when needed: inside an airspace, one close at your height, or just under its floor', w: 10, h: 1, def: { showLabel: false, bg: 0, size: 'auto' }, o: [['inside', 'Warn when inside', [[true, 'Yes'], [false, 'No']]], ['near', 'Warn when closer than', numOpt(0, 10000, 100, 'm', [1000, 2000, 5000], { zero: 'App setting', hint: '0 = Settings → Airspace data', def: 0 })], ['under', 'Warn when under the floor by less than', numOpt(0, 1000, 10, 'm', [0, 150, 300], { zero: 'Off', hint: '0 = off', def: 150 })], ['lims', 'Show limits', [[true, 'Show'], [false, 'Hide']]], ['look', 'Look', [['warn', 'Orange frame'], ['solid', 'Red when inside'], ['plain', 'Plain']]], ['idle', 'When nothing to warn about', [['hide', 'Hide'], ['show', 'Show “No airspace warning”']]]] },
+  thchip: { n: 'Thermal mode', d: 'THERMAL? when circling is detected (tap to start thermal mode), THERMAL while thermalling (tap: thermal page, hold: leave)', w: 3, h: 1, def: { showLabel: false, bg: 0, size: 'auto' }, o: [['cand', 'Show THERMAL? when circling', [[true, 'Show'], [false, 'Hide']]], ['active', 'Show THERMAL while thermalling', [[true, 'Show'], [false, 'Hide']]], ['idle', 'When gliding', [['hide', 'Hide'], ['show', 'Show GLIDE']]], ['tCand', 'Text when circling', 'TEXT'], ['tOn', 'Text while thermalling', 'TEXT'], ['color', 'Colour', [['orange', 'Orange'], ['blue', 'Blue'], ['dark', 'Dark']]]] },
   air: { n: 'Airspace status', d: 'Nearest airspace', w: 6, h: 2, o: [] },
   airbtn: { n: 'Airspace button', d: 'Compact icon: airspaces near you; tap for the list with radio frequencies', w: 3, h: 2, def: { showLabel: false }, o: [['look', 'Shows', [['count', 'Icon + count'], ['icon', 'Icon only'], ['name', 'Icon + nearest']]], ['radius', 'Nearby within', numOpt(1, 50, 1, 'km', [5, 10, 20], { def: 20 })], ['rows', 'Airspaces in the list', numOpt(3, 50, 1, '', [10, 20, 30], { def: 25 })], ['band', 'List', [['all', 'All nearby'], ['height', 'Only at my height or above me']]], ['radio', 'Radio frequencies', [[true, 'Show'], [false, 'Hide']]]] },
   map: { n: 'Map', d: 'Moving map: track, task, airspace', w: 24, h: 16, canvas: true, def: { layer: S.layer || 'topo', rot: S.rotDefault || 'north', smooth: 'normal', z: 12, follow: true, ret: 0, track: 'plain', trackMin: 15, heading: true, start: true, task: true, air: true, notam: true, places: false, traffic: false, trafficR: 25, trafficA: 1500, gsize: 1, ctl: true, bg: 0, showLabel: false, tap: 'none' }, o: [['layer', 'Map style', [['topo', 'Topo'], ['sat', 'Satellite'], ['light', 'Airspace'], ['night', 'Night'], ['streets', 'Streets']]], ['rot', 'Orientation', [['north', 'North up'], ['track', 'Track up'], ['bearing', 'Bearing up']]], ['smooth', 'Rotation smoothing', [['off', 'Off'], ['low', 'Low'], ['normal', 'Normal'], ['strong', 'Strong']]], ['z', 'Zoom', [[10, 'Wide'], [12, 'Normal'], [13, 'Close'], [14, 'Near'], [15, 'Closer'], [16, 'Very close']]], ['follow', 'Follow me', [[true, 'On'], [false, 'Off']]], ['ret', 'Back to me after panning', numOpt(0, 600, 5, 's', [0, 10, 30, 60], { zero: 'Never', hint: '0 = never', def: 0 })], ['track', 'Track line', [['plain', 'Plain'], ['lift', 'Lift colours'], ['off', 'Hide']]], ['trackMin', 'Track length', numOpt(0, 600, 5, 'min', [5, 15, 60, 0], { zero: 'Whole flight', hint: '0 = whole flight', def: 15 })], ['heading', 'Heading line and landing dots', [[true, 'Show'], [false, 'Hide']]], ['start', 'Start flag', [[true, 'Show'], [false, 'Hide']]], ['task', 'Task', [[true, 'Show'], [false, 'Hide']]], ['taskCol', 'Task colour', [['yellow', 'Yellow'], ['orange', 'Orange'], ['magenta', 'Magenta'], ['green', 'Green'], ['blue', 'Blue'], ['black', 'Black'], ['white', 'White']]], ['taskStyle', 'Task line', [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]], ['taskW', 'Task line thickness', numOpt(1, 16, 1, 'px', [3, 5, 8], { def: 5 })], ['towp', 'Line from you to the next turnpoint', [[true, 'Show'], [false, 'Hide']]], ['towpCol', 'Next turnpoint line colour', [['same', 'As task']].concat([['yellow', 'Yellow'], ['orange', 'Orange'], ['magenta', 'Magenta'], ['green', 'Green'], ['blue', 'Blue'], ['black', 'Black'], ['white', 'White']])], ['towpStyle', 'Next turnpoint line', [['dashed', 'Dashed'], ['solid', 'Solid'], ['dotted', 'Dotted']]], ['towpW', 'Next turnpoint line thickness', numOpt(1, 16, 1, 'px', [2, 4, 6], { def: 4 })], ['air', 'Airspace', [[true, 'Show'], [false, 'Hide']]], ['notam', 'NOTAM areas', [[true, 'Show'], [false, 'Hide']]], ['places', 'Place names', [[false, 'Hide'], [true, 'Show']]], ['traffic', 'Air traffic (ADS-B)', [[false, 'Hide'], [true, 'Show']]], ['trafficR', 'Traffic range', numOpt(5, 100, 5, 'km', [], { def: 25 })], ['trafficA', 'Traffic height band ±', numOpt(0, 5000, 100, 'm', [], { zero: 'All heights', hint: '0 = all heights', def: 1500 })], ['gsize', 'Glider icon', [[0.8, 'Small'], [1, 'Normal'], [1.35, 'Large']]], ['ctl', 'On-map buttons', [[true, 'Show'], [false, 'Hide']]], ['ptr', 'Pointer when you move the map', [[true, 'Show'], [false, 'Hide']]], ['windA', 'Wind arrow at you', [[true, 'Show'], [false, 'Hide']]], ['windAShape', 'Wind arrow shape', [['arrow', 'Arrow'], ['chevron', 'Chevron'], ['tail', 'Arrow with tail']]], ['windAS', 'Wind arrow size', numOpt(10, 80, 2, 'px', [16, 22, 32], { def: 22 })], ['windAD', 'Wind arrow distance from you', numOpt(0, 160, 2, 'px', [0, 46, 80], { def: 46 })], ['windAC', 'Wind arrow colour', [['blue', 'Blue'], ['cyan', 'Cyan'], ['white', 'White'], ['black', 'Black'], ['orange', 'Orange'], ['magenta', 'Magenta'], ['green', 'Green']]], ['windAO', 'Wind arrow opacity', numOpt(20, 100, 10, '%', [50, 80, 100], { def: 100 })], ['windAT', 'Wind arrow label', [['spd', 'Speed'], ['spddir', 'Speed, unit and direction'], ['none', 'None']]]] },
@@ -64,10 +66,10 @@ const WT = {
 };
 // airplane seen from above, nose up (Airspace button)
 const PLANE_PATH = '<path d="M16 2.5c1.3 0 2.2 1.2 2.2 2.8v7.2l10.3 6.2v3l-10.3-3.1v6.1l3.3 2.5v2.3L16 28.3l-5.5 1.2v-2.3l3.3-2.5v-6.1L3.5 21.7v-3l10.3-6.2V5.3c0-1.6.9-2.8 2.2-2.8z" fill="currentColor"/>';
-const TAPG = [['Info', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
 // when held: info is shown only while you hold; actions run once
-const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio']]], ['Action', [['pages', 'Page menu'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
+const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio']]], ['Action', [['pages', 'Page menu'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
 const HOLD = HOLDG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling'], ['tow', 'Towing and after release']];
 const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
@@ -91,7 +93,9 @@ const DEFS = {
     ['vario', 9, 48, 15, 16, { size: 1.15, showLabel: false, win: 0.6, mode: 'dial', barDir: 'v', range: 5 }],
     ['alt', 87, 13, 9, 7, { units: '', label: 'AMSL [m]' }],
     ['alt', 2, 32, 9, 7, { units: 'ft', label: 'AMSL [ft]' }],
-    ['compass', 73, 49, 14, 15]
+    ['compass', 73, 49, 14, 15],
+    ['thchip', 64, 0, 7, 4],
+    ['airwarn', 24, 1, 40, 4]
   ],
   thermal: [
     ['ta', 0, 0, 40, 46, { bg: 85, orient: 'wind', hist: 30, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1.96 }],
@@ -109,7 +113,8 @@ const DEFS = {
     ['climb', 59, 46, 20, 8],
     ['turn', 16, 46, 16, 18],
     ['thead', 67, 1, 19, 45, { hist: 600, ahead: 1000, hold: false }],
-    ['theat', 32, 46, 18, 18, { bg: 100, orient: 'wind', hist: 90, depth: 70, blur: 25, range: 150, zoom: 1, colors: 'fixed' }]
+    ['theat', 32, 46, 18, 18, { bg: 100, orient: 'wind', hist: 90, depth: 70, blur: 25, range: 150, zoom: 1, colors: 'fixed' }],
+    ['thchip', 64, 0, 7, 4]
   ],
   atmos: [
     ['profile', 0, 0, 44, 64],
@@ -119,7 +124,8 @@ const DEFS = {
     ['cbase', 44, 12, 24, 16],
     ['ttop', 68, 12, 28, 16],
     ['outlook', 44, 28, 52, 20],
-    ['trigger', 44, 48, 52, 12]
+    ['trigger', 44, 48, 52, 12],
+    ['thchip', 64, 0, 7, 4]
   ],
   air: [
     ['asside', 0, 0, 52, 20, { range: 20 }],
@@ -127,7 +133,8 @@ const DEFS = {
     ['asmap', 0, 40, 52, 24, { map: 'light', radius: 0 }],
     ['places', 52, 0, 44, 28],
     ['radio', 52, 28, 44, 16],
-    ['notams', 52, 44, 44, 20, { radius: 50 }]
+    ['notams', 52, 44, 44, 20, { radius: 50 }],
+    ['thchip', 64, 0, 7, 4]
   ]
 };
 const PAGEKEY = { pMap: 'map', pThermal: 'thermal', pAtmos: 'atmos', pAir: 'air' };
@@ -158,10 +165,13 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only
-  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true });
+  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true });
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};
   if (old && !S.layouts.map) { const k = GSC / (S.layoutGrid || 1); S.layouts.map = old.map((W) => Object.assign({}, W, { x: Math.round(W.x * k), y: Math.round(W.y * k), w: Math.round(W.w * k), h: Math.round(W.h * k) })); }
   Object.keys(LAYERID).forEach((pk) => { if (!Array.isArray(S.layouts[pk]) || !S.layouts[pk].length) S.layouts[pk] = defLayout(pk); S.layouts[pk] = S.layouts[pk].filter((W) => WT[W.type]); });
+  // the airspace warning bar and the THERMAL? corner chip became widgets (2026-10-16): put them where they were, once
+  if (!S.infoWMig) { S.infoWMig = true; const on = (v) => v !== false && v !== 'false';
+    Object.keys(LAYERID).forEach((pk) => { const L = S.layouts[pk]; if (on(S.modeChip) && !L.some((W) => W.type === 'thchip')) L.push(newW('thchip', 64, 0, 7, 4)); if (pk === 'map' && on(S.warnBar) && !L.some((W) => W.type === 'airwarn')) L.push(newW('airwarn', 24, 1, 40, 4)); }); }
   if (!S.mapMigrated) { if (!S.layouts.map.some((W) => W.type === 'map')) S.layouts.map.unshift(newW('map', 0, 0, GC, GR)); S.mapMigrated = true; }
   if (!S.navBtnMig) {
     S.navBtnMig = true;
@@ -231,6 +241,23 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
     case 'glide': { const p = st.pred; return { html: `<div class="ws" style="font-size:14px;color:var(--ink)">● <b>L/D ${p.ldNow ? p.ldNow.toFixed(1) : '--'} now</b> → ${p.now ? fDist(p.now[2]) : '--'}</div><div class="ws" style="font-size:14px;color:var(--ink)">○ <b>L/D ${S.wingLD} wing</b> → ${p.wing ? fDist(p.wing[2]) : st.groundElev == null ? 'needs terrain' : '--'}</div>`, l: 'Landing prediction' }; }
     case 'cloud': { const fc = st.forecast; if (!fc) return { l: 'Cloud base', u: AU, v: '--', s: 'load forecast on Atmosphere' }; const cb = fc.elev + 125 * (fc.T - fc.Td), top = thermalTop(); return { l: 'Cloud base', u: AU, v: A(cb), s: 'thermal top ' + (top ? A(top) : '--') }; }
     case 'place': { if (!f) return { l: 'Nearest place', v: '--' }; const spl = startPlace(); const L0 = c.kind === 'start' ? (spl ? [spl] : []) : st.places.concat(c.kind === 'any' || !c.kind ? (spl ? [spl] : []) : []).filter((p) => c.kind === 'airport' ? p.kind === 'airport' : c.kind === 'town' ? p.kind === 'town' : p.kind !== 'peak'); let b = null, bd = 1e12; L0.forEach((p) => { const d = dist(f.lat, f.lon, p.lat, p.lon); if (d < bd) { bd = d; b = p; } }); return b ? { l: c.kind === 'start' ? 'Start' : 'Nearest place', u: '', v: fDist(bd), s: `${compass(brg(b.lat, b.lon, f.lat, f.lon))} of ${b.name}` } : { l: 'Nearest place', v: '--', s: 'loading places…' }; }
+    case 'airwarn': {
+      const near = +c.near || +S.warnDist || 2000, under = c.under ?? 150, s = airStatus(), yes = (v) => v !== false && v !== 'false';
+      const hit = (yes(c.inside) && s.find((x) => x.inside && x.vert === 'in')) || s.find((x) => x.d < near && x.vert === 'in') || (+under > 0 && s.find((x) => x.inside && x.vert === 'below' && x.lo - x.alt < +under));
+      const lim = (a) => (yes(c.lims) ? ` · ${fmtLim(a.lo)} – ${fmtLim(a.hi)}` : '');
+      const box = (inner, kind) => { const look = c.look || 'warn', red = look === 'solid' && kind === 'in'; return `<div class="awBox ${look === 'plain' ? '' : red ? 'red' : 'warn'}">${inner}</div>`; };
+      if (!hit) return { l: 'Airspace warning', hide: c.idle !== 'show', html: box(wEdit && c.idle !== 'show' ? '<span class="muted">Airspace warning · shows when needed</span>' : '<span>No airspace warning</span>', 'none') };
+      const html = hit.inside && hit.vert === 'in' ? `<b>Inside ${esc(hit.a.name)}</b>${lim(hit.a)}` : hit.inside ? `<b>${fAlt(hit.lo - hit.alt)} ${S.uAlt} below ${esc(hit.a.name)}</b> floor` : `<b>${esc(hit.a.name)} in ${fDist(hit.d)}</b>${lim(hit.a)}`;
+      return { l: 'Airspace warning', html: box(`<span>${html}</span>`, hit.inside && hit.vert === 'in' ? 'in' : 'near') };
+    }
+    case 'thchip': {
+      const yes = (v) => v !== false && v !== 'false', cand = !st.thermMode && st.circling && st.manual !== 'off';
+      const mode = st.thermMode ? (yes(c.active) ? 'on' : '') : cand && yes(c.cand) ? 'cand' : '', col = { orange: 'var(--climb)', blue: 'var(--sink)', dark: 'var(--ink)' }[c.color] || 'var(--climb)';
+      const txt = mode === 'on' ? c.tOn || 'THERMAL' : mode === 'cand' ? c.tCand || 'THERMAL?' : 'GLIDE';
+      const fs = Math.round(clamp(Math.min(curBox.h * 0.42, (curBox.w - 24) / Math.max(4, txt.length * 0.8)), 10, 40) * (+c.size || 1));
+      const html = `<div class="tcBox ${mode || 'idle'}" style="--tc:${col};font-size:${fs}px">${esc(wEdit && !mode && c.idle !== 'show' ? 'THERMAL?' : txt)}</div>`;
+      return { l: 'Thermal mode', hide: !mode && c.idle !== 'show', html };
+    }
     case 'airbtn': {
       const R = (+c.radius || 20) * 1000, s = airStatus().filter((x) => x.d <= R), inn = s.filter((x) => x.inside && x.vert === 'in'), warn = !inn.length && s.find((x) => x.d < (+S.warnDist || 2000) && x.vert === 'in');
       const look = c.look || 'count', bw = curBox.w, bh = curBox.h, ic = Math.round(Math.max(22, Math.min(look === 'icon' ? bh - 14 : bh - 18, look === 'icon' ? bw - 16 : bw * 0.42, 72)));
@@ -364,7 +391,7 @@ function tapRow(key, name, cur, G) {
 }
 function optRow(key, name, opts, cur) { if (key === 'tap') return tapRow(key, name, cur, TAPG); if (key === 'hold') return tapRow(key, name, cur, HOLDG);
   if (opts === 'INFO') { const sel = Array.isArray(cur) && cur.length ? cur : ['heights']; return `<div class="opt"><span class="lbl">${name} · tap to add or remove</span><div class="row">${INFO_KEYS().map(([k, n]) => `<button class="pill" data-info="${k}" aria-pressed="${sel.includes(k)}">${esc(n)}</button>`).join('')}</div></div>`; }
-  if (opts === 'TEXT') return `<div class="opt"><label class="lbl" for="wsInfoText">${name}</label><input type="text" id="wsInfoText" value="${esc(cur || '')}" placeholder="Optional text shown on top, e.g. radio channel"></div>`; if (!Array.isArray(opts)) return numRow(key, name, opts, cur); return `<div class="opt"><span class="lbl">${name}</span><div class="row">${opts.map(([v, n]) => `<button class="pill" data-ok="${key}" data-ov="${v}" aria-pressed="${String(cur) === String(v)}">${n}</button>`).join('')}</div></div>`; }
+  if (opts === 'TEXT') return `<div class="opt"><label class="lbl" for="wsT_${key}">${name}</label><input type="text" id="${key === 'infoText' ? 'wsInfoText' : 'wsT_' + key}" data-txt="${key}" value="${esc(cur || '')}" placeholder="${key === 'infoText' ? 'Optional text shown on top, e.g. radio channel' : 'Leave empty for the default'}"></div>`; if (!Array.isArray(opts)) return numRow(key, name, opts, cur); return `<div class="opt"><span class="lbl">${name}</span><div class="row">${opts.map(([v, n]) => `<button class="pill" data-ok="${key}" data-ov="${v}" aria-pressed="${String(cur) === String(v)}">${n}</button>`).join('')}</div></div>`; }
 let sheetMode = 'normal', sheetFor = null;
 function sheetSide(W) { const side = S.sheetSide || ((W.x + W.w / 2) / GC > 0.5 ? 'left' : 'right'); $('wSheet').classList.toggle('left', side === 'left'); }
 function closeSheet() { $('wSheet').classList.remove('on'); wSel = null; if (st.force && st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } sheetFor = null; renderWidgets(); }
@@ -372,7 +399,7 @@ function openSheet(id) {
   const W = S.layout.find((x) => x.id === id); if (!W) return; if (sheetFor !== id) { sheetMode = 'normal'; sheetFor = id; if (st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } } wSel = id; const T = WT[W.type];
   const tm = sheetMode === 'thermal', hasT = !!W.cfgT, D = tm && hasT ? W.cfgT : W.cfg;
   const read = (k, d) => { const v = tm && hasT && W.cfgT[k] !== undefined ? W.cfgT[k] : W.cfg[k]; return v ?? d; };
-  const dflt = (k, o) => (T.def && T.def[k] !== undefined ? T.def[k] : k === 'tap' ? defTap(W) : k === 'hold' ? defHold(W) : k === 'infoItems' ? ['heights'] : k === 'infoText' ? '' : Array.isArray(o) ? o[0][0] : o.def ?? o.presets[0]);
+  const dflt = (k, o) => (T.def && T.def[k] !== undefined ? T.def[k] : k === 'tap' ? defTap(W) : k === 'hold' ? defHold(W) : k === 'infoItems' ? ['heights'] : k === 'infoText' || o === 'TEXT' ? '' : Array.isArray(o) ? o[0][0] : o.def ?? o.presets[0]);
   const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay' || k === 'towKeep')) && !(k === 'towKeep' && W.cfg.vis !== 'tow') && !((k === 'infoItems' || k === 'infoText') && read('tap', defTap(W)) !== 'custom' && read('hold', defHold(W)) !== 'custom') && !(!tm && k === 'showLabel') && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
   const typeOpts = Object.entries(WT).map(([k, t]) => `<option value="${k}" ${k === W.type ? 'selected' : ''}>${t.n}</option>`).join('');
   const tabs = `<div class="row"><button class="pill grow" data-sm="normal" aria-pressed="${!tm}">Normal${hasT && !tm ? ' •' : ''}</button><button class="pill grow" data-sm="thermal" aria-pressed="${tm}">When thermaling${hasT ? ' •' : ''}</button></div>`;
@@ -404,22 +431,22 @@ function openSheet(id) {
   q('[data-ns]', (b) => (b.onclick = () => { const k = b.dataset.ns, sp = spec(k), c = D[k] ?? W.cfg[k] ?? dflt(k, sp), base = typeof c === 'number' ? c : sp.def ?? sp.min; D[k] = snapNum(sp, base + (+b.dataset.dir) * sp.step); saveLayout(); openSheet(W.id); }));
   q('[data-ni]', (i) => (i.onchange = () => { const k = i.dataset.ni, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) D[k] = snapNum(spec(k), v); saveLayout(); openSheet(W.id); }));
   q('[data-info]', (b) => (b.onclick = () => { const k = b.dataset.info, cur = Array.isArray(D.infoItems) ? D.infoItems.slice() : (Array.isArray(W.cfg.infoItems) ? W.cfg.infoItems.slice() : ['heights']); const i = cur.indexOf(k); if (i >= 0) cur.splice(i, 1); else cur.push(k); D.infoItems = cur; saveLayout(); openSheet(W.id); }));
-  if ($('wsInfoText')) $('wsInfoText').oninput = (e) => { D.infoText = e.target.value.slice(0, 120); saveLayout(); };
+  q('[data-txt]', (e) => (e.oninput = () => { D[e.dataset.txt] = e.value.slice(0, 120); saveLayout(); }));
   q('[data-ok]', (b) => (b.onclick = () => { const raw = b.dataset.ov; D[b.dataset.ok] = raw === 'true' ? true : raw === 'false' ? false : raw !== '' && !isNaN(+raw) ? +raw : raw; saveLayout(); openSheet(W.id); }));
   q('[data-wsz]', (b) => (b.onclick = () => { const k = b.dataset.wsz; if (k === 'w+') W.w = Math.min(GC - W.x, W.w + 2); if (k === 'w-') W.w = Math.max(6, W.w - 2); if (k === 'h+') W.h = Math.min(GR - W.y, W.h + 2); if (k === 'h-') W.h = Math.max(4, W.h - 2); saveLayout(); openSheet(W.id); }));
   q('[data-wsi]', (i) => (i.onchange = () => { const k = i.dataset.wsi, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) { const n = Math.round(v * GSC / 2) * 2; if (k === 'w') W.w = clamp(n, 6, GC - W.x); else W.h = clamp(n, 4, GR - W.y); } saveLayout(); openSheet(W.id); }));
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
 const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'] };
-const ADD_NEW = ['tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
+const ADD_NEW = ['thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
-  ['Thermal', ['ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
+  ['Thermal', ['thchip', 'ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
   ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'tow', 'temp']],
   ['Speed, wind & glide', ['gs', 'trk', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
   ['Map & task', ['map', 'next', 'dist', 'fai', 'button:fai', 'button:copyTask']],
   ['Buttons', ['button:pSwitch', 'button:fullscreen', 'button']],
   ['Weather', ['profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],
-  ['Airspace & places', ['air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],
+  ['Airspace & places', ['airwarn', 'airbtn', 'air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],
   ['Flight & tablet', ['flight', 'time', 'battery']]];
 function openAdd() {
   const btn = (k, n, d, g) => `<button data-add="${k}" data-q="${esc((n + ' ' + d).toLowerCase())}">${ADD_NEW.includes(k) ? '<span class="newTag">New</span>' : ''}${n}<small>${d}</small></button>`, seen = new Set();

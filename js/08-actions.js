@@ -1,8 +1,8 @@
 'use strict';
 /* ================= widget tap actions & detail popups ================= */
 // default "When held": the page button opens the page menu, height widgets show heights in feet, maps and buttons nothing, other widgets their details
-function defHold(W) { return W.type === 'airbtn' ? 'airlist' : W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' ? 'none' : 'details'; }
-function defTap(W) { return W.type === 'airbtn' ? 'airlist' : W.type === 'time' ? 'time' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
+function defHold(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'thoff' : W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' ? 'none' : 'details'; }
+function defTap(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'chip' : W.type === 'time' ? 'time' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
 let detT = null, detState = null;
 function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); } catch (e) { toast('Full screen not available here'); } }
 document.addEventListener('fullscreenchange', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
@@ -48,6 +48,8 @@ function handleTap(W) {
   if (a === 'fullscreen') return toggleFull();
   if (a === 'fai') return runAction('fai');
   if (a === 'heights') return openHeights();
+  if (a === 'chip') return chipTap();
+  if (a === 'thoff') { if (st.thermMode) leaveThermal(); return; }
   if (a === 'airlist') return openInfo('Airspace near you', () => airListHTML(W), W);
   if (a === 'custom') return openInfo(effCfg(W).label || 'Info', () => infoHTML(W));
   // height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
@@ -59,7 +61,7 @@ function handleTap(W) {
 }
 const GROUP = { vario: 'vario', avg: 'vario', varioDial: 'vario', thermal: 'vario', gain: 'vario', ttime: 'vario', climb: 'vario', ta: 'vario',
   alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', fai: 'task', dist: 'task',
-  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
+  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
 function closeDetails() { clearInterval(detT); detT = null; detState = null; $('dlg').style.display = 'none'; }
 function openDetails(W, range) {
   detState = { W, range: range ?? detState?.range ?? 600 };
@@ -415,6 +417,8 @@ function runHold(W, a) {
   if (a === 'time') { holdPop(true, timeHTML); return 'pop'; }
   if (a === 'details') { if (W.type === 'button') return null; openDetails(W); return 'dlg'; }
   if (a === 'pages') { pageMenu(); return null; }
+  if (a === 'chip') { chipTap(); return null; }
+  if (a === 'thoff') { if (st.thermMode) leaveThermal(); return null; }
   if (a === 'edit') { enterEdit(W.id); return null; }
   if (a === 'units') { if (['alt', 'agl', 'tow', 'gain'].includes(W.type)) switchUnits(W); return null; }
   if (a === 'sound' || a === 'fullscreen' || a === 'fai' || /^p[A-Z]/.test(a)) { runAction(a === 'sound' ? 'sound' : a); return null; }
