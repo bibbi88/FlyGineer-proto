@@ -9,7 +9,7 @@ function tick() {
   const now = Date.now();
   if (now - lastSlow > 5000) {
     lastSlow = now; updateGround(); updatePrediction(); const ty = allTypes();
-    if (ty.has('place') || ty.has('places') || ty.has('asmap')) loadPlaces();
+    if (ty.has('place') || ty.has('places') || ty.has('asmap') || Object.values(S.layouts).some((L0) => L0.some((W) => W.type === 'map' && (W.cfg.places === true || W.cfg.places === 'true')))) loadPlaces();
     if (['cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'profile'].some((t) => ty.has(t)) && !st.forecast && st.fix && !st.fcLoading && now - (st.fcTry || 0) > 60000) { st.fcTry = now; loadForecast(); }
     if (ty.has('notams') && !NOTAMS.length && now - (st.ntTry || 0) > 300000) { st.ntTry = now; loadNotams(); }
   }

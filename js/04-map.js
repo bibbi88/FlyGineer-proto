@@ -58,7 +58,19 @@ function drawTaskInto(g, C) {
 }
 function drawAirInto(g) { airShown().forEach((a) => L.polygon(a.poly, { color: airColor(a), weight: 2, fillOpacity: 0.08 }).bindTooltip(`${esc(a.name)} · ${fmtLim(a.lo)} – ${fmtLim(a.hi)}`).addTo(g)); }
 function drawNotamInto(g) { NOTAMS.filter((n) => n.geo && ntState(n) !== 'over').forEach((n) => { const o = { color: '#9A3D06', weight: 2, dashArray: '6 4', fillOpacity: 0.08 }; const lay = n.geo.poly ? L.polygon(n.geo.poly, o) : n.geo.r > 0 ? L.circle(n.geo.pt, Object.assign({ radius: n.geo.r }, o)) : L.circleMarker(n.geo.pt, { radius: 6, color: '#9A3D06', weight: 2, fillOpacity: 0.3 }); lay.bindTooltip(esc(n.id + ' ' + n.text.slice(0, 60))).addTo(g); }); }
-function drawPlacesInto(g, f) { visiblePlaces().filter((p) => dist(f.lat, f.lon, p.lat, p.lon) <= S.poiRadius * 1000).forEach((p) => { const mk = L.circleMarker([p.lat, p.lon], { radius: p.kind === 'airport' || p.kind === 'start' ? 7 : 5, color: '#fff', weight: 1.5, fillColor: p.kind === 'start' ? '#2E7D4F' : p.kind === 'airport' ? '#5B2FA6' : p.kind === 'peak' ? '#6B4E2E' : '#111418', fillOpacity: 1, interactive: false }).addTo(g); if (p.rank >= 2 || p.kind === 'airport' || p.kind === 'start') mk.bindTooltip(esc(p.name), { permanent: true, direction: 'right', className: 'wpLabel' }); }); }
+// places on the map (Overpass data around you, S.poiRadius): airports as a plane in a purple disc, cities/towns as a square with the name, villages and peaks small; all per map widget options
+function drawPlacesInto(g, f, C) {
+  const on = (v, d) => (v === undefined ? d : v !== false && v !== 'false'), k = { s: 0.8, m: 1, l: 1.35 }[C.plSize] || 1, lab = on(C.plLab, true), R = S.poiRadius * 1000;
+  const want = (p) => p.kind === 'start' ? false : p.kind === 'airport' ? on(C.plAir, true) : p.kind === 'peak' ? on(C.plPeak, false) : p.rank >= 2 ? on(C.plTown, true) : on(C.plVil, false);
+  st.places.filter((p) => want(p) && dist(f.lat, f.lon, p.lat, p.lon) <= R).forEach((p) => {
+    const ap = p.kind === 'airport', pk = p.kind === 'peak', sz = Math.round((ap ? 26 : p.rank >= 3 ? 14 : p.rank === 2 ? 11 : 8) * k), fs = Math.round((ap ? 13 : p.rank >= 3 ? 15 : p.rank === 2 ? 13 : 11) * k);
+    const dot = ap ? `<svg width="${sz}" height="${sz}" viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#5B2FA6" stroke="#fff" stroke-width="2"/><g transform="translate(5 5) scale(.69)" fill="#fff">${PLANE_PATH.replace('fill="currentColor"', 'fill="#fff"')}</g></svg>`
+      : pk ? `<svg width="${sz + 4}" height="${sz + 4}" viewBox="0 0 12 12"><path d="M6 1L11 11H1Z" fill="#6B4E2E" stroke="#fff" stroke-width="1.2"/></svg>`
+      : `<span class="plSq" style="width:${sz}px;height:${sz}px;${p.rank >= 2 ? '' : 'border-radius:50%;'}"></span>`;
+    const name = lab && (ap || p.rank >= 2 || pk || on(C.plVil, false)) ? `<span class="plName" style="left:${Math.round(sz / 2 + 5)}px;font-size:${fs}px;${p.rank >= 3 ? 'font-weight:800' : ''}">${esc(p.name)}${ap && p.sub ? ` <small>${esc(p.sub)}</small>` : ''}</span>` : '';
+    L.marker([p.lat, p.lon], { icon: L.divIcon({ className: 'plMk', html: `<span class="plDot">${dot}</span>${name}`, iconSize: [0, 0], iconAnchor: [0, 0] }), interactive: false, zIndexOffset: ap ? 300 : p.rank * 50 }).addTo(g);
+  });
+}
 /* ADS-B traffic (adsb.fi open data, personal non-commercial use, attribution required) */
 st.traffic = []; st.trafficAt = 0;
 const HELI_T = /^(R22|R44|R66|EC\d|H\d{2,3}|AS\d|B06|B407|B412|B429|A109|A119|A139|A169|AW\d|S76|S92|S61|MD5|MD6|EH10|NH90|KA\d|BK17|B105|H60|H47|CH47|UH|AH6|MI\d|G2CA|GAZL|LAMA|TIGR|EXEC|SCOU|ALO\d)/i, BIG_T = /^(A3\d\d|A2\d\d|A4\d\d|B7\d\d|B3\d\d|B38|E1\d\d|E2\d\d|E75|CRJ|DH8D|AT7|MD8|MD9|C17|C130|A400|IL76|AN\d)/i;
@@ -177,7 +189,7 @@ function mapDraw(cv, E, el, b) {
     if (ok && f) I.faiLive.setLatLngs([[fs.B.lat, fs.B.lon], [f.lat, f.lon], [fs.A.lat, fs.A.lon]]).addTo(m); else I.faiLive.remove(); }
   ov('air', I.g.air, drawAirInto, 'a' + (st.airVer || 0));
   ov('notam', I.g.notam, drawNotamInto, 'n' + (st.ntVer || 0));
-  { const pl = C.places === true || C.places === 'true'; const k = pl ? [st.placesVer, S.poiRadius, JSON.stringify(S.poiKinds), f ? Math.round(f.lat * 100) + ',' + Math.round(f.lon * 100) : ''].join('|') : 'off'; if (I.k.places !== k) { I.k.places = k; I.g.places.clearLayers(); if (pl && f) drawPlacesInto(I.g.places, f); } }
+  { const pl = C.places === true || C.places === 'true'; const k = pl ? [st.placesVer, S.poiRadius, C.plAir, C.plTown, C.plVil, C.plPeak, C.plSize, C.plLab, f ? Math.round(f.lat * 100) + ',' + Math.round(f.lon * 100) : ''].join('|') : 'off'; if (I.k.places !== k) { I.k.places = k; I.g.places.clearLayers(); if (pl && f) drawPlacesInto(I.g.places, f, C); } }
   { const k = st.replay ? 'r' + st.replayVer : 'off'; if (I.k.rp !== k) { I.k.rp = k; I.replayL.setLatLngs(st.replay ? st.replay.pts.map((p) => [p.lat, p.lon]) : []); } }
   // own track, plain or coloured by lift
   { const tm = C.track || 'plain', len = C.trackMin === undefined ? 15 : +C.trackMin, lg = st.log, k = tm + '|' + len + '|' + lg.length + '|' + (lg.length ? lg[lg.length - 1].t : 0);
