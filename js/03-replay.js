@@ -85,11 +85,16 @@ function startDemoFlight() {
   catch (e) { toast('Demo flight: ' + e.message); }
 }
 function resetFlightState() { st.tows = []; st.towEnd = 0; st.sideAx = null; st.log = []; st.thermals = []; st.winds = []; st.takeoffPos = null; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.thermal = null; st.lastTurn = null; st.ld = null; st.circling = false; st.tempPts = []; st.takeoffT = null; st.gpsV = null; st.fix = null; st.baro = null; }
+// where the replayed flight took off: the first point from which it moves faster than 4 m/s for 5 s (else the first point)
+function replayLaunch(pts) {
+  for (let i = 0, j = 0; i < pts.length; i++) { while (j < pts.length - 1 && pts[j].t - pts[i].t < 5000) j++; const dt = (pts[j].t - pts[i].t) / 1000; if (dt >= 5 && dist(pts[i].lat, pts[i].lon, pts[j].lat, pts[j].lon) / dt > 4) return [pts[i].lat, pts[i].lon, pts[i].alt]; }
+  return [pts[0].lat, pts[0].lon, pts[0].alt];
+}
 function startReplay(igc, name) {
   if (st.sim) stopSim(); stopReplay(true); resetFlightState();
   const pts = igc.pts;
-  st.replay = { pts, i: 0, vt: pts[0].t, speed: 1, playing: true, name, v: 0 };
-  st.takeoffT = pts[0].t; st.autoQ = []; st.modeSince = 0; setTimeout(() => fireEvent('takeoff'), 0);
+  st.replay = { pts, i: 0, vt: pts[0].t, speed: 1, playing: true, name, v: 0, launch: replayLaunch(pts) };
+  st.takeoffT = pts[0].t; st.takeoffPos = st.replay.launch.slice(); // the Start is where the flight took off, also after seeking st.autoQ = []; st.modeSince = 0; setTimeout(() => fireEvent('takeoff'), 0);
   st.replayVer = (st.replayVer || 0) + 1; MAPS.forEach((I) => (I.up = undefined));
   st.replay.timer = setInterval(replayTick, 100);
   $('replayBar').style.display = 'flex'; $('demoBadge').style.display = 'none'; document.body.classList.toggle('replaying', !!st.sim); placeReplayBar();
@@ -119,9 +124,9 @@ function replayTick() {
 }
 function seekReplay(frac) {
   st.autoQ = [];
-  const r = st.replay; if (!r) return; const keep = { pts: r.pts, speed: r.speed, playing: r.playing, timer: r.timer, name: r.name };
+  const r = st.replay; if (!r) return; const keep = { pts: r.pts, speed: r.speed, playing: r.playing, timer: r.timer, name: r.name, launch: r.launch };
   const target = r.pts[0].t + frac * (r.pts[r.pts.length - 1].t - r.pts[0].t);
-  resetFlightState(); Object.assign(r, keep, { i: 0, v: 0, vt: target }); st.takeoffT = r.pts[0].t;
+  resetFlightState(); Object.assign(r, keep, { i: 0, v: 0, vt: target }); st.takeoffT = r.pts[0].t; st.takeoffPos = r.launch ? r.launch.slice() : null;
   // replay the last 2 minutes quickly so wind, thermal and averages rebuild
   while (r.i < r.pts.length && r.pts[r.i].t < target - 120000) r.i++;
   while (r.i < r.pts.length && r.pts[r.i].t <= target) { feedPoint(r.pts[r.i], r.pts[r.i - 1]); r.i++; }

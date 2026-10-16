@@ -165,6 +165,12 @@ function plSide(A) {
   q('plCopy', async () => { const t = 'https://flyxc.app/?p=' + encodeURIComponent(encodePolyline(P)); try { await navigator.clipboard.writeText(t); toast('Route copied as a FlyXC link'); } catch (e) { prompt('Copy the route link', t); } });
   q('plFx', () => window.open('https://flyxc.app/?p=' + encodeURIComponent(encodePolyline(P)), '_blank'));
 }
+// the current task into the planner (button in the task popup, Settings → Task, action pPlanTask)
+function plOpenTask() {
+  plLoad();
+  if (st.task && st.task.pts.length) { const pts = st.task.pts.map((p) => [p.lat, p.lon]); if (JSON.stringify(pts) !== JSON.stringify(PL.pts)) { PL.hist.push(JSON.stringify(PL.pts)); PL.pts = pts; PL.sel = -1; plSave(); } }
+  goPage('pPlan'); if (PL.m) setTimeout(() => { plDraw(); try { if (PL.pts.length) PL.m.fitBounds(PL.pts, { padding: [60, 60] }); } catch (e) { } }, 120);
+}
 function plUseTask() {
   const P = PL.pts, n = P.length; if (n < 2) return; const A = plAnalyse(P), d = new Date(), old = st.task;
   st.task = { name: 'Plan ' + d.getDate() + '.' + (d.getMonth() + 1), len: A.len, pts: P.map((p, i) => ({ lat: p[0], lon: p[1], name: plName(i, n) })) };
