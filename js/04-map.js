@@ -18,6 +18,24 @@ const cfgW = (W) => (st.thermMode && W.cfgT ? W.cfgT : W.cfg);
 const effW = (W) => Object.assign({}, W, { cfg: effCfg(W), W0: W });
 function drawTask() { st.taskVer = (st.taskVer || 0) + 1; }
 const gliderIcon = (k) => L.divIcon({ className: '', html: '<svg viewBox="0 0 40 40" style="width:100%;height:100%;display:block"><g class="glg"><path d="M20 4 L31 34 L20 27 L9 34 Z" fill="#111418" stroke="#fff" stroke-width="2.5"/></g></svg>', iconSize: [40 * k, 40 * k], iconAnchor: [20 * k, 20 * k] });
+/* wind arrow at the pilot: points where the wind blows to, placed on the upwind side (cfg.windA…), upright on screen like the glider */
+const WIND_COL = { blue: '#1E50C8', cyan: '#06B6D4', white: '#FFFFFF', black: '#111418', orange: '#EA7A12', magenta: '#D21CC4', green: '#16A34A' };
+function windMark(I, C, f, mb) {
+  const w = windFromSpd(), show = f && w && w.spd >= 0.3 && C.windA !== false && C.windA !== 'false';
+  if (!show) { if (I.windM) I.windM.remove(); return; }
+  if (!I.windM) I.windM = L.marker([f.lat, f.lon], { icon: L.divIcon({ className: 'windMk', html: '', iconSize: [0, 0], iconAnchor: [0, 0] }), interactive: false, zIndexOffset: 900 });
+  I.windM.setLatLng([f.lat, f.lon]); I.windM.setZIndexOffset(+(C.windAD ?? 46) < 24 ? 1100 : 900); if (!I.m.hasLayer(I.windM)) I.windM.addTo(I.m); // close to you: above the glider
+  const sz = clamp(+C.windAS || 22, 10, 80), d = clamp(+(C.windAD ?? 46), 0, 160), col = WIND_COL[C.windAC] || WIND_COL.blue, op = clamp(+C.windAO || 100, 20, 100) / 100, shape = C.windAShape || 'arrow', lab = C.windAT || 'spd';
+  const ang = Math.round(w.to + mb), txt = lab === 'none' ? '' : fSpd(w.spd) + (lab === 'spddir' ? ' ' + S.uSpd + ' · ' + String(Math.round(w.from) % 360).padStart(3, '0') + '°' : '');
+  const k = [ang, sz, d, col, op, shape, txt].join('|'), el = I.windM.getElement(); if (!el || el._k === k) return; el._k = k;
+  const h = sz, hw = sz * 0.42, halo = col === '#FFFFFF' ? '#111418' : '#FFFFFF';
+  // drawn pointing up (= downwind) with its centre d px below you (= upwind), then turned to the wind
+  const body = shape === 'chevron' ? `<path d="M${-hw} ${d + h * 0.3} L0 ${d - h * 0.3} L${hw} ${d + h * 0.3}" fill="none" stroke="${halo}" stroke-width="${sz * 0.32}" stroke-linecap="round" stroke-linejoin="round"/><path d="M${-hw} ${d + h * 0.3} L0 ${d - h * 0.3} L${hw} ${d + h * 0.3}" fill="none" stroke="${col}" stroke-width="${sz * 0.2}" stroke-linecap="round" stroke-linejoin="round"/>`
+    : shape === 'tail' ? `<path d="M0 ${d + h * 0.9} L0 ${d - h * 0.1}" stroke="${halo}" stroke-width="${sz * 0.26}" stroke-linecap="round"/><path d="M0 ${d + h * 0.9} L0 ${d - h * 0.1}" stroke="${col}" stroke-width="${sz * 0.14}" stroke-linecap="round"/><path d="M${-hw} ${d} L0 ${d - h * 0.55} L${hw} ${d} Z" fill="${col}" stroke="${halo}" stroke-width="2" stroke-linejoin="round"/>`
+    : `<path d="M0 ${d - h / 2} L${hw} ${d + h / 2} L0 ${d + h * 0.25} L${-hw} ${d + h / 2} Z" fill="${col}" stroke="${halo}" stroke-width="2" stroke-linejoin="round"/>`;
+  const R = d + h, a = ang * D2R, lr = d + h * (shape === 'tail' ? 1.05 : 0.75) + Math.abs(Math.sin(a)) * txt.length * 3.8 + Math.abs(Math.cos(a)) * 9, lx = -Math.sin(a) * lr, ly = Math.cos(a) * lr;
+  el.innerHTML = `<svg width="${2 * R + 8}" height="${2 * R + 8}" viewBox="${-R - 4} ${-R - 4} ${2 * R + 8} ${2 * R + 8}" style="position:absolute;left:${-R - 4}px;top:${-R - 4}px;overflow:visible;opacity:${op};pointer-events:none"><g transform="rotate(${ang})">${body}</g></svg>${txt ? `<span class="windMkL${col === '#FFFFFF' ? ' dk' : ''}" style="left:${lx.toFixed(0)}px;top:${ly.toFixed(0)}px;color:${col};opacity:${op}">${esc(txt)}</span>` : ''}`;
+}
 const startIcon = () => L.divIcon({ className: '', html: '<svg width="34" height="40" viewBox="0 0 34 40" style="margin:-38px 0 0 -4px"><path d="M5 38V4" stroke="#111418" stroke-width="3" stroke-linecap="round"/><path d="M6 4h22l-5 6 5 6H6z" fill="#2E7D4F" stroke="#fff" stroke-width="1.5"/><text x="9" y="14" font-size="8" font-weight="700" fill="#fff" font-family="Barlow">START</text></svg>', iconSize: [0, 0] });
 // task on the map: route and the live line to the next turnpoint each have their own colour, line style and thickness
 // (cfg.taskCol/taskStyle/taskW, cfg.towpCol ('same' = task colour)/towpStyle/towpW); a halo in the opposite brightness keeps them readable
@@ -184,7 +202,7 @@ function mapDraw(cv, E, el, b) {
     up = smoothUp(I, rot, tgt, C.smooth || 'normal', rot === 'bearing' ? dist(f.lat, f.lon, wp.lat, wp.lon) : 1e9);
     const want = -up; if (m.setBearing && Math.abs(angDiff(mb, want)) > 0.2) m.setBearing(want); mb = m.getBearing ? m.getBearing() : 0;
     const ge = I.glider.getElement(), gg = ge && ge.querySelector('.glg'); if (gg) gg.setAttribute('transform', `rotate(${(f.trk || 0) + mb} 20 20)`);
-    trafficDraw(I, C, mb, f);
+    trafficDraw(I, C, mb, f); windMark(I, C, f, mb);
     // live line from you to the next turnpoint
     if (wp && on(C.task) && on(C.towp) && !st.goalT) { const T = taskStyle(C, true), seg = [ll, [wp.lat, wp.lon]], k = [T.col, T.w, T.dash].join('|');
       if (I.twk !== k) { I.twk = k; I.toWp.setStyle({ color: T.col, weight: T.w, dashArray: T.dash, lineCap: T.cap === 'round' ? 'round' : 'butt' }); I.toWpH.setStyle({ color: T.halo, weight: T.w + 4, dashArray: T.dash, lineCap: T.cap }); }

@@ -343,3 +343,6 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .mPtrI{position:absolute;left:50%;top:calc(50% + 40px);transform:translateX(-50%);max-width:min(420px,90%);padding:8px 12px;border-radius:12px;background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:0 4px 16px rgba(0,0,0,.3);font-size:15px;display:flex;flex-direction:column;gap:4px}
 .mPtrD{font-size:17px;white-space:nowrap}
 .mPtrA{border-left:5px solid;padding-left:7px;line-height:1.25}
+.windMk{overflow:visible}
+.windMkL{position:absolute;transform:translate(-50%,-50%);font:700 13px var(--txt);white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff;pointer-events:none}
+.windMkL.dk{text-shadow:0 0 3px #111418,0 0 3px #111418,0 0 2px #111418}
