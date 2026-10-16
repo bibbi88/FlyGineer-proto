@@ -49,6 +49,7 @@ function handleTap(W) {
   if (a === 'fai') return runAction('fai');
   if (a === 'heights') return openHeights();
   if (a === 'chip') return chipTap();
+  if (a === 'xcmode') { if (W.type !== 'fai') return openDetails(W); const D = cfgW(W), i = XC_MODES.findIndex((x) => x[0] === (effCfg(W).mode || 'auto')); D.mode = XC_MODES[(i + 1) % XC_MODES.length][0]; saveLayout(); toast('XC: ' + XC_MODES.find((x) => x[0] === D.mode)[1]); return; }
   if (a === 'thoff') { if (st.thermMode) leaveThermal(); return; }
   if (a === 'airlist') return openInfo('Airspace near you', () => airListHTML(W), W);
   if (a === 'custom') return openInfo(effCfg(W).label || 'Info', () => infoHTML(W));

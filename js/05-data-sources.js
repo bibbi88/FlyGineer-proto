@@ -120,8 +120,8 @@ async function loadPlaces(force) {
    one of two sectors (left / right of that leg) so that every leg is at least 28 % of the whole triangle (FAI rule). */
 const FAI_MIN = 0.28;
 function faiLocal(A) { const k = Math.cos(A.lat * D2R); return { xy: (p) => [(p.lon - A.lon) * D2R * RE * k, (p.lat - A.lat) * D2R * RE], ll: (x, y) => [A.lat + y / RE * R2D, A.lon + x / (RE * k) * R2D] }; }
-function faiState() {
-  if (!S.fai) return null;
+function faiState(force) {
+  if (!S.fai && !force) return null; // force: the XC widget needs start and farthest point even with the map sectors off
   const lg = st.log, sp = startPlace(); let A = sp ? { lat: sp.lat, lon: sp.lon } : null;
   if (!A) { const p0 = lg.find((p) => p.lat != null); if (!p0) return null; A = { lat: p0.lat, lon: p0.lon }; }
   // farthest point from the start, scanned once per new log entry (by time: the log is trimmed at the front on long flights)
@@ -143,14 +143,26 @@ function faiSectors(A, B) {
     return { ring: r, tip: pt(m * Pmin, m * Pmin, sd), Pmin }; });
 }
 // the calculator: the triangle start → turnpoint → you (closing back to the start)
-function faiCalc() {
-  const s = faiState(), f = st.fix; if (!s) return null; if (!s.B || !f || s.c < 500) return Object.assign({ ready: false }, s);
+function faiCalc(force) {
+  const s = faiState(force), f = st.fix; if (!s) return null; if (!s.B || !f || s.c < 500) return Object.assign({ ready: false }, s);
   const a = dist(s.B.lat, s.B.lon, f.lat, f.lon), b = dist(s.A.lat, s.A.lon, f.lat, f.lon), P = a + b + s.c, mn = Math.min(a, b, s.c) / P, ok = mn >= FAI_MIN;
   let toSec = 0;
   if (!ok) { const L0 = faiLocal(s.A), [fx, fy] = L0.xy(f); toSec = Infinity;
     faiSectors(s.A, s.B).forEach(({ ring }) => { const q = ring.map((ll) => L0.xy({ lat: ll[0], lon: ll[1] }));
       for (let i = 0; i < q.length; i++) { const [x1, y1] = q[i], [x2, y2] = q[(i + 1) % q.length], dx = x2 - x1, dy = y2 - y1, t = clamp(((fx - x1) * dx + (fy - y1) * dy) / (dx * dx + dy * dy || 1), 0, 1); toSec = Math.min(toSec, Math.hypot(fx - x1 - t * dx, fy - y1 - t * dy)); } }); }
   return Object.assign({ ready: true, a, b, P, mn, ok, toSec }, s);
+}
+/* XC widget: straight line (open distance), out & return, triangle; auto picks one from how you fly
+   A = Start point (or the first logged point), B = the farthest point from it so far */
+const XC_MODES = [['auto', 'Auto'], ['line', 'Straight line'], ['oar', 'Out & return'], ['tri', 'Triangle']];
+function xcCalc(mode) {
+  const z = faiCalc(true), f = st.fix; if (!z || !z.ready || !f) return z ? Object.assign({ mode: mode || 'auto' }, z) : null;
+  const now = nowT(), back = z.b, lg = st.log; let away = null; z.c = Math.max(z.c, back); const out = z.c; // the log lags the live position by up to a second
+  for (let i = lg.length - 1; i >= 0; i--) { const p = lg[i]; if (p.lat == null) continue; if (now - p.t >= 60000) { away = (back - dist(z.A.lat, z.A.lon, p.lat, p.lon)) / ((now - p.t) / 1000); break; } } // m/s, + = away from the start
+  let m = mode && mode !== 'auto' ? mode : null;
+  if (!m) m = out < 2000 || back > 0.75 * out ? 'line' : z.mn >= 0.15 ? 'tri' : 'oar';  // still going out → line; coming back: wide → triangle, narrow → out & return
+  const dur = st.takeoffT ? (now - st.takeoffT) / 1000 : null;
+  return Object.assign({ mode: m, auto: !mode || mode === 'auto', away, dur, brgOut: brg(z.A.lat, z.A.lon, f.lat, f.lon), toStart: brg(f.lat, f.lon, z.A.lat, z.A.lon) }, z);
 }
 function faiDrawInto(g, s) {
   const col = '#16A34A';

@@ -19,7 +19,7 @@ const WT = {
   ld: { n: 'Glide ratio', d: 'Measured on glide', w: 3, h: 2, o: [['win', 'Average over', numOpt(5, 300, 1, 's', [10, 20, 30, 60, 120], { def: 20 })]] },
   reqld: { n: 'Required glide', d: 'To next turnpoint', w: 3, h: 2, o: [] },
   wind: { n: 'Wind', d: 'Measured while circling', w: 3, h: 2, o: [['units', 'Units', U_S]] },
-  fai: { n: 'FAI triangle', d: 'FAI calculator: triangle size, shortest leg, way to the FAI sector; tap = on/off', w: 6, h: 3, def: { tap: 'fai' }, o: [] },
+  fai: { n: 'XC flight', d: 'Straight line, out & return or triangle (FAI): distances from the start, progress and what is left; tap = next mode', w: 6, h: 3, def: { tap: 'xcmode', mode: 'auto' }, o: [['mode', 'Mode', XC_MODES], ['away', 'Speed away from the start (line)', [[true, 'Show'], [false, 'Hide']]], ['avg', 'XC average speed', [[true, 'Show'], [false, 'Hide']]]] },
   tow: { n: 'Tow', d: 'Tow launch: time, height gain and average climb; set Show when → Towing', w: 8, h: 3, def: { vis: 'tow', towKeep: 60 }, o: [['units', 'Height units', U_A]] },
   next: { n: 'Next turnpoint', d: 'Distance, bearing, arrival', w: 6, h: 3, o: [['units', 'Height units', U_A]] },
   dist: { n: 'Distance to turnpoint', d: 'Next turnpoint only', w: 3, h: 2, o: [] },
@@ -66,7 +66,7 @@ const WT = {
 };
 // airplane seen from above, nose up (Airspace button)
 const PLANE_PATH = '<path d="M16 2.5c1.3 0 2.2 1.2 2.2 2.8v7.2l10.3 6.2v3l-10.3-3.1v6.1l3.3 2.5v2.3L16 28.3l-5.5 1.2v-2.3l3.3-2.5v-6.1L3.5 21.7v-3l10.3-6.2V5.3c0-1.6.9-2.8 2.2-2.8z" fill="currentColor"/>';
-const TAPG = [['Info', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['xcmode', 'Next XC mode (XC flight)'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
 // when held: info is shown only while you hold; actions run once
 const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio']]], ['Action', [['pages', 'Page menu'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
@@ -165,10 +165,12 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only
-  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true });
+  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true });
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};
   if (old && !S.layouts.map) { const k = GSC / (S.layoutGrid || 1); S.layouts.map = old.map((W) => Object.assign({}, W, { x: Math.round(W.x * k), y: Math.round(W.y * k), w: Math.round(W.w * k), h: Math.round(W.h * k) })); }
   Object.keys(LAYERID).forEach((pk) => { if (!Array.isArray(S.layouts[pk]) || !S.layouts[pk].length) S.layouts[pk] = defLayout(pk); S.layouts[pk] = S.layouts[pk].filter((W) => WT[W.type]); });
+  // the FAI widget became the XC flight widget (2026-10-16): its tap now switches mode (the FAI button still toggles the map sectors)
+  if (!S.xcMig) { S.xcMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'fai' && W.cfg.tap === 'fai') W.cfg.tap = 'xcmode'; })); }
   // the airspace warning bar and the THERMAL? corner chip became widgets (2026-10-16): put them where they were, once
   if (!S.infoWMig) { S.infoWMig = true; const on = (v) => v !== false && v !== 'false';
     Object.keys(LAYERID).forEach((pk) => { const L = S.layouts[pk]; if (on(S.modeChip) && !L.some((W) => W.type === 'thchip')) L.push(newW('thchip', 64, 0, 7, 4)); if (pk === 'map' && on(S.warnBar) && !L.some((W) => W.type === 'airwarn')) L.push(newW('airwarn', 24, 1, 40, 4)); }); }
@@ -268,10 +270,16 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
     }
     case 'air': { const x = airStatus()[0]; if (!x) return { l: 'Airspace', v: '--', s: st.airspaces.length ? 'none within 30 km' : 'no airspace data' }; return { l: 'Airspace', u: '', v: x.inside && x.vert === 'in' ? 'INSIDE' : fDist(x.d), s: `${x.a.name} · ${fmtLim(x.a.lo)}–${fmtLim(x.a.hi)}`, col: x.inside && x.vert === 'in' ? css('--restr') : null }; }
     case 'fai': {
-      const z = faiCalc(), km = (m) => (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' km', cell = (k, v, cl) => `<div><div class="ws">${k}</div><div class="num" style="font-size:24px${cl ? ';color:' + cl : ''}">${v}</div></div>`;
-      if (!z) return { l: 'FAI triangle', v: 'OFF', s: 'tap to turn on: the map shows where to fly' };
-      if (!z.ready) return { l: 'FAI triangle · on', v: '--', s: !z.B || z.c < 500 ? 'fly away from the start: the sectors appear after 0.5 km' : 'waiting for GPS…' };
-      return { l: z.ok ? 'FAI triangle · ✓ FAI' : 'FAI triangle', ...(z.ok ? { bgc: '#1F8A4C', col: '#FFFFFF' } : {}), html: `<div class="row" style="gap:14px;flex:1;align-items:center;flex-wrap:wrap">${cell('Triangle', km(z.P))}${cell('Shortest leg', Math.round(z.mn * 100) + ' %', z.ok ? '' : css('--sink'))}${z.ok ? '' : cell('To FAI sector', km(z.toSec))}${cell('Back to start', km(z.b))}</div><div class="ws">start → TP ${km(z.c)} · FAI needs every leg ≥ 28 %</div>` };
+      const z = xcCalc(c.mode), on = (v) => v !== false && v !== 'false', km = (m) => (m / 1000).toFixed(m < 10000 ? 1 : 0), fz = Math.round(clamp(Math.min(bx.h * 0.26, bx.w / 13), 15, 44));
+      const cell = (k, v, u, cl) => `<div style="min-width:0"><div class="ws">${k}</div><div class="num" style="white-space:nowrap;font-size:${fz}px${cl ? ';color:' + cl : ''}">${v}${u ? `<span style="font-size:.45em;font-weight:600"> ${u}</span>` : ''}</div></div>`;
+      const name = (XC_MODES.find((x) => x[0] === (z ? z.mode : c.mode)) || XC_MODES[0])[1];
+      if (!z || !z.ready) return { l: 'XC · ' + name, v: '--', s: !st.fix ? 'waiting for GPS…' : 'fly away from the start: values appear after 0.5 km' };
+      const spd = (ms) => fSpd(ms), U = S.uSpd, row = (h) => `<div class="row" style="gap:14px;flex:1;align-items:center;flex-wrap:wrap">${h}</div>`, title = 'XC · ' + (z.auto ? 'auto: ' : '') + name.toLowerCase();
+      const avg = on(c.avg) && z.dur > 300 ? cell('XC average', spd(z.c / z.dur), U) : '';
+      if (z.mode === 'line') return { l: title, html: row(cell('From start', km(z.b), 'km') + cell('Farthest', km(z.c), 'km') + (on(c.away) && z.away != null ? cell('Away speed', (z.away >= 0 ? '+' : '') + spd(z.away), U, z.away < 0 ? css('--sink') : '') : '') + avg) + `<div class="ws">heading ${pad3(Math.round(z.brgOut))}° ${compass(z.brgOut)} from the start</div>` };
+      if (z.mode === 'oar') { const tot = 2 * z.c, done = z.c + Math.max(0, z.c - z.b);
+        return { l: title, html: row(cell('Turnpoint', km(z.c), 'km') + cell('Back to start', km(z.b), 'km') + cell('Out & return', km(tot), 'km') + cell('Done', Math.round(100 * done / tot) + ' %') + avg) + `<div class="ws">start ${pad3(Math.round(z.toStart))}° ${compass(z.toStart)} · turnpoint = your farthest point</div>` }; }
+      return { l: z.ok ? title + ' · ✓ FAI' : title, ...(z.ok ? { bgc: '#1F8A4C', col: '#FFFFFF' } : {}), html: row(cell('Triangle', km(z.P), 'km') + cell('Shortest leg', Math.round(z.mn * 100) + ' %', '', z.ok ? '' : css('--sink')) + (z.ok ? '' : cell('To FAI sector', km(z.toSec), 'km')) + cell('Back to start', km(z.b), 'km') + avg) + `<div class="ws">start → TP ${km(z.c)} km · FAI: every leg ≥ 28 %${S.fai ? '' : ' · map sectors off (FAI button)'}</div>` };
     }
     case 'tow': {
       const T = towNow(), mmss = (s) => Math.floor(s / 60) + ':' + pad2(Math.floor(s % 60)), cell = (k, v, u) => `<div><div class="ws">${k}</div><div class="num" style="white-space:nowrap;font-size:${clamp(Math.min(bx.h * 0.3, bx.w / 13), 16, 60).toFixed(0)}px">${v}${u ? `<span style="font-size:.45em;font-weight:600"> ${u}</span>` : ''}</div></div>`;
