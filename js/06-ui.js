@@ -677,7 +677,15 @@ function compassDraw(cv, W) {
     if (wm === 'small') arrow(P(w.from, R - 2), P(w.from, R * (lv ? 0.66 : 0.6)), lv ? 3.5 : 3, 11, 5);
     else if (wm === 'across') arrow(P(w.from, R * 0.94), P(w.to, R * 0.9), Math.max(4, R * 0.07), Math.max(14, R * 0.26), Math.max(8, R * 0.15));
     else arrow(P(w.from, R + 2), P(w.from, R * (lv ? 0.42 : 0.38)), Math.max(5, R * 0.09), Math.max(14, R * 0.28), Math.max(8, R * 0.17));
-    if (W.cfg.winds !== false && W.cfg.winds !== 'false' && lv) { const [tx, ty] = P(w.from + (wm === 'across' ? 0 : 24), wm === 'across' ? R * 0.62 : R * 0.72); c.font = `700 ${Math.max(12, R * 0.17)}px Barlow Condensed`; c.textAlign = 'center'; haloText(c, fSpd(w.spd), tx, ty + 5, col, card); }
+    // wind speed: size cfg.windsz % (default 150), unit cfg.windu false / true (app unit) / 'both' (km/h and m/s)
+    if (W.cfg.winds !== false && W.cfg.winds !== 'false' && lv) { const k = clamp(+(W.cfg.windsz ?? 150), 50, 300) / 100, fs = Math.max(12, R * 0.17 * k), u = W.cfg.windu, both = u === 'both', un = u === true || u === 'true';
+      let [tx, ty] = P(w.from + (wm === 'across' ? 0 : 24 + 6 * (k - 1)), wm === 'across' ? R * 0.62 : R * clamp(0.72 - 0.06 * (k - 1), 0.5, 0.72)); c.textAlign = 'center';
+      const main = both ? String(Math.round(w.spd * 3.6)) : fSpd(w.spd), sub = both ? w.spd.toFixed(1) + ' m/s' : un ? S.uSpd : '', subFs = Math.max(10, fs * 0.42);
+      c.font = `700 ${subFs}px Barlow Condensed`; const sw = sub ? c.measureText(both ? 'km/h · ' + sub : sub).width : 0; c.font = `700 ${fs}px Barlow Condensed`; const hw = Math.max(sw, c.measureText(main).width) / 2 + 3;
+      tx = clamp(tx, hw, Wd - hw); ty = clamp(ty, fs * 0.7, H - (sub ? subFs * 1.6 : 4) - fs * 0.3); // keep the label inside the widget
+      c.font = `700 ${fs}px Barlow Condensed`; haloText(c, main + (both ? '' : ''), tx, ty + fs * 0.3 - (sub ? subFs * 0.45 : 0), col, card);
+      if (both) { c.font = `700 ${subFs}px Barlow Condensed`; haloText(c, 'km/h · ' + sub, tx, ty + fs * 0.3 + subFs * 0.75, col, card); }
+      else if (sub) { c.font = `700 ${subFs}px Barlow Condensed`; haloText(c, sub, tx, ty + fs * 0.3 + subFs * 0.75, col, card); } }
   }
   const txt = f && f.trk != null ? pad3(hdg) + '°' : '--';
   if (lv) { c.save(); c.translate(cx, cy - R * 0.12); c.rotate((hdg - up) * D2R); const gs = R * 0.2; c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -gs); c.lineTo(gs * 0.7, gs * 0.8); c.lineTo(0, gs * 0.4); c.lineTo(-gs * 0.7, gs * 0.8); c.closePath(); c.fill(); c.stroke(); c.restore();
