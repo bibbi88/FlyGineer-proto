@@ -1,8 +1,8 @@
 'use strict';
 /* ================= widget tap actions & detail popups ================= */
 // default "When held": the page button opens the page menu, height widgets show heights in feet, maps and buttons nothing, other widgets their details
-function defHold(W) { return W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' ? 'none' : 'details'; }
-function defTap(W) { return W.type === 'time' ? 'time' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
+function defHold(W) { return W.type === 'airbtn' ? 'airlist' : W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' ? 'none' : 'details'; }
+function defTap(W) { return W.type === 'airbtn' ? 'airlist' : W.type === 'time' ? 'time' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
 let detT = null, detState = null;
 function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); } catch (e) { toast('Full screen not available here'); } }
 document.addEventListener('fullscreenchange', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
@@ -47,6 +47,7 @@ function handleTap(W) {
   if (a === 'fullscreen') return toggleFull();
   if (a === 'fai') return runAction('fai');
   if (a === 'heights') return openHeights();
+  if (a === 'airlist') return openInfo('Airspace near you', () => airListHTML(W));
   if (a === 'custom') return openInfo(effCfg(W).label || 'Info', () => infoHTML(W));
   // height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
   if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); return switchUnits(W); }
@@ -57,7 +58,7 @@ function handleTap(W) {
 }
 const GROUP = { vario: 'vario', avg: 'vario', varioDial: 'vario', thermal: 'vario', gain: 'vario', ttime: 'vario', climb: 'vario', ta: 'vario',
   alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', fai: 'task', dist: 'task',
-  wind: 'wind', flight: 'flight', place: 'place', air: 'air', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
+  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
 function closeDetails() { clearInterval(detT); detT = null; detState = null; $('dlg').style.display = 'none'; }
 function openDetails(W, range) {
   detState = { W, range: range ?? detState?.range ?? 600 };
@@ -352,6 +353,17 @@ function openInfo(title, fn) {
   $('dlg').style.display = 'flex'; $('dlgClose').onclick = () => { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; };
   clearInterval(detT); detT = setInterval(() => { if ($('dlg').style.display === 'none') { clearInterval(detT); detT = null; return; } draw(); }, 1000);
 }
+// airspaces near you (within the widget's radius, default 10 km) and their radio frequencies
+function airListHTML(W) {
+  const c = W ? effCfg(W) : {}, R = (+c.radius || 10) * 1000, all = airStatus(), s = all.filter((x) => x.d <= R).slice(0, 12);
+  if (!st.airspaces.length) return '<div class="muted">No airspace data loaded · Settings → Airspace data</div>';
+  if (!st.fix) return '<div class="muted">Waiting for a position</div>';
+  const st2 = (x) => x.inside ? (x.vert === 'in' ? '<b style="color:var(--restr)">INSIDE</b>' : x.vert === 'below' ? `<b>${fAlt(x.lo - x.alt)} ${S.uAlt}</b> below floor` : 'above top') : `<b>${fDist(x.d)}</b> · ${x.vert === 'below' ? 'below floor' : x.vert === 'above' ? 'above top' : 'at your height'}`;
+  const rows = s.map((x) => `<div class="li" style="min-height:52px"><span style="width:16px;height:16px;border-radius:4px;border:3px solid ${airColor(x.a)};flex-shrink:0"></span><span class="grow" style="min-width:0"><b>${esc(x.a.name)}</b> <span class="muted">${fmtLim(x.a.lo)} – ${fmtLim(x.a.hi)}</span>${x.a.freq && x.a.freq.length ? `<br><span class="num" style="font-size:15px">📻 ${x.a.freq.map((q) => esc(q.v)).join(' · ')}</span>` : ''}</span><span style="text-align:right;white-space:nowrap">${st2(x)}</span></div>`).join('');
+  const fr = []; s.forEach((x) => (x.a.freq || []).forEach((q) => { if (!fr.find((y) => y.v === q.v)) fr.push({ v: q.v, n: q.n || x.a.name, on: x.inside && x.vert === 'in' }); }));
+  const radio = fr.length ? `<div class="lbl" style="margin-top:10px">Radio</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">${fr.slice(0, 12).map((q) => `<div class="freq ${q.on ? 'on' : ''}"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(q.n)}</div><div class="num" style="font-size:26px">${esc(q.v)}</div></div>`).join('')}</div>` : '<div class="muted" style="margin-top:10px">No radio frequencies in the airspace data nearby.</div>';
+  return `<div class="muted">Within ${R / 1000} km · ${s.length} airspace${s.length === 1 ? '' : 's'}</div>` + (rows || '<div class="muted">None nearby</div>') + radio;
+}
 function openHeights() { openInfo('Height', heightsHTML); }
 // custom info: the chosen values (any text widget's value, or heights in m and ft) and an optional note
 const INFO_KEYS = () => [['heights', 'Heights m/ft']].concat(Object.keys(WT).filter((k) => !WT[k].canvas && !['button', 'map', 'next', 'fai'].includes(k)).map((k) => [k, WT[k].n]));
@@ -371,6 +383,7 @@ function runHold(W, a) {
   if (a === 'none') return null;
   if (a === 'heights') { holdPop(true, heightsHTML); return 'pop'; }
   if (a === 'custom') { holdPop(true, () => infoHTML(W)); return 'pop'; }
+  if (a === 'airlist') { holdPop(true, () => airListHTML(W)); return 'pop'; }
   if (a === 'time') { holdPop(true, timeHTML); return 'pop'; }
   if (a === 'details') { if (W.type === 'button') return null; openDetails(W); return 'dlg'; }
   if (a === 'pages') { pageMenu(); return null; }

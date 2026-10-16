@@ -66,6 +66,32 @@ for area, (key, cname) in AREAS.items():
     idx['countries'][key] = {'name': cname, 'file': key + '.txt', 'airspaces': n, 'update': e.get('update') or datetime.date.today().isoformat(), 'from': e['uri']}
     print(f'ok {area}: {n} airspaces, update {e.get("update")}')
 
+# radio frequencies by airspace name from the OpenAIP files (AF = frequency, AG = station name), so files
+# without frequencies (e.g. the XContest export) can show them too: data/airspace/freq.json
+freq = {}
+for k, v in idx['countries'].items():
+    if v.get('manual'):
+        continue
+    name, fr = None, []
+    for line in open(os.path.join(OUT, v['file']), encoding='utf-8'):
+        t = line.strip()
+        if t.startswith('AC '):
+            if name and fr:
+                freq[name] = fr
+            name, fr = None, []
+        elif t.startswith('AN '):
+            name = t[3:].strip()
+        elif t.startswith('AF '):
+            fr.append({'v': t[3:].strip(), 'n': ''})
+        elif t.startswith('AG ') and fr:
+            fr[-1]['n'] = t[3:].strip()
+    if name and fr:
+        freq[name] = fr
+with open(os.path.join(OUT, 'freq.json'), 'w', encoding='utf-8') as f:
+    json.dump(freq, f, ensure_ascii=False, separators=(',', ':'))
+    f.write('\n')
+print(f'{len(freq)} airspaces with radio frequencies')
+
 if not idx['countries']:
     sys.exit('no airspace files found')
 with open(ipath, 'w') as f:

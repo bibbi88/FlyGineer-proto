@@ -25,10 +25,12 @@ async function loadXcsoarAir(force) {
   if (S.airSrc !== 'xcsoar') return;
   try {
     const idx = await (await fetch('data/airspace/index.json', { cache: 'no-store' })).json(); st.airIdx = idx;
-    const cs = (S.airCountries || []).filter((c) => idx.countries[c]), key = cs.map((c) => c + ':' + idx.countries[c].update).join(',');
+    const cs = (S.airCountries || []).filter((c) => idx.countries[c]), key = cs.map((c) => c + ':' + idx.countries[c].update).join(',') + '|f1'; // f1: radio frequencies added from freq.json
     if (!force && key === S.airUpd && st.airspaces.length) return;
     if (!cs.length) { if (S.airUpd) { st.airspaces = []; localStorage.removeItem('bora.air'); S.airUpd = ''; save(); drawAirspaces(); } return; }
-    let all = []; for (const c of cs) { const r = await fetch('data/airspace/' + idx.countries[c].file, { cache: 'no-store' }); if (!r.ok) throw new Error(c + ': HTTP ' + r.status); all = all.concat(parseOpenAir(await r.text())); }
+    let all = [], fq = {}; try { fq = await (await fetch('data/airspace/freq.json', { cache: 'no-store' })).json(); } catch (e) { }
+    for (const c of cs) { const r = await fetch('data/airspace/' + idx.countries[c].file, { cache: 'no-store' }); if (!r.ok) throw new Error(c + ': HTTP ' + r.status); all = all.concat(parseOpenAir(await r.text())); }
+    all.forEach((a) => { if (!a.freq.length && fq[a.name]) a.freq = fq[a.name].map((q) => ({ v: q.v, n: q.n || a.name })); }); // e.g. the XContest export has no frequencies
     st.airspaces = all; localStorage.setItem('bora.air', JSON.stringify(all)); S.airUpd = key; save(); drawAirspaces();
     toast(all.length + ' airspaces loaded (built in: ' + cs.map((c) => idx.countries[c].name).join(', ') + ')');
     if (typeof renderSettings === 'function' && curPage === 'pSet' && setSec === 'air') renderSettings();
@@ -46,7 +48,8 @@ function parseOpenAir(txt) {
     else if (!cur) return;
     else if (k === 'AY') cur.type = v.toUpperCase(); // OpenAir 2 (XCSoar/OpenAIP files): the type is here, AC is the ICAO class (D = class D, not danger)
     else if (k === 'AN') cur.name = v; else if (k === 'AL') cur.lo = lim(v); else if (k === 'AH') cur.hi = lim(v);
-    else if (k === 'AF') cur.freq.push({ v: v, n: cur.name });
+    else if (k === 'AF') cur.freq.push({ v: v, n: cur.station || cur.name });
+    else if (k === 'AG') { cur.station = v; if (cur.freq.length) cur.freq[cur.freq.length - 1].n = v; } // station name (OpenAir 2), before or after its AF
     else if (k === 'DP') { const p = ll(v); if (p) cur.poly.push(p); }
     else if (k === 'V ' || k === 'V') { const m = v.match(/X\s*=\s*(.*)/i); if (m) ctr = ll(m[1]); const d = v.match(/D\s*=\s*([+-])/i); if (d) dir = d[1] === '-' ? -1 : 1; }
     else if (k === 'DC' && ctr) { const r = parseFloat(v) * 1852; for (let a = 0; a < 360; a += 6) cur.poly.push(dest(ctr[0], ctr[1], a, r)); }
