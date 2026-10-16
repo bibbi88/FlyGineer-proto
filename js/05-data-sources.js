@@ -222,6 +222,7 @@ function ntGeo(txt) {
   return { pt: cs[0], r: rad };
 }
 function parseBulletin(html) {
+  if (/\b[A-Z]\d{4}\/\d{2}\s+NOTAM[NRC]\b/.test(html)) return parseIcaoBulletin(html); // ICAO layout (e.g. the EFIN en-route bulletin)
   const text = html.replace(/\r/g, '').replace(/<br\s*\/?>/gi, '\n').replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '\n@@SEC $1\n').replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '\n@@AD $1\n')
     .replace(/<\/(tr|table|p|div|li)>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/[ \t]+/g, ' ');
   const out = []; let sec = '', ad = ''; const re = /\(([A-Z]\d{4}\/\d{2})\)/g; let last = 0, m;
@@ -240,17 +241,38 @@ function parseBulletin(html) {
   }
   return out;
 }
+// ais.fi bulletins to read (S.notamSrc); one failing source does not drop the others
+const NT_SRC = [['vfra', 'VFR area (EFIN)', 'https://www.ais.fi/bulletins/envfra.htm'], ['vfrm', 'VFR (more)', 'https://www.ais.fi/bulletins/envfrm.htm'], ['enfr', 'En-route FIR (EFIN)', 'https://www.ais.fi/bulletins/efinen-fr.htm']];
+const NT_DEF = ['vfra', 'vfrm', 'enfr'];
+// ICAO NOTAMs: "A1234/26 NOTAMN Q) EFIN/QRTCA/IV/BO/W/000/045/6012N02455E005 A) EFIN B) 2610151200 C) 2610201500 D) … E) text F) SFC G) 4500FT AMSL"
+function parseIcaoBulletin(html) {
+  const text = html.replace(/\r/g, '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/(tr|table|p|div|li|pre)>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  const t10 = (x) => { const y = /(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(x || ''); return y ? `${y[3]}${Object.keys(MON)[+y[2] - 1]}${y[1]} ${y[4]}${y[5]}` : ''; };
+  const parts = text.split(/\(?\b([A-Z]\d{4}\/\d{2})\s+NOTAM([NRC])\b/), out = [];
+  for (let i = 1; i + 2 < parts.length + 1; i += 3) {
+    const id = parts[i], kind = parts[i + 1], body = (parts[i + 2] || '').replace(/[ \t]+/g, ' ');
+    if (kind === 'C') continue;
+    const f = (k) => { const m = new RegExp('\\b' + k + '\\)\\s*([\\s\\S]*?)(?=\\s+[A-G]\\)\\s|\\)\\s*$|$)').exec(body); return m ? m[1].trim() : ''; };
+    const B = f('B'), C = f('C'), E = f('E').replace(/\s+/g, ' ').replace(/\)\s*$/, ''), Q = f('Q'), F = f('F'), G = f('G'); if (!B || !E) continue;
+    const fromTxt = t10(B), toTxt = /PERM/.test(C) ? 'PERM' : t10(C) || C.split(/\s/)[0];
+    let geo = ntGeo(E); const q = /(\d{4})([NS])(\d{5})([EW])(\d{3})\s*$/.exec(Q.split('/').pop() || '');
+    if (q && (!geo || (geo.pt && !geo.r))) geo = geo && geo.pt ? { pt: geo.pt, r: +q[5] * 1852 } : { pt: [dms(q[1], 2) * (q[2] === 'S' ? -1 : 1), dms(q[3], 3) * (q[4] === 'W' ? -1 : 1)], r: +q[5] * 1852 }; // Q-line: centre and radius in NM
+    out.push({ id, sec: 'En-route', ad: f('A'), text: E, from: ntTime(fromTxt), fromTxt, to: toTxt === 'PERM' ? null : ntTime(toTxt), toTxt, lower: F, upper: G, sched: f('D'), geo, codes: [...E.matchAll(/\b(EF[RDP]\d+[A-Z]?)\b/g)].map((x) => x[1]) });
+  }
+  return out;
+}
 async function loadNotams(force) {
   if (!force && Date.now() - st.notamAt < 30 * 60000 && NOTAMS.length) return;
   st.ntLoading = true; st.ntMsg = ''; markDirty();
-  const urls = ['https://www.ais.fi/bulletins/envfra.htm', 'https://www.ais.fi/bulletins/envfrm.htm'];
+  const urls = NT_SRC.filter(([k]) => (S.notamSrc || NT_DEF).includes(k)).map(([, , u]) => u);
   try {
     const all = []; const seen = new Set();
+    let ok = 0, err = null;
     for (const u of urls) {
-      const r = await fetch(S.notamProxy ? S.notamProxy + encodeURIComponent(u) : u);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      parseBulletin(await r.text()).forEach((n) => { if (!seen.has(n.id)) { seen.add(n.id); all.push(n); } });
+      try { const r = await fetch(S.notamProxy ? S.notamProxy + encodeURIComponent(u) : u); if (!r.ok) throw new Error('HTTP ' + r.status); ok++;
+        parseBulletin(await r.text()).forEach((n) => { if (!seen.has(n.id)) { seen.add(n.id); all.push(n); } }); } catch (e) { err = e; }
     }
+    if (!ok) throw err || new Error('no bulletin chosen');
     NOTAMS = all; st.notamAt = Date.now(); localStorage.setItem('bora.notams', JSON.stringify({ at: st.notamAt, list: all }));
     drawNotamAreas(); renderNotams(); toast(all.length + ' NOTAMs loaded from ais.fi');
   } catch (e) {

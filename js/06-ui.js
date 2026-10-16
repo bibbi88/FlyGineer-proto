@@ -928,6 +928,7 @@ function renderSettings() {
   const r = await fetch(u);
   return new Response(await r.text(), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Access-Control-Allow-Origin': '*' } });
 } };</pre>
+    <div class="field"><span class="k">Bulletins</span><span class="row" style="flex-wrap:wrap">${NT_SRC.map(([k, n]) => `<button class="pill" data-ntsrc="${k}" aria-pressed="${(S.notamSrc || NT_DEF).includes(k)}">${n}</button>`).join('')}</span></div>
     ${seg('notamRadius', [[25, '25 km'], [50, '50 km'], [100, '100 km']], 'Show NOTAMs within')}
     <div class="field"><span class="k"></span><button class="btn primary" id="ntLoad">Load NOTAMs now</button></div></div>`; }
   if (setSec === 'task') h = `<div class="card sec"><h2>Task</h2><div class="field"><span class="k">Current</span><b>${st.task ? esc(st.task.name) + ' · ' + st.task.pts.length + ' points · ' + (st.task.len / 1000).toFixed(1) + ' km' : 'none'}</b>${st.task ? '<button class="btn" id="taskClear">Remove</button>' : ''}</div>
@@ -1005,6 +1006,7 @@ function renderSettings() {
   document.querySelectorAll('[data-pgfrom]').forEach((b) => (b.onclick = () => { st.pgFrom = b.dataset.pgfrom; renderSettings(); }));
   on('pgNewName', 'oninput', (e) => (st.pgName = e.target.value));
   on('pgAdd', 'onclick', () => { const P = pageAdd($('pgNewName').value, st.pgFrom || ''); st.pgFrom = ''; st.pgName = ''; toast(`Page “${P.name}” added`); showPage(P.id); setTimeout(() => enterEdit(), 80); });
+  document.querySelectorAll('[data-ntsrc]').forEach((b) => (b.onclick = () => { const l = new Set(S.notamSrc || NT_DEF), k = b.dataset.ntsrc; l.has(k) ? l.delete(k) : l.add(k); S.notamSrc = NT_SRC.map(([x]) => x).filter((x) => l.has(x)); save(); renderSettings(); loadNotams(true); }));
   on('oaClear', 'onclick', () => { S.airSrc = 'own'; save(); st.airspaces = []; localStorage.removeItem('bora.air'); drawAirspaces(); renderSettings(); });
   on('taskClear', 'onclick', () => { clearTask(); renderSettings(); });
   on('fxImp', 'onclick', () => { if (importFlyXC($('fxUrl').value)) renderSettings(); });
