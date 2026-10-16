@@ -19,7 +19,7 @@ const WT = {
   ld: { n: 'Glide ratio', d: 'Measured on glide', w: 3, h: 2, o: [['win', 'Average over', numOpt(5, 300, 1, 's', [10, 20, 30, 60, 120], { def: 20 })]] },
   reqld: { n: 'Required glide', d: 'To next turnpoint', w: 3, h: 2, o: [] },
   wind: { n: 'Wind', d: 'Measured while circling', w: 3, h: 2, o: [['units', 'Units', U_S]] },
-  fai: { n: 'XC flight', d: 'Straight line, out & return or triangle (FAI): distances from the start, progress and what is left; tap = next mode', w: 6, h: 3, def: { tap: 'xcmode', mode: 'auto' }, o: [['mode', 'Mode', XC_MODES], ['away', 'Speed away from the start (line)', [[true, 'Show'], [false, 'Hide']]], ['avg', 'XC average speed', [[true, 'Show'], [false, 'Hide']]]] },
+  fai: { n: 'XC flight', d: 'Straight line, out & return or triangle (FAI): distances from the start, progress and what is left; tap = all values, FAI sectors on/off and mode', w: 6, h: 3, def: { tap: 'details', mode: 'auto' }, o: [['mode', 'Mode', XC_MODES], ['away', 'Speed away from the start (line)', [[true, 'Show'], [false, 'Hide']]], ['avg', 'XC average speed', [[true, 'Show'], [false, 'Hide']]]] },
   tow: { n: 'Tow', d: 'Tow launch: time, height gain and average climb; set Show when → Towing', w: 8, h: 3, def: { vis: 'tow', towKeep: 60 }, o: [['units', 'Height units', U_A]] },
   next: { n: 'Next turnpoint', d: 'Distance, bearing, arrival', w: 6, h: 3, o: [['units', 'Height units', U_A]] },
   dist: { n: 'Distance to turnpoint', d: 'Next turnpoint only', w: 3, h: 2, o: [] },
@@ -92,7 +92,6 @@ const DEFS = {
     ['compass', 73, 49, 14, 15],
     ['button', 87, 56, 9, 7, { bg: 100, showLabel: false, action: 'fullscreen', color: 'plain', tap: 'none' }],
     ['airbtn', 0, 13, 12, 5, { showLabel: false }],
-    ['button', 40, 26, 7, 5, { bg: 100, showLabel: false, action: 'fai', color: 'orange', tap: 'none' }],
     ['fai', 48, 57, 25, 7, { tap: 'details', mode: 'auto' }],
     ['thchip', 79, 5, 8, 5, { bg: 0, showLabel: false }],
     ['airwarn', 14, 0, 24, 4, { bg: 0, showLabel: false }]
@@ -165,11 +164,14 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only
-  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true });
+  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true });
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};
   if (old && !S.layouts.map) { const k = GSC / (S.layoutGrid || 1); S.layouts.map = old.map((W) => Object.assign({}, W, { x: Math.round(W.x * k), y: Math.round(W.y * k), w: Math.round(W.w * k), h: Math.round(W.h * k) })); }
   Object.keys(LAYERID).forEach((pk) => { if (!Array.isArray(S.layouts[pk]) || !S.layouts[pk].length) S.layouts[pk] = defLayout(pk); S.layouts[pk] = S.layouts[pk].filter((W) => WT[W.type]); });
   // the FAI widget became the XC flight widget (2026-10-16): its tap now switches mode (the FAI button still toggles the map sectors)
+  // …and its tap became the info popup with the FAI switch (2026-10-17)
+  if (!S.faiBtnMig) { S.faiBtnMig = true; S.layouts.map = S.layouts.map.filter((W) => !(W.type === 'button' && W.cfg.action === 'fai')); } // the FAI switch is in the XC flight popup now
+  if (!S.xcMig2) { S.xcMig2 = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'fai' && (W.cfg.tap === 'xcmode' || W.cfg.tap === 'fai')) W.cfg.tap = 'details'; })); }
   if (!S.xcMig) { S.xcMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'fai' && W.cfg.tap === 'fai') W.cfg.tap = 'xcmode'; })); }
   // the airspace warning bar and the THERMAL? corner chip became widgets (2026-10-16): put them where they were, once
   if (!S.infoWMig) { S.infoWMig = true; const on = (v) => v !== false && v !== 'false';

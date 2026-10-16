@@ -64,7 +64,25 @@ const GROUP = { vario: 'vario', avg: 'vario', varioDial: 'vario', thermal: 'vari
   alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', fai: 'task', dist: 'task',
   wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
 function closeDetails() { clearInterval(detT); detT = null; detState = null; $('dlg').style.display = 'none'; }
+// XC flight widget: all three ways to score the flight at once, the FAI sectors switch and the mode
+function xcInfoHTML(W, held) {
+  const c = effCfg(W), z = xcCalc(c.mode), km = (m) => (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' km', U = S.uSpd;
+  const ctl = held ? '' : `<div class="row" style="flex-wrap:wrap;margin-top:10px"><button class="btn ${S.fai ? 'primary' : ''}" data-xc="fai" style="min-height:56px">FAI sectors on the map: ${S.fai ? 'ON' : 'OFF'}</button></div>
+    <div class="lbl" style="margin-top:8px">Widget shows</div><div class="row" style="flex-wrap:wrap">${XC_MODES.map(([k, n]) => `<button class="pill" data-xcm="${k}" aria-pressed="${(c.mode || 'auto') === k}">${n}</button>`).join('')}</div>`;
+  if (!z || !z.ready) return `<div class="muted" style="font-size:16px">${!st.fix ? 'Waiting for GPS…' : 'Fly away from the start: values appear after 0.5 km.'}</div>` + ctl;
+  const sec = (k, title, boxes, note) => `<div class="lbl" style="margin-top:8px">${title}${z.mode === k ? ' · <b style="color:var(--sink)">' + (z.auto ? 'auto picks this now' : 'shown on the widget') + '</b>' : ''}</div><div class="wgrid" style="grid-template-columns:repeat(4,minmax(0,1fr))">${boxes}</div>${note ? `<div class="muted">${note}</div>` : ''}`;
+  const tot = 2 * z.c, done = z.c + Math.max(0, z.c - z.b), avg = z.dur > 300 ? fSpd(z.c / z.dur) + ' ' + U : '--';
+  return sec('line', 'Straight line', statBox('From start', km(z.b)) + statBox('Farthest', km(z.c)) + statBox('Away speed', z.away != null ? (z.away >= 0 ? '+' : '') + fSpd(z.away) + ' ' + U : '--', 'last minute') + statBox('XC average', avg, 'farthest / flight time'), `heading ${pad3(z.brgOut)}° ${compass(z.brgOut)} from the start`)
+    + sec('oar', 'Out & return', statBox('Turnpoint', km(z.c), 'your farthest point') + statBox('Back to start', km(z.b), pad3(z.toStart) + '° ' + compass(z.toStart)) + statBox('Total', km(tot), 'when home') + statBox('Done', Math.round(100 * done / tot) + ' %'))
+    + sec('tri', 'Triangle', statBox('Triangle', km(z.P), 'start → TP → you → start') + statBox('Shortest leg', Math.round(z.mn * 100) + ' %', 'FAI needs ≥ 28 %') + statBox(z.ok ? 'FAI' : 'To FAI sector', z.ok ? '✓' : km(z.toSec)) + statBox('Back to start', km(z.b)))
+    + ctl;
+}
+function openXcInfo(W) {
+  openInfo('XC flight', () => xcInfoHTML(W), W);
+  $('hBody').onclick = (e) => { const b = e.target.closest('[data-xc],[data-xcm]'); if (!b) return; if (b.dataset.xc) runAction('fai'); else { cfgW(W).mode = b.dataset.xcm; saveLayout(); } $('hBody').innerHTML = xcInfoHTML(W); };
+}
 function openDetails(W, range) {
+  if (W.type === 'fai') return openXcInfo(W);
   detState = { W, range: range ?? detState?.range ?? 600 };
   renderDetails(); clearInterval(detT); detT = setInterval(() => { if ($('dlg').style.display === 'none' || !$('detStats')) { clearInterval(detT); detT = null; return; } renderDetails(true); }, 1000);
 }
@@ -416,7 +434,7 @@ function runHold(W, a) {
   if (a === 'custom') { holdPop(true, () => infoHTML(W)); return 'pop'; }
   if (a === 'airlist') { holdPop(true, () => airListHTML(W)); return 'pop'; }
   if (a === 'time') { holdPop(true, timeHTML); return 'pop'; }
-  if (a === 'details') { if (W.type === 'button') return null; openDetails(W); return 'dlg'; }
+  if (a === 'details') { if (W.type === 'button') return null; if (W.type === 'fai') { holdPop(true, () => '<b style="font-size:22px">XC flight</b>' + xcInfoHTML(W, true)); return 'pop'; } openDetails(W); return 'dlg'; }
   if (a === 'pages') { pageMenu(); return null; }
   if (a === 'chip') { chipTap(); return null; }
   if (a === 'thoff') { if (st.thermMode) leaveThermal(); return null; }
