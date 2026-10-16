@@ -99,8 +99,23 @@ function mapMount(el, E) {
   m.on('dragend', () => { I.panAt = Date.now(); });
   m.on('zoomend', () => { const W0 = findW(I.id); if (!W0) return; cfgW(W0).z = +m.getZoom().toFixed(2); clearTimeout(I.zt); I.zt = setTimeout(save, 600); });
   m.on('click', () => { if (I.menu) { I.menu = false; renderWidgets(); } });
+  m.on('move', () => ptrUpdate(I));
   MAPS.add(I); return I;
 }
+
+/* pointer while the map is moved away from you: crosshair at the centre, airspace there, distance and direction from you */
+function ptrUpdate(I) {
+  const W = findW(I.id), C = W ? effCfg(W) : {}, show = !I.follow && !wEdit && C.ptr !== false && C.ptr !== 'false';
+  let p = I.ptr; if (!show) { if (p) p.style.display = 'none'; return; }
+  if (!p) { p = I.ptr = document.createElement('div'); p.className = 'mPtr'; p.innerHTML = '<div class="mPtrX" aria-hidden="true"></div><div class="mPtrI" role="status"></div>'; I.box.parentElement.appendChild(p); }
+  p.style.display = '';
+  const c = I.m.getCenter(), f = st.fix, a = airShown().filter((x) => inPoly(c.lat, c.lng, x.poly)).sort((x, y) => limM(x.lo, 0) - limM(y.lo, 0));
+  const k = [c.lat.toFixed(5), c.lng.toFixed(5), f ? f.lat.toFixed(4) + ',' + f.lon.toFixed(4) : '', st.airVer || 0, S.uAlt].join('|'); if (p._k === k) return; p._k = k;
+  const d = f ? dist(f.lat, f.lon, c.lat, c.lng) : null, b = f ? Math.round(brg(f.lat, f.lon, c.lat, c.lng)) % 360 : null;
+  const air = a.length ? a.slice(0, 3).map((x) => `<div class="mPtrA" style="border-color:${airColor(x)}"><b>${esc(x.name)}</b> ${fmtLim(x.lo)} – ${fmtLim(x.hi)}</div>`).join('') + (a.length > 3 ? `<div class="muted">+${a.length - 3} more</div>` : '') : '<div class="muted">No airspace here</div>';
+  p.lastChild.innerHTML = (f ? `<div class="mPtrD"><b>${fDist(d)}</b> · <b>${String(b).padStart(3, '0')}°</b> ${COMPASS16[Math.round(b / 22.5) % 16]} from you</div>` : '<div class="muted">No position yet</div>') + air;
+}
+const COMPASS16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
 
 /* rotation smoothing: [deadband deg, time constant s, max deg/s, max deg per update] */
 const SMOOTH = { low: [4, 2, 60, 40], normal: [8, 4, 30, 20], strong: [15, 8, 15, 10] };
@@ -186,6 +201,7 @@ function mapDraw(cv, E, el, b) {
   }
   const ctl = on(C.ctl) ? mapCtl(I, lk, rot, mb) : ['', ''], cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
   if (cl._h !== ctl[0]) { cl.innerHTML = ctl[0]; cl._h = ctl[0]; } if (cr._h !== ctl[1]) { cr.innerHTML = ctl[1]; cr._h = ctl[1]; }
+  ptrUpdate(I);
   el._sub = '';
 }
 
