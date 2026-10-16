@@ -25,12 +25,13 @@ const DEF = {
   vLift: 0.2, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
   // voice messages (speech synthesis)
   voice: false, voiceVol: 100, voiceRate: 1, voiceLang: 'auto', vcTherm: false, vcSum: true, vcTp: true, vcAir: true, vcAlt: 0, vcTow: true,
-  towDetect: true, towMin: 1, corner: 'auto', wake: true, autoImport: true, openaipKey: '', airCountries: ['fi'], airUpd: '', airMaxAlt: 3000, warnBar: true, warnDist: 2000, customUrl: '',
+  towDetect: true, towMin: 1, corner: 'auto', wake: true, autoImport: true, openaipKey: '', airCountries: ['fi'], airUpd: '', airMaxAlt: 2895, warnBar: true, warnDist: 2000, customUrl: '',
   widgets: ['vario', 'avg', 'alt', 'agl', 'gs', 'ld', 'next', 'thermal', 'flight', 'utc'],
   hidden: []
 };
 const FRESH = !localStorage.getItem('bora.settings'); // first start on this device (no stored settings yet)
 let S = Object.assign({}, DEF, JSON.parse(localStorage.getItem('bora.settings') || '{}'));
+if (!S.airFl95Mig) { if (S.airMaxAlt === 3000) S.airMaxAlt = 2895; S.airFl95Mig = true; } // the default became FL95 (2895 m) on 2026-10-16
 function save() { localStorage.setItem('bora.settings', JSON.stringify(S)); }
 const fVario = (ms) => ms == null || isNaN(ms) ? '--' : (S.uVario === 'kt' ? (ms * 1.94384).toFixed(1) : S.uVario === 'fpm' ? Math.round(ms * 196.85 / 10) * 10 : ms.toFixed(1)).toString().replace(/^(?!-)/, ms >= 0 ? '+' : '');
 const fAlt = (m) => m == null || isNaN(m) ? '--' : String(Math.round(S.uAlt === 'ft' ? m * 3.28084 : m));

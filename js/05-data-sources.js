@@ -78,7 +78,7 @@ function airKind(a) {
 let airShownC = { k: null, l: [] };
 function airShown() {
   const on = S.airTypes || AIR_KIND_DEF, top = +S.airMaxAlt > 0 ? +S.airMaxAlt : Infinity, k = (st.airVer || 0) + '|' + st.airspaces.length + '|' + on.join(',') + '|' + top;
-  // S.airMaxAlt: airspace whose floor is at or above this height (m AMSL, FL converted) is never reached (default 3000 m; 0 = show all)
+  // S.airMaxAlt: airspace whose floor is at or above this height (m AMSL, FL converted) is never reached (default 2895 m = FL95, so airspace from FL95 up is hidden; 0 = show all)
   if (airShownC.k !== k) airShownC = { k, l: st.airspaces.filter((a) => on.includes(airKind(a)) && limM(a.lo, 0) < top) };
   return airShownC.l;
 }

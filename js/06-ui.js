@@ -915,7 +915,7 @@ function renderSettings() {
     <div class="field"><span class="k">Updated</span><span>${ix ? (S.airCountries || []).filter((c) => ix[c]).map((c) => esc(ix[c].name + ' ' + String(ix[c].update).slice(0, 10))).join(' · ') || '–' : 'not checked yet'}</span><button class="btn" id="asUpd">Update now</button></div>
     <div class="muted">Finland (XContest): the export you downloaded from airspace.xcontest.org (send a new one to update it). The others are the national files XCSoar offers (OpenAIP data), refreshed automatically. The app checks for newer files when it starts with internet and keeps the last ones for offline use.</div>` : ''}
     <div class="field"><span class="k">Show</span><span class="row" style="flex-wrap:wrap">${AIR_KINDS.map(([k, n]) => `<button class="pill" data-airt="${k}" aria-pressed="${(S.airTypes || AIR_KIND_DEF).includes(k)}">${n} <span class="muted">${st.airspaces.filter((a) => airKind(a) === k).length}</span></button>`).join('')}</span></div>
-    ${numField('airMaxAlt', '0 = show all')}
+    ${numField('airMaxAlt', +S.airMaxAlt > 0 ? '≈ FL' + Math.round(S.airMaxAlt / 30.48) : 'showing all')}
     ${seg('warnBar', [[true, 'Show'], [false, 'Hide']], 'Warning bar on the Map page')}
     ${numField('warnDist')}
     <div class="field"><span class="k">Loaded</span><b>${airShown().length} shown of ${st.airspaces.length} airspaces</b>${st.airspaces.length ? '<button class="btn" id="oaClear">Clear</button>' : ''}</div>
