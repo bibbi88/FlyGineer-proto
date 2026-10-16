@@ -146,7 +146,7 @@ function plSide(A) {
       <button class="btn warn" id="plClear" ${n ? '' : 'disabled'}>Clear</button>
     </div>
     <div class="row plFxRow"><input type="url" id="plFxIn" class="grow" placeholder="FlyXC link…" aria-label="Paste a FlyXC link to load its route"><button class="btn" id="plFxLoad">Load</button><button class="btn" id="plCopy" ${n >= 2 ? '' : 'disabled'} aria-label="Copy as FlyXC link">Copy</button><button class="btn" id="plFx" ${n >= 2 ? '' : 'disabled'} aria-label="Open in FlyXC">FlyXC ↗</button></div>
-    <button class="btn primary" id="plUse" ${n >= 2 ? '' : 'disabled'}>Use as my task</button>`;
+    <button class="btn primary" id="plUse" ${n >= 2 ? '' : 'disabled'}>Use as my task</button>${st.task ? `<button class="btn warn" id="plDelTask">Remove my task (${esc(st.task.name)})</button>` : ''}`;
   const q = (id, fn) => { const e = $(id); if (e) e.onclick = fn; };
   document.querySelectorAll('[data-plsel]').forEach((b) => (b.onclick = () => { const i = +b.dataset.plsel; PL.sel = PL.sel === i ? -1 : i; if (PL.sel >= 0) PL.m.panTo(P[i]); plDraw(); }));
   document.querySelectorAll('[data-pldel]').forEach((b) => (b.onclick = () => plEdit(() => { P.splice(+b.dataset.pldel, 1); PL.sel = -1; })));
@@ -157,6 +157,7 @@ function plSide(A) {
   q('plFromTask', () => { plEdit(() => { PL.pts = st.task.pts.map((p) => [p.lat, p.lon]); PL.sel = -1; }); PL.m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); });
   q('plClear', () => plEdit(() => { P.length = 0; PL.sel = -1; }));
   q('plUse', () => plUseTask());
+  q('plDelTask', () => { const old = st.task; clearTask(); plDraw(); toast('Task removed', [['Undo', () => { st.task = old; taskResume(); localStorage.setItem('bora.task', JSON.stringify(old)); drawTask(); renderWidgets(); plDraw(); }]]); });
   const fxLoad = (t) => { const m0 = String(t || '').match(/https?:\/\/(?:www\.)?flyxc\.app\/?\S*/i); let p = null; try { p = m0 && new URL(m0[0]).searchParams.get('p'); } catch (e) { }
     if (!p) { toast('No FlyXC route in that link'); return false; } const pts = decodePolyline(p); if (pts.length < 2) { toast('That route has fewer than 2 points'); return false; }
     plEdit(() => { PL.pts = pts.map((q0) => [+q0[0].toFixed(6), +q0[1].toFixed(6)]); PL.sel = -1; }); PL.m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); toast(`FlyXC route loaded · ${pts.length} points`); return true; };
