@@ -17,10 +17,11 @@ function css(v) { const k = document.body.className + '|' + v; if (cssC[k]) retu
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 /* ================= settings ================= */
+// defaults = the owner's own export of 2026-10-16 (bora-settings-20261016.json)
 const DEF = {
-  uVario: 'm/s', uAlt: 'm', uSpd: 'km/h', avgS: 30, wingLD: 9.0, rotDefault: 'north', taOrient: 'wind',
-  layer: 'sat', poiRadius: 20, poiKinds: { town: true, airport: true, peak: true }, cylR: 400, safety: 150,
-  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 0.5, rateT: 0, modeAuto: true, modeEnter: 6, modeHold: 20, thermPage: 'off', thermBack: true, modeChip: true, autoRules: [], notamProxy: '', notamRadius: 50, sound: false, volume: 0.5,
+  uVario: 'm/s', uAlt: 'm', uSpd: 'km/h', avgS: 5, wingLD: 9.0, rotDefault: 'north', taOrient: 'wind',
+  layer: 'topo', poiRadius: 20, poiKinds: { town: true, airport: true, peak: false }, cylR: 400, safety: 150,
+  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 0.5, rateT: 0, modeAuto: true, modeEnter: 6, modeHold: 20, thermPage: 'pThermal', thermBack: true, modeChip: true, autoRules: [], notamProxy: '', notamRadius: 50, sound: true, volume: 0.3, volPct: 30, fai: true,
   // acoustic vario: lift tone from vLift m/s, sink alarm below vSink, pitch vF0 + vFk per m/s, beep speed, waveform, near-lift buzzer, sound damping
   vLift: 0.2, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
   // voice messages (speech synthesis)
