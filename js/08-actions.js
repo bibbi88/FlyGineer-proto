@@ -253,7 +253,7 @@ function setMode(on) {
   fireEvent(on ? 'thermalStart' : 'thermalStop');
 }
 const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'layoutGrid', 'widgets', 'hidden', 'mapMigrated']);
-const IMPORT_OK = new Set(['titles', 'callsign', 'radioAlt', 'airMaxAlt', 'warnBar', 'warnDist', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
+const IMPORT_OK = new Set(['titles', 'radioLang', 'radioTpl', 'callsign', 'radioAlt', 'airMaxAlt', 'warnBar', 'warnDist', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
   const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)), pages: S.pages.map((p) => ({ id: p.id, name: p.name })) };
@@ -417,32 +417,32 @@ function airListHTML(W) {
 /* a place tapped on the map: where you are relative to it (for radio calls) or where it is from you, and a ready radio message */
 // radio message words per language (cfg.radioLang): directions, units, phrases; Finnish avoids inflecting the place name ("paikasta X")
 const RADIO_TXT = {
-  en: { dir: ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'], at: (km, d, n) => `${km} kilometres ${d} of ${n}`, over: (n) => `overhead ${n}`, ft: 'feet', m: 'metres', th: 'thermalling', dec: '.' },
-  sv: { dir: ['norr', 'nordost', 'öster', 'sydost', 'söder', 'sydväst', 'väster', 'nordväst'], at: (km, d, n) => `${km} kilometer ${d} om ${n}`, over: (n) => `över ${n}`, ft: 'fot', m: 'meter', th: 'i termik', dec: ',' },
-  fi: { dir: ['pohjoiseen', 'koilliseen', 'itään', 'kaakkoon', 'etelään', 'lounaaseen', 'länteen', 'luoteeseen'], at: (km, d, n) => `paikasta ${n} ${km} kilometriä ${d}`, over: (n) => `${n} yllä`, ft: 'jalkaa', m: 'metriä', th: 'termiikissä', dec: ',' } };
-const radioLang = (C) => { const l = (C && C.radioLang) || 'en'; return l === 'voice' ? (RADIO_TXT[S.voiceLang] ? S.voiceLang : (navigator.language || 'en').slice(0, 2)) : l; };
-function radioCall(p, C) {
-  C = C || {}; const alU = C.radioAlt || S.radioAlt || 'ft', cs = C.callsign || S.callsign || 'Paraglider', T = RADIO_TXT[radioLang(C)] || RADIO_TXT.en; // map widget options (older: Settings)
-  const f = st.fix, a = altNow(); if (!f) return '';
-  const d = dist(p.lat, p.lon, f.lat, f.lon), b = brg(p.lat, p.lon, f.lat, f.lon), km = (d < 3000 ? (Math.round(d / 100) / 10).toFixed(1) : String(Math.round(d / 1000))).replace('.', T.dec);
-  const where = d < 500 ? T.over(p.name) : T.at(km, T.dir[Math.round(wrap360(b) / 45) % 8], p.name);
-  const ft = a != null ? Math.round(a * 3.28084 / 100) * 100 : null, m = a != null ? Math.round(a / 10) * 10 : null;
-  const alt = a == null ? '' : alU === 'm' ? `, ${m} ${T.m}` : alU === 'both' ? `, ${ft} ${T.ft}, ${m} ${T.m}` : `, ${ft} ${T.ft}`;
-  return `${cs}, ${where}${alt}${st.thermMode ? ', ' + T.th : ''}.`;
+  en: { km: 'kilometres', dir: ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'], at: (km, d, n) => `${km} kilometres ${d} of ${n}`, over: (n) => `overhead ${n}`, ft: 'feet', m: 'metres', th: 'thermalling', dec: '.' },
+  sv: { km: 'kilometer', dir: ['norr', 'nordost', 'öster', 'sydost', 'söder', 'sydväst', 'väster', 'nordväst'], at: (km, d, n) => `${km} kilometer ${d} om ${n}`, over: (n) => `över ${n}`, ft: 'fot', m: 'meter', th: 'i termik', dec: ',' },
+  fi: { km: 'kilometriä', dir: ['pohjoiseen', 'koilliseen', 'itään', 'kaakkoon', 'etelään', 'lounaaseen', 'länteen', 'luoteeseen'], at: (km, d, n) => `paikasta ${n} ${km} kilometriä ${d}`, over: (n) => `${n} yllä`, ft: 'jalkaa', m: 'metriä', th: 'termiikissä', dec: ',' } };
+const radioLang = () => { const l = S.radioLang || 'en'; return l === 'voice' ? (RADIO_TXT[S.voiceLang] ? S.voiceLang : (navigator.language || 'en').slice(0, 2)) : l; };
+// the radio message: S.radioTpl with {callsign} {where} {dist} {km} {dir} {place} {alt} {ft} {m} {thermal}; empty = the default for the language
+const RADIO_TPL = '{callsign}, {where}, {alt}{thermal}.';
+function radioParts(p) {
+  const T = RADIO_TXT[radioLang()] || RADIO_TXT.en, f = st.fix, a = altNow(); if (!f) return null;
+  const d = dist(p.lat, p.lon, f.lat, f.lon), b = brg(p.lat, p.lon, f.lat, f.lon), km = (d < 3000 ? (Math.round(d / 100) / 10).toFixed(1) : String(Math.round(d / 1000))).replace('.', T.dec), dir = T.dir[Math.round(wrap360(b) / 45) % 8];
+  const ft = a != null ? Math.round(a * 3.28084 / 100) * 100 + ' ' + T.ft : '', m = a != null ? Math.round(a / 10) * 10 + ' ' + T.m : '', alU = S.radioAlt || 'ft';
+  return { callsign: S.callsign || 'Paraglider', where: d < 500 ? T.over(p.name) : T.at(km, dir, p.name), dist: km + ' ' + T.km, km, dir, place: p.name, ft, m, alt: alU === 'm' ? m : alU === 'both' ? ft + ', ' + m : ft, thermal: st.thermMode ? ', ' + T.th : '' };
 }
-function poiInfoHTML(p, rel, C) {
+function radioCall(p) { const P = radioParts(p); if (!P) return ''; return (S.radioTpl || RADIO_TPL).replace(/\{(\w+)\}/g, (x, k) => (k in P ? P[k] : x)).replace(/,\s*,/g, ',').replace(/,\s*\./g, '.').replace(/\s+/g, ' ').trim(); }
+function poiInfoHTML(p, rel) {
   const f = st.fix; if (!f) return '<div class="muted">Waiting for a position</div>';
   const d = dist(f.lat, f.lon, p.lat, p.lon), toP = brg(f.lat, f.lon, p.lat, p.lon), fromP = wrap360(toP + 180);
   const me = `You are <b>${fDist(d)} ${compass(fromP)}</b> of ${esc(p.name)}`, it = `${esc(p.name)} is <b>${fDist(d)} ${compass(toP)}</b> of you`;
   return `<div style="font-size:24px;line-height:1.3">${rel === 'poi' ? it : me}</div><div class="muted" style="font-size:15px;margin-top:4px">${rel === 'poi' ? me : it} · to it ${pad3(toP)}°${p.sub ? ' · ' + esc(p.sub) : ''}</div>
-    <div class="lbl" style="margin-top:12px">Radio message</div><div class="card" style="font-size:20px;line-height:1.35;padding:12px 14px">${esc(radioCall(p, C))}</div>
+    <div class="lbl" style="margin-top:12px">Radio message</div><div class="card" style="font-size:20px;line-height:1.35;padding:12px 14px">${esc(radioCall(p))}</div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn" data-poi="say" style="min-height:56px">🔊 Say it</button><button class="btn" data-poi="rel" style="min-height:56px">${rel === 'poi' ? 'Show me relative to it' : 'Show it relative to me'}</button></div>
-    <div class="muted" style="margin-top:6px">Callsign and altitude units: map widget settings (Radio callsign).</div>`;
+    <div class="muted" style="margin-top:6px">Callsign, language and wording: Settings → Radio message.</div>`;
 }
-function openPoiInfo(p, rel, C) {
+function openPoiInfo(p, rel) {
   let r = rel === 'poi' ? 'poi' : 'me';
-  openInfo(p.name, () => poiInfoHTML(p, r, C));
-  $('hBody').onclick = (e) => { const b = e.target.closest('[data-poi]'); if (!b) return; if (b.dataset.poi === 'say') say(radioCall(p, C), true, radioLang(C)); else r = r === 'poi' ? 'me' : 'poi'; $('hBody').innerHTML = poiInfoHTML(p, r, C); };
+  openInfo(p.name, () => poiInfoHTML(p, r));
+  $('hBody').onclick = (e) => { const b = e.target.closest('[data-poi]'); if (!b) return; if (b.dataset.poi === 'say') say(radioCall(p), true, radioLang()); else r = r === 'poi' ? 'me' : 'poi'; $('hBody').innerHTML = poiInfoHTML(p, r); };
 }
 function openHeights() { openInfo('Height', heightsHTML); }
 // custom info: the chosen values (any text widget's value, or heights in m and ft) and an optional note

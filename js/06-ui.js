@@ -881,7 +881,7 @@ function renderWeb() {
 }
 
 /* settings */
-const SECS = [['data', 'Vario & GPS'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Update & thermal mode'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
+const SECS = [['data', 'Vario & GPS'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['radio', 'Radio message'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Update & thermal mode'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
@@ -916,6 +916,14 @@ function renderSettings() {
     <div class="field"><label for="wingLD">Wing glide ratio (empty dot)</label><input type="number" id="wingLD" value="${S.wingLD}" step="0.1" min="3" max="20"></div>
     <div class="field"><label for="safety">Arrival safety height (m)</label><input type="number" id="safety" value="${S.safety}" step="10"></div>
     ${seg('rotDefault', [['north', 'North up'], ['track', 'Track up'], ['bearing', 'Bearing up']], 'New map widgets start in')}${seg('taOrient', [['wind', 'Wind up'], ['winddown', 'Wind down'], ['north', 'North up']], 'Thermal assistant')}</div>`;
+  if (setSec === 'radio') { const ex = { name: (st.places.find((p) => p.kind === 'town') || { name: 'Seinäjoki' }).name, lat: (st.fix ? st.fix.lat : 62.8) - 0.03, lon: (st.fix ? st.fix.lon : 22.8) - 0.04 };
+    h = `<div class="card sec"><h2>Radio message</h2><div class="muted">Tap a place on the map to get your position relative to it and this message to read out (🔊 Say it speaks it).</div>
+    <div class="field"><label for="callsign">Callsign</label><input type="text" id="callsign" maxlength="40" value="${esc(S.callsign || '')}" placeholder="e.g. Paraglider OH-123"></div>
+    ${seg('radioLang', [['en', 'English'], ['sv', 'Svenska'], ['fi', 'Suomi'], ['voice', 'As voice messages']], 'Language')}
+    ${seg('radioAlt', [['ft', 'Feet'], ['m', 'Metres'], ['both', 'Both']], 'Altitude')}
+    <div class="field"><label for="radioTpl">Message</label><input type="text" id="radioTpl" maxlength="160" value="${esc(S.radioTpl || '')}" placeholder="${esc(RADIO_TPL)}" style="flex:1;min-width:240px"><button class="btn" id="radioTplReset">Default</button></div>
+    <div class="muted">Words in braces are filled in: {callsign} {where} (e.g. 2.3 kilometres north-west of X, or overhead X) {dist} {km} {dir} {place} {alt} {ft} {m} {thermal} (“, thermalling” while in thermal mode). Empty = default.</div>
+    <div class="field"><span class="k">Example</span><div class="card" style="font-size:18px;padding:10px 12px;flex:1" id="radioEx">${st.fix ? esc(radioCall(ex)) : 'needs a position'}</div><button class="btn" id="radioSay">🔊 Say it</button></div></div>`; }
   if (setSec === 'air') { const ix = st.airIdx && st.airIdx.countries, xc = S.airSrc === 'xcsoar';
     h = `<div class="card sec"><h2>Airspace data</h2>
     <div class="field"><span class="k">Source</span><span class="row" style="flex-wrap:wrap"><button class="pill" id="asXc" aria-pressed="${xc}">Built in</button><button class="pill" id="asOwn" aria-pressed="${!xc}">My own (OpenAIP or file)</button></span></div>
@@ -1019,6 +1027,10 @@ function renderSettings() {
   on('pgNewName', 'oninput', (e) => (st.pgName = e.target.value));
   on('pgAdd', 'onclick', () => { const P = pageAdd($('pgNewName').value, st.pgFrom || ''); st.pgFrom = ''; st.pgName = ''; toast(`Page “${P.name}” added`); showPage(P.id); setTimeout(() => enterEdit(), 80); });
   document.querySelectorAll('[data-ntsrc]').forEach((b) => (b.onclick = () => { const l = new Set(S.notamSrc || NT_DEF), k = b.dataset.ntsrc; l.has(k) ? l.delete(k) : l.add(k); S.notamSrc = NT_SRC.map(([x]) => x).filter((x) => l.has(x)); save(); renderSettings(); loadNotams(true); }));
+  on('callsign', 'onchange', (e) => { S.callsign = e.target.value.trim(); save(); renderSettings(); });
+  on('radioTpl', 'onchange', (e) => { S.radioTpl = e.target.value.trim(); save(); renderSettings(); });
+  on('radioTplReset', 'onclick', () => { S.radioTpl = ''; save(); renderSettings(); });
+  on('radioSay', 'onclick', () => { const t = $('radioEx') && $('radioEx').textContent; if (t && st.fix) say(t, true, radioLang()); });
   on('oaClear', 'onclick', () => { S.airSrc = 'own'; save(); st.airspaces = []; localStorage.removeItem('bora.air'); drawAirspaces(); renderSettings(); });
   on('taskClear', 'onclick', () => { clearTask(); renderSettings(); });
   on('fxImp', 'onclick', () => { if (importFlyXC($('fxUrl').value)) renderSettings(); });
