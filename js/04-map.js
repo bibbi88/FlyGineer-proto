@@ -132,10 +132,25 @@ function mapMount(el, E) {
   m.on('dragend', () => { I.panAt = Date.now(); });
   m.on('zoomend', () => { const W0 = findW(I.id); if (!W0) return; cfgW(W0).z = +m.getZoom().toFixed(2); clearTimeout(I.zt); I.zt = setTimeout(save, 600); });
   m.on('click', () => { if (I.menu) { I.menu = false; renderWidgets(); } });
-  m.on('move', () => ptrUpdate(I));
+  m.on('move', () => { ptrUpdate(I); const W0 = findW(I.id); if (W0) edgeUpdate(I, effCfg(W0)); });
   MAPS.add(I); return I;
 }
 
+/* places outside the view (cfg.plEdge): airports and towns as small tags on a ring around you (cfg.plRing % of the map), pointing the way, with the distance */
+function edgeUpdate(I, C) {
+  const on = (v, d) => (v === undefined ? d : v !== false && v !== 'false'), show = !wEdit && on(C.places, false) && on(C.plEdge, true) && st.fix;
+  let box = I.edge; if (!show) { if (box) box.style.display = 'none'; return; }
+  if (!box) { box = I.edge = document.createElement('div'); box.className = 'plEdgeBox'; I.box.parentElement.appendChild(box); }
+  box.style.display = ''; const m = I.m, sz = m.getSize(), f = st.fix, R = S.poiRadius * 1000, me = m.latLngToContainerPoint([f.lat, f.lon]), ring = Math.min(sz.x, sz.y) * clamp(+C.plRing || 35, 15, 48) / 100;
+  const want = (p) => p.kind === 'airport' ? on(C.plAir, true) : p.kind === 'town' && p.rank >= 2 ? on(C.plTown, true) : false;
+  const list = st.places.filter(want).map((p) => ({ p, d: dist(f.lat, f.lon, p.lat, p.lon), pt: m.latLngToContainerPoint([p.lat, p.lon]) }))
+    .filter((x) => x.d <= R && (x.pt.x < 0 || x.pt.y < 0 || x.pt.x > sz.x || x.pt.y > sz.y)).sort((a, b) => (b.p.kind === 'airport') - (a.p.kind === 'airport') || a.d - b.d).slice(0, +C.plEdgeN || 6);
+  let h = '';
+  // on a ring around you (the middle of the map is the part widgets leave free), in the direction of the place
+  list.forEach(({ p, d, pt }) => { const dx = pt.x - me.x, dy = pt.y - me.y, l = Math.hypot(dx, dy) || 1, x = me.x + dx / l * ring, y = me.y + dy / l * ring, ang = Math.atan2(dx, -dy) * R2D;
+    h += `<div class="plEdge${p.kind === 'airport' ? ' ap' : ''}" style="left:${x.toFixed(0)}px;top:${y.toFixed(0)}px"><svg class="plEdgeA" width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.5L10 11L6 8.3L2 11Z" fill="currentColor" transform="rotate(${ang.toFixed(0)} 6 6)"/></svg>${p.kind === 'airport' ? '✈ ' : ''}${esc(p.name)} <b>${fDist(d)}</b></div>`; });
+  if (box._h !== h) { box.innerHTML = h; box._h = h; }
+}
 /* pointer while the map is moved away from you: crosshair at the centre, airspace there, distance and direction from you */
 function ptrUpdate(I) {
   const W = findW(I.id), C = W ? effCfg(W) : {}, show = !I.follow && !wEdit && C.ptr !== false && C.ptr !== 'false';
@@ -237,7 +252,7 @@ function mapDraw(cv, E, el, b) {
   const ctl = on(C.ctl) ? mapCtl(I, lk, rot, mb) : ['', ''], cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
   if (cl._h !== ctl[0]) { cl.innerHTML = ctl[0]; cl._h = ctl[0]; } if (cr._h !== ctl[1]) { cr.innerHTML = ctl[1]; cr._h = ctl[1]; }
   const bs = clamp(+C.btnSz || 56, 36, 120) + 'px'; if (el._bs !== bs) { el._bs = bs; el.style.setProperty('--mb', bs); } // on-map button size
-  ptrUpdate(I);
+  ptrUpdate(I); edgeUpdate(I, C);
   el._sub = '';
 }
 

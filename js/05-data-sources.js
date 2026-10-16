@@ -98,6 +98,7 @@ function airStatus() {
 }
 
 /* ================= places (OpenStreetMap / Overpass) ================= */
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
 async function loadPlaces(force) {
   const f = st.fix; if (!f) return;
   if (!force && Date.now() - (st.placesErrAt || 0) < 60000) return;
@@ -107,12 +108,13 @@ async function loadPlaces(force) {
   const q = `[out:json][timeout:25];(node["place"~"^(city|town|village)$"]${a};node["aeroway"="aerodrome"]${a};way["aeroway"="aerodrome"]${a};node["natural"="peak"]${a};);out center 300;`;
   st.placesState = 'loading'; markDirty();
   try {
-    const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json();
+    // Overpass servers are often busy (429/504): try the next one
+    let j = null, err = null;
+    for (const u of OVERPASS) { try { const r = await fetch(u, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }); if (!r.ok) throw new Error('HTTP ' + r.status); j = await r.json(); break; } catch (e) { err = e; } }
+    if (!j) throw err || new Error('no answer');
     st.places = j.elements.map((e) => { const lat = e.lat ?? e.center?.lat, lon = e.lon ?? e.center?.lon; const t = e.tags || {}; const kind = t.aeroway ? 'airport' : t.natural === 'peak' ? 'peak' : 'town'; return { name: t.name || t.icao || (kind === 'peak' ? 'Peak' : 'Unnamed'), kind, sub: t.place || (t.icao ? t.icao : t.ele ? t.ele + ' m' : ''), lat, lon, rank: t.place === 'city' ? 3 : t.place === 'town' ? 2 : 1 }; }).filter((p) => p.lat != null && (p.kind !== 'peak' || p.name !== 'Peak'));
-    st.placesState = 'ok'; renderPlaces();
-  } catch (e) { st.placesState = 'error: ' + e.message; st.placesErrAt = Date.now(); markDirty(); st.placesAt = null; }
+    st.placesState = 'ok'; st.placesToast = false; renderPlaces();
+  } catch (e) { st.placesState = 'error: ' + e.message; st.placesErrAt = Date.now(); markDirty(); st.placesAt = null; if (!st.placesToast) { st.placesToast = true; toast('Places (airports, towns) could not be loaded: ' + e.message + ' · trying again in a minute'); } }
 }
 
 /* ================= FAI triangle assistant (S.fai) =================

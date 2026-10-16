@@ -366,3 +366,11 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .plSq{display:block;background:#111418;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
 .plName{position:absolute;left:12px;top:0;transform:translateY(-50%);white-space:nowrap;font-weight:700;color:#111418;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff;cursor:pointer;padding:6px 0}
 .plName small{font-weight:600;font-size:.8em;color:#5B2FA6}
+.plEdgeBox{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+.plEdge{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font:700 12px var(--txt);color:#111418;background:rgba(255,255,255,.88);border:1px solid #111418;border-radius:8px;padding:2px 7px 2px 4px;display:flex;align-items:center;gap:4px}
+.plEdge.ap{border-color:#5B2FA6;color:#5B2FA6}
+.plEdge b{font-weight:600;color:#4A5058}
+.plEdgeA{display:inline-block;font-size:10px;line-height:1}
+.mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.mlist .btn{min-height:64px;justify-content:flex-start;gap:12px;font-size:18px}
+.mlist .btn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}

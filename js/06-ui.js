@@ -825,7 +825,12 @@ function widgetAct(W, act) {
     case 'xin': D.range = Math.round(clamp((+C.range || 300) / 1.5, 50, 5000) / 10) * 10; D.scale = 'fixed'; break;
     case 'xout': D.range = Math.round(clamp((+C.range || 300) * 1.5, 50, 5000) / 10) * 10; D.scale = 'fixed'; break;
     case 'reset3d': D.yaw = 0; D.zoom = 1; break;
-    case 'mmenu': if (I) I.menu = !I.menu; renderWidgets(); return;
+    case 'mmenu': { // map style: a popup above everything (the old in-map menu was covered by other widgets)
+      if (I) I.menu = false; st.tapGuard = Date.now(); const cur = LAYERS[C.layer] ? C.layer : 'topo', close = () => ($('dlg').style.display = 'none');
+      $('dlgBody').innerHTML = `<div class="row" style="justify-content:space-between"><span class="num" style="font-size:26px">Map style</span><button class="btn primary" id="dlgClose">Close</button></div><div class="mlist">${Object.entries(LAYERS).map(([k, l]) => `<button class="btn" data-ml="${k}" aria-pressed="${k === cur}"><span class="sw" style="background:${l.sw[0]};border-color:${l.sw[1]}"></span>${l.name}</button>`).join('')}</div>`;
+      $('dlg').style.display = 'flex'; $('dlgClose').onclick = close;
+      $('dlgBody').querySelectorAll('[data-ml]').forEach((b) => (b.onclick = () => { D.layer = b.dataset.ml; S.layer = b.dataset.ml; close(); saveLayout(); }));
+      return; }
     case 'mlayer': D.layer = arg; if (I) I.menu = false; if (S.layer !== arg) { S.layer = arg; } break;
     case 'mrot': { const o = ['north', 'track', 'bearing']; let nx = o[(o.indexOf(C.rot || 'north') + 1) % 3]; if (nx === 'bearing' && !st.task) nx = 'north'; D.rot = nx; toast(ROT[nx]); break; }
     case 'mzin': if (I) I.m.zoomIn(); return;
