@@ -93,7 +93,7 @@ function airStatus() {
     const inside = inPoly(f.lat, f.lon, a.poly), d = inside ? 0 : edgeDist(f.lat, f.lon, a.poly);
     const lo = limM(a.lo, g), hi = limM(a.hi, g); const vert = alt < lo ? 'below' : alt > hi ? 'above' : 'in';
     return { a, inside, d, lo, hi, vert, alt };
-  }).filter((x) => x.d < 30000).sort((x, y) => (y.inside && y.vert === 'in') - (x.inside && x.vert === 'in') || x.d - y.d);
+  }).filter((x) => x.d < 50000).sort((x, y) => (y.inside && y.vert === 'in') - (x.inside && x.vert === 'in') || x.d - y.d);
 }
 
 /* ================= places (OpenStreetMap / Overpass) ================= */

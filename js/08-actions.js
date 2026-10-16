@@ -47,7 +47,7 @@ function handleTap(W) {
   if (a === 'fullscreen') return toggleFull();
   if (a === 'fai') return runAction('fai');
   if (a === 'heights') return openHeights();
-  if (a === 'airlist') return openInfo('Airspace near you', () => airListHTML(W));
+  if (a === 'airlist') return openInfo('Airspace near you', () => airListHTML(W), W);
   if (a === 'custom') return openInfo(effCfg(W).label || 'Info', () => infoHTML(W));
   // height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
   if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); return switchUnits(W); }
@@ -347,22 +347,23 @@ function heightsHTML() {
   return row('AMSL', a, 'no altitude') + row('AGL', agl, 'needs terrain data');
 }
 // a popup that stays (tap) and refreshes every second
-function openInfo(title, fn) {
+function openInfo(title, fn, W) { // W: adds a Settings button that opens this widget's settings
   const draw = () => { const b = document.getElementById('hBody'); if (b) b.innerHTML = fn(); };
-  $('dlgBody').innerHTML = `<div class="row" style="justify-content:space-between"><span class="num" style="font-size:26px">${esc(title)}</span><button class="btn primary" id="dlgClose">Close</button></div><div id="hBody">${fn()}</div>`;
-  $('dlg').style.display = 'flex'; $('dlgClose').onclick = () => { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; };
+  const close = () => { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; };
+  $('dlgBody').innerHTML = `<div class="row" style="justify-content:space-between"><span class="num" style="font-size:26px">${esc(title)}</span><span class="row">${W ? '<button class="btn" id="infoSet">Settings</button>' : ''}<button class="btn primary" id="dlgClose">Close</button></span></div><div id="hBody" style="max-height:calc(100dvh - 160px);overflow-y:auto">${fn()}</div>`;
+  $('dlg').style.display = 'flex'; $('dlgClose').onclick = close; if (W) $('infoSet').onclick = () => { close(); enterEdit(W.id); };
   clearInterval(detT); detT = setInterval(() => { if ($('dlg').style.display === 'none') { clearInterval(detT); detT = null; return; } draw(); }, 1000);
 }
 // airspaces near you (within the widget's radius, default 10 km) and their radio frequencies
 function airListHTML(W) {
-  const c = W ? effCfg(W) : {}, R = (+c.radius || 10) * 1000, all = airStatus(), s = all.filter((x) => x.d <= R).slice(0, 12);
+  const c = W ? effCfg(W) : {}, R = (+c.radius || 20) * 1000, all = airStatus(), near = all.filter((x) => x.d <= R && (c.band !== 'height' || x.vert !== 'below' || x.inside)), s = near.slice(0, clamp(+c.rows || 25, 3, 50));
   if (!st.airspaces.length) return '<div class="muted">No airspace data loaded · Settings → Airspace data</div>';
   if (!st.fix) return '<div class="muted">Waiting for a position</div>';
   const st2 = (x) => x.inside ? (x.vert === 'in' ? '<b style="color:var(--restr)">INSIDE</b>' : x.vert === 'below' ? `<b>${fAlt(x.lo - x.alt)} ${S.uAlt}</b> below floor` : 'above top') : `<b>${fDist(x.d)}</b> · ${x.vert === 'below' ? 'below floor' : x.vert === 'above' ? 'above top' : 'at your height'}`;
   const rows = s.map((x) => `<div class="li" style="min-height:52px"><span style="width:16px;height:16px;border-radius:4px;border:3px solid ${airColor(x.a)};flex-shrink:0"></span><span class="grow" style="min-width:0"><b>${esc(x.a.name)}</b> <span class="muted">${fmtLim(x.a.lo)} – ${fmtLim(x.a.hi)}</span>${x.a.freq && x.a.freq.length ? `<br><span class="num" style="font-size:15px">📻 ${x.a.freq.map((q) => esc(q.v)).join(' · ')}</span>` : ''}</span><span style="text-align:right;white-space:nowrap">${st2(x)}</span></div>`).join('');
   const fr = []; s.forEach((x) => (x.a.freq || []).forEach((q) => { if (!fr.find((y) => y.v === q.v)) fr.push({ v: q.v, n: q.n || x.a.name, on: x.inside && x.vert === 'in' }); }));
   const radio = fr.length ? `<div class="lbl" style="margin-top:10px">Radio</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">${fr.slice(0, 12).map((q) => `<div class="freq ${q.on ? 'on' : ''}"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(q.n)}</div><div class="num" style="font-size:26px">${esc(q.v)}</div></div>`).join('')}</div>` : '<div class="muted" style="margin-top:10px">No radio frequencies in the airspace data nearby.</div>';
-  return `<div class="muted">Within ${R / 1000} km · ${s.length} airspace${s.length === 1 ? '' : 's'}</div>` + (rows || '<div class="muted">None nearby</div>') + radio;
+  return `<div class="muted">Within ${R / 1000} km · ${near.length} airspace${near.length === 1 ? '' : 's'}${near.length > s.length ? ', nearest ' + s.length + ' shown' : ''}${c.band === 'height' ? ' · at your height or above' : ''}</div>` + (rows || '<div class="muted">None nearby</div>') + (c.radio === false || c.radio === 'false' ? '' : radio);
 }
 function openHeights() { openInfo('Height', heightsHTML); }
 // custom info: the chosen values (any text widget's value, or heights in m and ft) and an optional note
