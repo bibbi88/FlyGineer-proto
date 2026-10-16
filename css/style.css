@@ -358,3 +358,6 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .tcBox.cand{background:var(--card);color:var(--tc)}
 .tcBox.idle{background:var(--card);color:var(--muted);border-color:var(--line)}
 .wg[data-type="airwarn"],.wg[data-type="thchip"]{padding:2px}
+.wg[data-type="map"] .wcb.big{min-width:var(--mb,56px);height:var(--mb,56px);font-size:calc(var(--mb,56px) * .46)}
+.wg[data-type="map"] .wcb.big svg{width:calc(var(--mb,56px) * .5);height:calc(var(--mb,56px) * .5)}
+.wg[data-type="map"] .wcb.big span{font-size:calc(var(--mb,56px) * .27)!important}

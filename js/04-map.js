@@ -215,12 +215,15 @@ function mapDraw(cv, E, el, b) {
     else { I.headL.remove(); I.headHalo.remove(); I.predNow.remove(); I.predWing.remove(); }
     const sp = on(C.start) ? startPlace() : null; if (sp) I.start.setLatLng([sp.lat, sp.lon]).addTo(m); else I.start.remove();
     if (I.follow) {
-      let c = ll; if (rot !== 'north') { const h = m.getSize().y, mpp = 156543.03 * Math.cos(f.lat * D2R) / Math.pow(2, m.getZoom()); c = dest(f.lat, f.lon, up, h * 0.28 * mpp); }
+      // where you sit on the map: cfg.me % from the bottom (0 = auto: middle when north up, 22 % when the map turns)
+      const me = +C.me > 0 ? clamp(+C.me, 5, 95) : rot === 'north' ? 50 : 22, off = (0.5 - me / 100) * m.getSize().y;
+      let c = ll; if (Math.abs(off) > 1) { const mpp = 156543.03 * Math.cos(f.lat * D2R) / Math.pow(2, m.getZoom()); c = dest(f.lat, f.lon, off > 0 ? up : up + 180, Math.abs(off) * mpp); }
       const cur = m.getCenter(); if (Math.abs(cur.lat - c[0]) > 1e-7 || Math.abs(cur.lng - c[1]) > 1e-7) m.setView(c, m.getZoom(), { animate: false });
     }
   }
   const ctl = on(C.ctl) ? mapCtl(I, lk, rot, mb) : ['', ''], cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
   if (cl._h !== ctl[0]) { cl.innerHTML = ctl[0]; cl._h = ctl[0]; } if (cr._h !== ctl[1]) { cr.innerHTML = ctl[1]; cr._h = ctl[1]; }
+  const bs = clamp(+C.btnSz || 56, 36, 120) + 'px'; if (el._bs !== bs) { el._bs = bs; el.style.setProperty('--mb', bs); } // on-map button size
   ptrUpdate(I);
   el._sub = '';
 }
