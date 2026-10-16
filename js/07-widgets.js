@@ -133,7 +133,28 @@ const DEFS = {
 const PAGEKEY = { pMap: 'map', pThermal: 'thermal', pAtmos: 'atmos', pAir: 'air' };
 const LAYERID = { map: 'wLayer', thermal: 'wLayer_thermal', atmos: 'wLayer_atmos', air: 'wLayer_air' };
 const pageKey = () => PAGEKEY[curPage] || 'map';
-const defLayout = (pk) => (DEFS[pk || pageKey()] || DEFS.map).map(([t, x, y, w, h, c]) => { const W = newW(t, x, y, w, h); if (c) Object.assign(W.cfg, c); return W; });
+/* own pages (S.pages = [{ id: 'pU…', name }]): widget pages like Map or Thermal; the layout key is the page id; they start empty or as a copy */
+const isUserPage = (id) => /^pU[a-z0-9]+$/.test(String(id));
+const pageTitle = (pk) => ({ map: 'map', thermal: 'Thermal page', atmos: 'Atmosphere page', air: 'Airspace page' })[pk] || ((S.pages || []).find((p) => p.id === pk) || { name: 'page' }).name;
+function pageMount(P) {
+  PAGEKEY[P.id] = P.id; LAYERID[P.id] = 'wLayer_' + P.id;
+  let sec = $(P.id);
+  if (!sec) {
+    sec = document.createElement('section'); sec.className = 'page custom'; sec.id = P.id;
+    sec.innerHTML = `<div class="wLayer" id="wLayer_${P.id}"></div><div class="emptyHint"><b></b><span>This page has no widgets yet.</span><button class="btn primary">Add widgets</button></div>`;
+    sec.querySelector('.emptyHint button').onclick = () => { enterEdit(); openAdd(); };
+    $('pPlan').before(sec);
+  }
+  sec.querySelector('.wLayer').setAttribute('aria-label', P.name + ' widgets'); sec.querySelector('.emptyHint b').textContent = P.name;
+  let tab = document.querySelector(`.tab[data-page="${P.id}"]`);
+  if (!tab) { tab = document.createElement('button'); tab.className = 'tab'; tab.dataset.page = P.id; tab.onclick = () => showPage(P.id); document.querySelector('.tab[data-page="pPlan"]').before(tab); }
+  tab.textContent = P.name;
+}
+function pageUnmount(id) { delete PAGEKEY[id]; delete LAYERID[id]; const sec = $(id); if (sec) { sec.querySelectorAll('.wg').forEach(disposeW); sec.remove(); } document.querySelector(`.tab[data-page="${id}"]`)?.remove(); }
+function pagesOrder() { S.pages.forEach((P) => { const sec = $(P.id), tab = document.querySelector(`.tab[data-page="${P.id}"]`); if (sec) $('pPlan').before(sec); if (tab) document.querySelector('.tab[data-page="pPlan"]').before(tab); }); }
+S.pages = (Array.isArray(S.pages) ? S.pages : []).filter((p) => p && isUserPage(p.id) && typeof p.name === 'string').slice(0, 20);
+S.pages.forEach(pageMount);
+const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.map).map(([t, x, y, w, h, c]) => { const W = newW(t, x, y, w, h); if (c) Object.assign(W.cfg, c); return W; });
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only

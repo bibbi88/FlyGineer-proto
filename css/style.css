@@ -71,7 +71,7 @@ main{flex:1;min-height:0;position:relative}
 #mapWrap{position:relative;flex:1;min-width:0}
 #mapWrap{background:var(--bg)}
 .wLayer{position:absolute;inset:0;z-index:450;pointer-events:none}
-#pThermal .wLayer,#pAtmos .wLayer,#pAir .wLayer{z-index:1}
+#pThermal .wLayer,#pAtmos .wLayer,#pAir .wLayer,.page.custom .wLayer{z-index:1}
 .wg{position:absolute;pointer-events:auto;border-radius:10px;border:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;padding:4px 8px;color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none}
 .wg .wl{display:flex;justify-content:space-between;gap:6px;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--muted);white-space:nowrap;overflow:hidden;line-height:1.2}
 .wg .wv{font-family:var(--num);font-weight:700;font-variant-numeric:tabular-nums;line-height:1;flex:1;display:flex;align-items:center;white-space:nowrap;overflow:hidden}
@@ -200,7 +200,7 @@ body.replaying #wLayer{bottom:56px}
 #rpGrip{cursor:grab;touch-action:none;font-size:22px;background:transparent!important;border-style:dashed!important}
 #rpGrip:active{cursor:grabbing}
 /* only on the widget pages, not on Settings or Web */
-body:not([data-page=pMap]):not([data-page=pThermal]):not([data-page=pAtmos]):not([data-page=pAir]) #replayBar{display:none!important}
+body:not(.wpage) #replayBar{display:none!important}
 #replayBar button{height:48px;min-width:48px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:15px}
 #replayBar button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 #replayBar input[type=range]{flex:1;min-width:80px;height:44px;accent-color:var(--ink)}
@@ -346,3 +346,6 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .windMk{overflow:visible}
 .windMkL{position:absolute;transform:translate(-50%,-50%);font:700 13px var(--txt);white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff;pointer-events:none}
 .windMkL.dk{text-shadow:0 0 3px #111418,0 0 3px #111418,0 0 2px #111418}
+.emptyHint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-size:18px;color:var(--muted,#667085);pointer-events:none}
+.emptyHint b{font-size:26px;color:var(--ink)}
+.emptyHint button{pointer-events:auto;min-height:56px;font-size:18px}

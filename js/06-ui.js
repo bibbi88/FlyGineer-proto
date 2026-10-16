@@ -763,6 +763,7 @@ function renderWidgets() {
     if (el._last !== html) { el.innerHTML = html; el._last = html; }
   });
   updateBackOverlay(layer); ctlGhosts(layer, lr);
+  const eh = layer.parentElement.querySelector(':scope > .emptyHint'); if (eh) eh.style.display = L0.length || wEdit ? 'none' : '';
 }
 
 /* while editing: outlines of the map widgets' own buttons (style, orientation, zoom, follow), drawn above every widget, so nothing gets placed on them; red when a widget covers one */
@@ -794,8 +795,7 @@ function updateBackOverlay(layer) {
   ov.style.bottom = '18px';
 }
 function saveLayout() { save(); renderWidgets(); }
-const PAGE_NAME = { map: 'map', thermal: 'Thermal page', atmos: 'Atmosphere page', air: 'Airspace page' };
-function enterEdit(selId) { wEdit = true; document.body.classList.add('wedit'); wSel = selId || null; $('wbName').textContent = PAGE_NAME[pageKey()]; setNav(false); renderWidgets(); if (selId) openSheet(selId); }
+function enterEdit(selId) { wEdit = true; document.body.classList.add('wedit'); wSel = selId || null; $('wbName').textContent = pageTitle(pageKey()); setNav(false); renderWidgets(); if (selId) openSheet(selId); }
 function exitEdit() { wEdit = false; wSel = null; document.body.classList.remove('wedit'); $('wSheet').classList.remove('on'); if (st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } sheetFor = null; saveLayout(); }
 
 /* ----- actions from buttons inside widgets ----- */
@@ -872,7 +872,7 @@ function renderWeb() {
 }
 
 /* settings */
-const SECS = [['data', 'Vario & GPS'], ['widgets', 'Map widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Update & thermal mode'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
+const SECS = [['data', 'Vario & GPS'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Update & thermal mode'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
@@ -894,9 +894,14 @@ function renderSettings() {
     <div class="field"><span class="k">Synthetic test flight</span>${st.sim ? `<button class="btn warn" id="simBtn">Stop test flight</button>` : `<button class="btn" id="simBtn">Start test flight</button>`}</div>
     <div class="muted">Simulated thermals with 12 km/h wind from 250°, for testing.</div>
     <div class="field"><label for="qnh">QNH for pressure only (hPa)</label><input type="number" id="qnh" value="${S.qnh || 1013.25}" step="0.25"></div></div>`;
-  if (setSec === 'widgets') h = `<div class="card sec"><h2>Page layouts</h2><div class="muted">Map, Thermal, Atmosphere and Airspace are built from widgets you can move, resize, duplicate and configure. Long-press any widget, or choose a page here.</div>
-    <div class="field"><span class="k">Edit layout of</span><span class="row" style="flex-wrap:wrap"><button class="btn" data-edit="pMap">Map</button><button class="btn" data-edit="pThermal">Thermal</button><button class="btn" data-edit="pAtmos">Atmosphere</button><button class="btn" data-edit="pAir">Airspace</button></span></div>
-    <div class="field"><span class="k">Defaults</span><button class="btn warn" data-reset="all">Reset all page layouts</button></div>
+  if (setSec === 'widgets') h = `<div class="card sec"><h2>Page layouts</h2><div class="muted">Map, Thermal, Atmosphere, Airspace and your own pages are built from widgets you can move, resize, duplicate and configure.</div>
+    <div class="field"><span class="k">Edit layout of</span><span class="row" style="flex-wrap:wrap"><button class="btn" data-edit="pMap">Map</button><button class="btn" data-edit="pThermal">Thermal</button><button class="btn" data-edit="pAtmos">Atmosphere</button><button class="btn" data-edit="pAir">Airspace</button>${S.pages.map((p) => `<button class="btn" data-edit="${p.id}">${esc(p.name)}</button>`).join('')}</span></div>
+    <h2 style="margin-top:8px">Your own pages</h2>
+    ${S.pages.length ? S.pages.map((p, i) => `<div class="field"><input type="text" maxlength="24" data-pgname="${p.id}" value="${esc(p.name)}" aria-label="Page name" style="flex:1;min-width:140px"><span class="row"><button class="btn" data-pgmove="${p.id}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Move left">◀</button><button class="btn" data-pgmove="${p.id}" data-d="1" ${i < S.pages.length - 1 ? '' : 'disabled'} aria-label="Move right">▶</button><button class="btn" data-edit="${p.id}">Edit</button><button class="btn warn" data-pgdel="${p.id}">Delete</button></span></div>`).join('') : '<div class="muted">No own pages yet. They show up as tabs, in the page menu, and as choices for buttons, taps and automatic actions.</div>'}
+    <div class="field"><input type="text" id="pgNewName" maxlength="24" value="${esc(st.pgName || '')}" placeholder="New page name, e.g. Competition" style="flex:1;min-width:180px"></div>
+    <div class="field"><span class="k">Start from</span><span class="row" style="flex-wrap:wrap">${[['', 'Empty'], ['map', 'Copy of Map'], ['thermal', 'Copy of Thermal'], ['atmos', 'Copy of Atmosphere'], ['air', 'Copy of Airspace']].concat(S.pages.map((p) => [p.id, 'Copy of ' + p.name])).map(([k, n]) => `<button class="pill" data-pgfrom="${k}" aria-pressed="${(st.pgFrom || '') === k}">${esc(n)}</button>`).join('')}</span></div>
+    <div class="field"><span class="k"></span><button class="btn primary" id="pgAdd" ${S.pages.length >= 20 ? 'disabled' : ''}>Add page</button></div>
+    <div class="field"><span class="k">Defaults</span><button class="btn warn" data-reset="all">Reset the built-in page layouts</button></div>
     ${numField('avgS')}</div>`;
   if (setSec === 'units') h = `<div class="card sec"><h2>Units & glide</h2>${seg('uVario', [['m/s', 'm/s'], ['kt', 'kt'], ['fpm', 'ft/min']], 'Vario')}${seg('uAlt', [['m', 'm'], ['ft', 'ft']], 'Altitude')}${seg('uSpd', [['km/h', 'km/h'], ['m/s', 'm/s'], ['kt', 'kt']], 'Speed')}
     <div class="field"><label for="wingLD">Wing glide ratio (empty dot)</label><input type="number" id="wingLD" value="${S.wingLD}" step="0.1" min="3" max="20"></div>
@@ -959,7 +964,7 @@ function renderSettings() {
     ${numField('modeEnter')}
     ${numField('modeHold')}
     ${numField('rateT', '0 = same')}
-    ${seg('thermPage', [['off', 'Stay'], ['pThermal', 'Thermal'], ['pMap', 'Map'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']], 'Show page when thermaling')}
+    ${seg('thermPage', [['off', 'Stay'], ['pThermal', 'Thermal'], ['pMap', 'Map'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']].concat(S.pages.map((p) => [p.id, p.name])), 'Show page when thermaling')}
     ${seg('thermBack', [[true, 'Yes'], [false, 'No']], 'Go back when gliding again')}
     ${seg('modeChip', [[true, 'Show'], [false, 'Hide']], 'THERMAL button in the corner')}
     <div class="field"><span class="k">Try it now</span><button class="btn ${st.force ? 'warn' : ''}" id="modeTest">${st.force ? 'Stop test' : 'Test thermal mode'}</button><b>${st.thermMode ? 'Thermal mode is ON' : 'Normal mode'}</b></div>
@@ -994,6 +999,12 @@ function renderSettings() {
   on('asUpd', 'onclick', async () => { await loadXcsoarAir(true); renderSettings(); });
   document.querySelectorAll('[data-airc]').forEach((b) => (b.onclick = async () => { const c = b.dataset.airc, l = new Set(S.airCountries || []); l.has(c) ? l.delete(c) : l.add(c); S.airCountries = [...l]; save(); renderSettings(); await loadXcsoarAir(); renderSettings(); }));
   document.querySelectorAll('[data-airt]').forEach((b) => (b.onclick = () => { const l = new Set(S.airTypes || AIR_KIND_DEF), k = b.dataset.airt; l.has(k) ? l.delete(k) : l.add(k); S.airTypes = AIR_KINDS.map(([x]) => x).filter((x) => l.has(x)); save(); drawAirspaces(); renderSettings(); }));
+  document.querySelectorAll('[data-pgname]').forEach((e) => (e.onchange = () => { pageRename(e.dataset.pgname, e.value); renderSettings(); }));
+  document.querySelectorAll('[data-pgmove]').forEach((b) => (b.onclick = () => { pageMove(b.dataset.pgmove, +b.dataset.d); renderSettings(); }));
+  document.querySelectorAll('[data-pgdel]').forEach((b) => (b.onclick = () => { pageDelete(b.dataset.pgdel); renderSettings(); }));
+  document.querySelectorAll('[data-pgfrom]').forEach((b) => (b.onclick = () => { st.pgFrom = b.dataset.pgfrom; renderSettings(); }));
+  on('pgNewName', 'oninput', (e) => (st.pgName = e.target.value));
+  on('pgAdd', 'onclick', () => { const P = pageAdd($('pgNewName').value, st.pgFrom || ''); st.pgFrom = ''; st.pgName = ''; toast(`Page “${P.name}” added`); showPage(P.id); setTimeout(() => enterEdit(), 80); });
   on('oaClear', 'onclick', () => { S.airSrc = 'own'; save(); st.airspaces = []; localStorage.removeItem('bora.air'); drawAirspaces(); renderSettings(); });
   on('taskClear', 'onclick', () => { clearTask(); renderSettings(); });
   on('fxImp', 'onclick', () => { if (importFlyXC($('fxUrl').value)) renderSettings(); });
@@ -1044,7 +1055,7 @@ let pageRaf = 0;
 function showPage(id) {
   if (!st.autoNav) st.autoSwitched = false;
   setNav(false); if (wEdit) exitEdit();
-  curPage = id; document.body.dataset.page = id; document.querySelectorAll('.page').forEach((p) => p.classList.toggle('on', p.id === id));
+  curPage = id; document.body.dataset.page = id; document.body.classList.toggle('wpage', !!PAGEKEY[id]); document.querySelectorAll('.page').forEach((p) => p.classList.toggle('on', p.id === id));
   document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-current', t.dataset.page === id ? 'page' : 'false'));
   $('setBtn').setAttribute('aria-current', id === 'pSet' ? 'page' : 'false');
   // draw the new page once, right after the switch has been painted, so the tap answers at once
@@ -1104,7 +1115,7 @@ $('setBody').onclick = (e) => {
   if (b.dataset.sn) { setNum(b.dataset.sn, +S[b.dataset.sn] + (+b.dataset.sdir) * SNUM[b.dataset.sn][2]); return; }
   if (b.dataset.set) { applySet(b.dataset.set, b.dataset.val); renderSettings(); return; }
   if (b.dataset.edit) { showPage(b.dataset.edit); setTimeout(() => enterEdit(), 80); return; }
-  if (b.dataset.reset) { Object.keys(LAYERID).forEach((pk) => (S.layouts[pk] = defLayout(pk))); save(); toast('All page layouts reset'); return; }
+  if (b.dataset.reset) { Object.keys(LAYERID).filter((pk) => !isUserPage(pk)).forEach((pk) => (S.layouts[pk] = defLayout(pk))); save(); toast('Built-in page layouts reset'); return; }
   if (b.dataset.wup) { const i = +b.dataset.wup; if (i > 0) [S.widgets[i - 1], S.widgets[i]] = [S.widgets[i], S.widgets[i - 1]]; save(); renderSettings(); }
   if (b.dataset.wdn) { const i = +b.dataset.wdn; if (i < S.widgets.length - 1) [S.widgets[i + 1], S.widgets[i]] = [S.widgets[i], S.widgets[i + 1]]; save(); renderSettings(); }
   if (b.dataset.wtog) { const w = b.dataset.wtog; S.hidden = S.hidden.includes(w) ? S.hidden.filter((x) => x !== w) : S.hidden.concat(w); save(); renderSettings(); }

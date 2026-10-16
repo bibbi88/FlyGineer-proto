@@ -32,6 +32,7 @@ function runAction(a, text) {
     case 'fullscreen': toggleFull(); break;
     case 'copyTask': copyTask(); break;
     case 'edit': if (PAGEKEY[curPage]) enterEdit(); break;
+    default: if (isUserPage(a) && PAGEKEY[a]) goPage(a); break;
     case 'skipWp': if (!st.task) toast('No task loaded'); else if (st.nextWp >= st.task.pts.length - 1) toast('The next point is the goal'); else goWp(st.nextWp + 1); break;
     case 'fai': S.fai = !S.fai; save(); renderWidgets(); toast(S.fai ? 'FAI triangle on: the map shows where the 3rd point must be' : 'FAI triangle off'); break;
   }
@@ -233,7 +234,7 @@ const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'lay
 const IMPORT_OK = new Set(['titles', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
-  const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)) };
+  const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)), pages: S.pages.map((p) => ({ id: p.id, name: p.name })) };
   if (scope === 'all') { o.settings = {}; Object.keys(S).forEach((k) => { if (!NO_EXPORT.has(k)) o.settings[k] = S[k]; }); }
   return o;
 }
@@ -255,15 +256,17 @@ function parseImport(txt) {
   let o; try { o = JSON.parse(txt); } catch (e) { return { err: 'That file is not valid JSON.' }; }
   if (!o || o.app !== 'bora-flight') return { err: 'This is not a Bora Flight settings file.' };
   const k = GSC / (+o.layoutGrid || GSC), lay = {}; let nW = 0;
-  Object.keys(LAYERID).forEach((pk) => { const a = o.layouts && o.layouts[pk]; if (Array.isArray(a)) { lay[pk] = a.map(cleanW(k)).filter(Boolean); nW += lay[pk].length; } });
+  const pg = (Array.isArray(o.pages) ? o.pages : o.settings && Array.isArray(o.settings.pages) ? o.settings.pages : []).filter((p) => p && isUserPage(p.id) && typeof p.name === 'string').slice(0, 20).map((p) => ({ id: p.id, name: p.name.slice(0, 24) }));
+  [...new Set(Object.keys(LAYERID).concat(pg.map((p) => p.id)))].forEach((pk) => { const a = o.layouts && o.layouts[pk]; if (Array.isArray(a)) { lay[pk] = a.map(cleanW(k)).filter(Boolean); nW += lay[pk].length; } });
   const sets = {}; if (o.settings && typeof o.settings === 'object') Object.keys(o.settings).forEach((key) => { const v = o.settings[key]; if (!IMPORT_OK.has(key)) return; if (key === 'autoRules') { sets[key] = cleanRules(v); return; } const d = DEF[key]; if (d !== undefined && typeof d !== typeof v) return; if (v !== null && typeof v === 'object' && key !== 'poiKinds') return; sets[key] = key === 'poiKinds' ? cleanCfg(v) : v; });
-  return { lay, sets, nW, pages: Object.keys(lay).length, nSets: Object.keys(sets).length, date: o.exported };
+  return { lay, sets, pg, nW, pages: Object.keys(lay).length, nSets: Object.keys(sets).length, date: o.exported };
 }
 function applyImport(P) {
-  const backup = { layouts: JSON.parse(JSON.stringify(S.layouts)), settings: {} }; Object.keys(P.sets).forEach((k) => (backup.settings[k] = S[k]));
+  const backup = { layouts: JSON.parse(JSON.stringify(S.layouts)), settings: {}, pages: S.pages.map((p) => ({ ...p })) }; Object.keys(P.sets).forEach((k) => (backup.settings[k] = S[k]));
+  if (P.pg.length) pagesSet(S.pages.filter((p) => !P.pg.some((q) => q.id === p.id)).concat(P.pg)); // pages from the file are added (same id: renamed)
   const apply = (lay, sets) => { Object.assign(S.layouts, lay); Object.assign(S, sets); S.mapMigrated = true; save(); document.body.classList.toggle('dark', S.theme === 'dark'); document.body.classList.toggle('pinned', S.navMode === 'pinned'); drawTask(); loop(); renderWidgets(); if (curPage === 'pSet') renderSettings(); };
   apply(P.lay, P.sets);
-  toast(`Imported ${P.nW} widgets on ${P.pages} pages${P.nSets ? ' and ' + P.nSets + ' settings' : ''}`, [['Undo', () => { apply(backup.layouts, backup.settings); toast('Import undone'); }]]);
+  toast(`Imported ${P.nW} widgets on ${P.pages} pages${P.nSets ? ' and ' + P.nSets + ' settings' : ''}`, [['Undo', () => { pagesSet(backup.pages); apply(backup.layouts, backup.settings); toast('Import undone'); }]]);
 }
 function openImport(txt, fname) {
   const P = parseImport(txt); if (P.err) { toast(P.err); return; }
@@ -277,6 +280,30 @@ function openImport(txt, fname) {
 /* ================= automatic actions: when an event happens, optionally after a delay, do something ================= */
 const AUTO_EVENTS = [['thermalStart', 'Started thermalling'], ['thermalStop', 'Stopped thermalling'], ['takeoff', 'Takeoff'], ['turnpoint', 'Turnpoint reached'], ['towStart', 'Tow started'], ['towEnd', 'Released from tow']];
 const RULE_ACTS = ['pThermal', 'pMap', 'pAtmos', 'pAir', 'prev', 'center', 'soundOn', 'soundOff', 'time', 'start', 'message', 'say'];
+// own pages in every page list: tabs/menu (PG_ALL), tap and hold "Go to page", button actions (BTN), automatic actions
+const PG_BASE = PG_ALL.slice(), RULE_BASE = RULE_ACTS.slice();
+function pagesLists() {
+  const U = S.pages.map((p) => [p.id, p.name]);
+  [TAPG, HOLDG].forEach((G) => { const g = G.find((x) => x[0] === 'Go to page'); if (g) g[1] = g[1].filter((x) => !isUserPage(x[0])).concat(U); });
+  TAP.length = 0; TAP.push(...TAPG.flatMap(([, l]) => l)); HOLD.length = 0; HOLD.push(...HOLDG.flatMap(([, l]) => l));
+  Object.keys(BTN).filter(isUserPage).forEach((k) => delete BTN[k]); S.pages.forEach((p) => (BTN[p.id] = ['Show ' + p.name + ' page', p.name.toUpperCase()]));
+  const ao = WT.button.o.find((o) => o[0] === 'action')[2]; ao.length = 0; ao.push(...Object.entries(BTN).map(([k, v]) => [k, v[0]]));
+  PG_ALL.length = 0; PG_ALL.push(...PG_BASE.slice(0, 4), ...U, ...PG_BASE.slice(4));
+  RULE_ACTS.length = 0; RULE_ACTS.push(...RULE_BASE.slice(0, 4), ...U.map(([id]) => id), ...RULE_BASE.slice(4));
+}
+function pageAdd(name, from) {
+  const P = { id: 'pU' + Math.random().toString(36).slice(2, 8), name: String(name || '').trim().slice(0, 24) || 'Page ' + (S.pages.length + 1) };
+  const src = from && S.layouts[from]; S.layouts[P.id] = src ? JSON.parse(JSON.stringify(src)).map((W) => Object.assign(W, { id: newW(W.type).id })) : [];
+  S.pages.push(P); pageMount(P); pagesLists(); save(); return P;
+}
+function pagesSet(list) { S.pages.forEach((p) => { if (!list.some((q) => q.id === p.id)) pageUnmount(p.id); }); S.pages = list; list.forEach(pageMount); pagesOrder(); pagesLists(); save(); }
+function pageRename(id, name) { const P = S.pages.find((p) => p.id === id); if (!P) return; P.name = String(name || '').trim().slice(0, 24) || P.name; pageMount(P); pagesLists(); save(); }
+function pageMove(id, d) { const i = S.pages.findIndex((p) => p.id === id), j = i + d; if (i < 0 || j < 0 || j >= S.pages.length) return; [S.pages[i], S.pages[j]] = [S.pages[j], S.pages[i]]; pagesOrder(); pagesLists(); save(); }
+function pageDelete(id) {
+  const i = S.pages.findIndex((p) => p.id === id); if (i < 0) return; const P = S.pages[i], lay = S.layouts[id];
+  if (curPage === id) showPage('pMap'); S.pages.splice(i, 1); delete S.layouts[id]; pageUnmount(id); pagesLists(); save();
+  toast(`Page “${P.name}” deleted`, [['Undo', () => { S.pages.splice(i, 0, P); S.layouts[id] = lay; pageMount(P); pagesOrder(); pagesLists(); save(); if (curPage === 'pSet') renderSettings(); }]]);
+}
 const ruleActLabel = (a) => (a === 'message' ? 'Show a message' : a === 'say' ? 'Say a message (voice)' : (BTN[a] || [a])[0]);
 const evLabel = (e) => (AUTO_EVENTS.find((x) => x[0] === e) || [e, e])[1];
 st.autoQ = [];
@@ -402,3 +429,4 @@ function holdPop(on, fn) {
   if (!p) { p = document.createElement('div'); p.id = 'holdPop'; p.className = 'card'; document.body.appendChild(p); }
   p.innerHTML = fn(); p.style.display = 'flex'; clearInterval(holdT); holdT = setInterval(() => { p.innerHTML = fn(); }, 500);
 }
+pagesLists();
