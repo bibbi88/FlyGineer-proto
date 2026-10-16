@@ -374,3 +374,4 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
 .mlist .btn{min-height:64px;justify-content:flex-start;gap:12px;font-size:18px}
 .mlist .btn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+#mapMenu{position:fixed;z-index:2200;background:var(--card)}

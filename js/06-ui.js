@@ -825,11 +825,14 @@ function widgetAct(W, act) {
     case 'xin': D.range = Math.round(clamp((+C.range || 300) / 1.5, 50, 5000) / 10) * 10; D.scale = 'fixed'; break;
     case 'xout': D.range = Math.round(clamp((+C.range || 300) * 1.5, 50, 5000) / 10) * 10; D.scale = 'fixed'; break;
     case 'reset3d': D.yaw = 0; D.zoom = 1; break;
-    case 'mmenu': { // map style: a popup above everything (the old in-map menu was covered by other widgets)
-      if (I) I.menu = false; st.tapGuard = Date.now(); const cur = LAYERS[C.layer] ? C.layer : 'topo', close = () => ($('dlg').style.display = 'none');
-      $('dlgBody').innerHTML = `<div class="row" style="justify-content:space-between"><span class="num" style="font-size:26px">Map style</span><button class="btn primary" id="dlgClose">Close</button></div><div class="mlist">${Object.entries(LAYERS).map(([k, l]) => `<button class="btn" data-ml="${k}" aria-pressed="${k === cur}"><span class="sw" style="background:${l.sw[0]};border-color:${l.sw[1]}"></span>${l.name}</button>`).join('')}</div>`;
-      $('dlg').style.display = 'flex'; $('dlgClose').onclick = close;
-      $('dlgBody').querySelectorAll('[data-ml]').forEach((b) => (b.onclick = () => { D.layer = b.dataset.ml; S.layer = b.dataset.ml; close(); saveLayout(); }));
+    case 'mmenu': { // map style: the dropdown under the button, but in a top-level layer so other widgets never cover it
+      if (I) I.menu = false; let mm = $('mapMenu'); if (mm && mm.style.display !== 'none') { mm.style.display = 'none'; return; }
+      if (!mm) { mm = document.createElement('div'); mm.id = 'mapMenu'; mm.className = 'mmenu'; mm.setAttribute('role', 'listbox'); document.body.appendChild(mm);
+        document.addEventListener('pointerdown', (e) => { if (mm.style.display !== 'none' && !mm.contains(e.target) && !e.target.closest('[data-act="mmenu"]')) mm.style.display = 'none'; }, true); }
+      const cur = LAYERS[C.layer] ? C.layer : 'topo', bt = I && I.el.querySelector('[data-act="mmenu"]'), r = bt ? bt.getBoundingClientRect() : { left: 12, bottom: 60 };
+      mm.innerHTML = Object.entries(LAYERS).map(([k, l]) => `<button class="mi" role="option" data-ml="${k}" aria-selected="${k === cur}"><span class="sw" style="background:${l.sw[0]};border-color:${l.sw[1]}"></span>${l.name}</button>`).join('');
+      Object.assign(mm.style, { display: 'flex', left: Math.max(4, r.left) + 'px', top: r.bottom + 6 + 'px' });
+      mm.querySelectorAll('[data-ml]').forEach((b) => (b.onclick = () => { D.layer = b.dataset.ml; S.layer = b.dataset.ml; mm.style.display = 'none'; saveLayout(); }));
       return; }
     case 'mlayer': D.layer = arg; if (I) I.menu = false; if (S.layer !== arg) { S.layer = arg; } break;
     case 'mrot': { const o = ['north', 'track', 'bearing']; let nx = o[(o.indexOf(C.rot || 'north') + 1) % 3]; if (nx === 'bearing' && !st.task) nx = 'north'; D.rot = nx; toast(ROT[nx]); break; }
