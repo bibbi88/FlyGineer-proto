@@ -90,7 +90,6 @@ const DEFS = {
     ['vario', 0, 46, 15, 16, { size: 1.15, showLabel: false, win: 0.6, mode: 'dial', barDir: 'v', range: 5 }],
     ['alt', 87, 13, 9, 7, { units: '', label: 'AMSL [m]' }],
     ['compass', 73, 49, 14, 15],
-    ['button', 87, 56, 9, 7, { bg: 100, showLabel: false, action: 'fullscreen', color: 'plain', tap: 'none' }],
     ['airbtn', 0, 13, 12, 5, { showLabel: false }],
     ['fai', 48, 57, 25, 7, { tap: 'details', mode: 'auto' }],
     ['thchip', 79, 5, 8, 5, { bg: 0, showLabel: false }],
@@ -164,7 +163,7 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only
-  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true });
+  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true, fullBtnMig: true });
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};
   if (old && !S.layouts.map) { const k = GSC / (S.layoutGrid || 1); S.layouts.map = old.map((W) => Object.assign({}, W, { x: Math.round(W.x * k), y: Math.round(W.y * k), w: Math.round(W.w * k), h: Math.round(W.h * k) })); }
   Object.keys(LAYERID).forEach((pk) => { if (!Array.isArray(S.layouts[pk]) || !S.layouts[pk].length) S.layouts[pk] = defLayout(pk); S.layouts[pk] = S.layouts[pk].filter((W) => WT[W.type]); });
@@ -173,6 +172,7 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
   // radio message settings moved from the map widget to Settings → Radio message (2026-10-17)
   if (!S.radioMig) { S.radioMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type !== 'map') return; ['callsign', 'radioAlt', 'radioLang'].forEach((k) => { if (W.cfg[k] && (k !== 'callsign' || !S.callsign || S.callsign === 'Paraglider')) S[k] = W.cfg[k]; delete W.cfg[k]; }); })); }
   if (!S.poiMig) { S.poiMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'map' && (W.cfg.places === false || W.cfg.places === 'false')) W.cfg.places = true; })); } // airports and towns on the map (2026-10-17)
+  if (!S.fullBtnMig) { S.fullBtnMig = true; S.layouts.map = S.layouts.map.filter((W) => !(W.type === 'button' && W.cfg.action === 'fullscreen')); } // full screen is in the hamburger menu now (2026-10-17)
   if (!S.faiBtnMig) { S.faiBtnMig = true; S.layouts.map = S.layouts.map.filter((W) => !(W.type === 'button' && W.cfg.action === 'fai')); } // the FAI switch is in the XC flight popup now
   if (!S.xcMig2) { S.xcMig2 = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'fai' && (W.cfg.tap === 'xcmode' || W.cfg.tap === 'fai')) W.cfg.tap = 'details'; })); }
   if (!S.xcMig) { S.xcMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'fai' && W.cfg.tap === 'fai') W.cfg.tap = 'xcmode'; })); }
@@ -535,6 +535,9 @@ function bannerAvoid(el) {
   if (!over(br.top, br.bottom)) return; const h = br.height, bottom = b.classList.contains('bottom'), y0 = bottom ? 8 : innerHeight - 8 - h;
   if (!over(y0, y0 + h)) b.classList.toggle('bottom');
 }
+// hamburger menu: full screen on/off (the label follows the state)
+$('fullBtn').onclick = () => { setNav(false); toggleFull(); };
+document.addEventListener('fullscreenchange', () => { const on = !!document.fullscreenElement; $('fullBtn').setAttribute('aria-pressed', String(on)); $('fullLbl').textContent = on ? 'Exit full screen' : 'Full screen'; });
 $('editBtn').onclick = () => { setNav(false); if (!PAGEKEY[curPage]) showPage('pMap'); setTimeout(() => enterEdit(), 80); };
 $('wReset').onclick = () => { const pk = pageKey(), old = S.layouts[pk]; S.layouts[pk] = defLayout(pk); saveLayout(); toast('Layout reset', [['Undo', () => { S.layouts[pk] = old; save(); renderWidgets(); }]]); };
 window.addEventListener('resize', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
