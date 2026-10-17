@@ -129,6 +129,30 @@ function wrapText(c, t, x, y, maxW, lh) { const words = t.split(' '), lines = []
 const hasRot = () => !!(window.L && L.Map && L.Map.prototype.setBearing);
 const haloText = (c, t, x, y, fill, halo) => { c.save(); c.lineWidth = 3.5; c.strokeStyle = halo; c.lineJoin = 'round'; c.strokeText(t, x, y); c.restore(); c.fillStyle = fill; c.fillText(t, x, y); };
 
+/* ideal circle (cfg.ideal, default on): the circle to fly, centred on the estimated core with your own turn radius (from your last
+   full circles), shown while circling or in thermal mode. Centre and radius follow smoothly (centre ~4 s, radius ~10 s), so the circle
+   moves a little with every turn instead of jumping; the centre is kept in fixed coordinates (moving air or ground, as the view). */
+function idealCircle(c, cfg, el, core, gnd, f, now, tr, ink, card, Wd, wantBg) {
+  el = el || {};
+  if (cfg.ideal === false || cfg.ideal === 'false' || !(st.circling || st.thermMode) || !st.lastTurn || !core) { el._ic = null; return; }
+  const me = st.samples[st.samples.length - 1]; if (!me) return;
+  const k = Math.cos(f.lat * D2R) * 111320, abs = gnd ? [f.lon * k + core.x, f.lat * 111320 + core.y] : [(me.ax || 0) + core.x, (me.ay || 0) + core.y];
+  const r0 = clamp(st.lastTurn.avg || 40, 10, 150), I = el._ic && el._ic.g === gnd ? el._ic : (el._ic = { g: gnd, X: abs[0], Y: abs[1], r: r0, t: now });
+  const dt = clamp((now - I.t) / 1000, 0, 5); I.t = now; const aC = 1 - Math.exp(-dt / 4), aR = 1 - Math.exp(-dt / 10);
+  I.X += (abs[0] - I.X) * aC; I.Y += (abs[1] - I.Y) * aC; I.r += (r0 - I.r) * aR;
+  const rx = gnd ? I.X - f.lon * k : I.X - (me.ax || 0), ry = gnd ? I.Y - f.lat * 111320 : I.Y - (me.ay || 0);
+  const [x, y] = tr(rx, ry), [x2, y2] = tr(rx + I.r, ry), rp = Math.hypot(x2 - x, y2 - y); if (rp < 4) return;
+  const col = '#1F8A4C';
+  c.save(); c.lineWidth = 6; c.strokeStyle = wantBg ? 'rgba(255,255,255,.85)' : card; c.beginPath(); c.arc(x, y, rp, 0, 7); c.stroke();
+  c.setLineDash([10, 7]); c.lineWidth = 3; c.strokeStyle = col; c.beginPath(); c.arc(x, y, rp, 0, 7); c.stroke(); c.restore();
+  // chevrons along it in your turn direction (right turn = clockwise)
+  const cw = (st.turnRate || 0) >= 0, n = rp > 60 ? 6 : 4, hs = clamp(rp * 0.12, 5, 10);
+  c.fillStyle = col; c.strokeStyle = wantBg ? 'rgba(255,255,255,.85)' : card; c.lineWidth = 2;
+  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, px = x + Math.cos(a) * rp, py = y + Math.sin(a) * rp, d = a + (cw ? Math.PI / 2 : -Math.PI / 2), tx = Math.cos(d), ty = Math.sin(d), nx = -ty, ny = tx;
+    c.beginPath(); c.moveTo(px + tx * hs, py + ty * hs); c.lineTo(px - tx * hs * 0.6 + nx * hs * 0.8, py - ty * hs * 0.6 + ny * hs * 0.8); c.lineTo(px - tx * hs * 0.6 - nx * hs * 0.8, py - ty * hs * 0.6 - ny * hs * 0.8); c.closePath(); c.stroke(); c.fill(); }
+  if (Wd >= 200) { c.font = '700 12px Barlow'; c.textAlign = 'center'; haloText(c, 'ideal · r ' + Math.round(I.r) + ' m', x, y + rp + 16, col, wantBg ? 'rgba(255,255,255,.9)' : card); }
+}
+
 /* ----- Thermal assistant: heat map, history, zoom, optional map behind ----- */
 function taDraw(cv, W, el) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H);
@@ -220,6 +244,7 @@ function taDraw(cv, W, el) {
   }
   // core
   const core = coreEstimate(gnd);
+  idealCircle(c, cfg, el, core, gnd, f, now, tr, ink, card, Wd, wantBg);
   if (core) {
     const [x, y] = tr(core.x, core.y);
     c.save(); c.setLineDash([5, 5]); c.lineWidth = 1.5; c.strokeStyle = ink; c.beginPath(); c.moveTo(cx, cy); c.lineTo(x, y); c.stroke(); c.restore();
