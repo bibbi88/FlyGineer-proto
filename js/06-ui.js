@@ -749,8 +749,8 @@ function renderWidgets() {
       el.classList.toggle('compact', W.type !== 'map' && (b.w < 180 || b.h < 180)); // small: no on-widget buttons, they would cover the picture
       const wl = el.querySelector('.wl'); wl.style.display = showL ? '' : 'none';
       const cv = el.querySelector('canvas'); el._sub = '';
-      // label first: an empty label row has no height, so the canvas would be measured too tall
-      const lt = (E.cfg.label || T.n) + (W.type === 'varioDial' && +E.cfg.win ? ' · Ø ' + E.cfg.win + ' s' : ''); if (wl.children[0].textContent !== lt) wl.children[0].textContent = lt;
+      // label first: an empty label row has no height, so the canvas would be measured too tall; vario: "Vario 1 s" when averaged
+      const lt = (E.cfg.label || T.n) + (W.type === 'varioDial' && +E.cfg.win ? ' · Ø ' + E.cfg.win + ' s' : '') + (W.type === 'vario' && !E.cfg.label && +E.cfg.win ? ' ' + +E.cfg.win + ' s' : ''); if (wl.children[0].textContent !== lt) wl.children[0].textContent = lt;
       const fn = DRAW[W.type]; if (fn) { try { fn(cv, E, el, b); } catch (err) { console.error(W.type, err); } }
       if (wl.children[1].textContent !== (el._sub || '')) wl.children[1].textContent = el._sub || '';
       return;

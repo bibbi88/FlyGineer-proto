@@ -234,7 +234,7 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
   const wp = st.task && st.task.pts[st.nextWp];
   const dwp = f && wp ? dist(f.lat, f.lon, wp.lat, wp.lon) : null;
   switch (W.type) {
-    case 'vario': { const win = +c.win || 0; const v = win ? avgVario(win, now) ?? st.vario : st.vario; return { l: 'Vario', u: VU() + (win ? ' · Ø ' + win + ' s' : ''), v: V(v), col: v >= 0 ? css('--climb') : css('--sink'), s: st.varioSrc === 'gps' ? 'from GPS' : '' }; }
+    case 'vario': { const win = +c.win || 0; const v = win ? avgVario(win, now) ?? st.vario : st.vario; return { l: win ? 'Vario ' + win + ' s' : 'Vario', u: VU(), v: V(v), col: v >= 0 ? css('--climb') : css('--sink'), s: st.varioSrc === 'gps' ? 'from GPS' : '' }; }
     case 'avg': { const win = +c.win || 30; const a = avgVario(win, now); return { l: 'Vario average', u: VU() + ' · Ø ' + fmtDur(win), v: V(a), col: a == null ? null : a >= 0 ? css('--climb') : css('--sink') }; }
     case 'alt': { const a = c.src === 'gps' ? f?.alt : alt; return { l: 'Altitude', u: AU, v: A(a), s: c.src === 'gps' ? 'GPS' : st.baro ? 'vario' : 'GPS' }; }
     case 'agl': return { l: 'AGL', u: AU, v: st.groundElev != null && alt != null ? A(alt - st.groundElev) : '--', s: st.groundElev != null ? 'ground ' + A(st.groundElev) : 'needs terrain data' };
@@ -367,7 +367,7 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
 function varioDraw(cv, W, el) {
   withU('uVario', W.cfg.units || '', () => {
     const win = +W.cfg.win || 0, v = win ? avgVario(win) ?? st.vario : st.vario, rg = +W.cfg.range || 5;
-    el._sub = uV() + (win ? ' · Ø ' + win + ' s' : '');
+    el._sub = uV();
     if (W.cfg.mode === 'dial') { dialDraw(cv, Object.assign({}, W, { cfg: Object.assign({}, W.cfg, { range: rg }) }), v, true); return; }
     // bar: zero in the middle, climb up in orange, sink down in blue; the value beside it
     const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const bd = W.cfg.barDir || 'auto', vert = bd === 'v' || (bd !== 'h' && H >= Wd * 0.6), ink = css('--ink'), card = css('--card'), col = v >= 0 ? css('--climb') : css('--sink'), k = clamp(v / rg, -1, 1);
