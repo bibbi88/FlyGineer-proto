@@ -135,7 +135,7 @@ body.wedit #wBanner{display:flex}
 @media (max-width:1000px){#wBanner .wbHint{display:none}}
 #wBanner button{height:52px;padding:0 14px;border-radius:12px;border:1px solid #4A5058;background:#111418;color:#fff;font-weight:600;font-size:15px}
 #wBanner button.primary{background:#fff;color:#111418;border-color:#fff}
-#wSheet{position:fixed;top:0;right:0;bottom:0;width:min(340px,92vw);z-index:2300;background:var(--card);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.2);padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));padding-top:calc(14px + env(safe-area-inset-top,0px));overflow-y:auto;display:none;flex-direction:column;gap:12px}
+#wSheet{position:fixed;top:0;right:0;bottom:0;width:min(340px,92vw);z-index:2300;background:var(--card);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.2);padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));padding-top:calc(14px + env(safe-area-inset-top,0px));overflow-y:auto;display:none;flex-direction:column;gap:10px}
 #wSheet.on{display:flex}
 #wSheet.left{right:auto;left:0;border-left:0;border-right:1px solid var(--line);box-shadow:10px 0 30px rgba(0,0,0,.2)}
 #wSheet .wsHead{position:sticky;top:-14px;margin-top:-14px;padding:14px 0 6px;background:var(--card);z-index:3;touch-action:none;cursor:grab;user-select:none;flex-wrap:nowrap}
@@ -147,7 +147,15 @@ body.wedit #wBanner{display:flex}
 #pgMenu .card b{grid-column:1/-1;font-family:var(--num);font-size:22px}
 #pgMenu button{height:64px;font-size:18px}
 #wSheet h2{margin:0;font-family:var(--num);font-size:26px}
-#wSheet .opt{display:flex;flex-direction:column;gap:6px}
+#wSheet .opt{display:flex;flex-direction:column;gap:4px}
+#wSheet .wsSec{border:1px solid var(--line);border-radius:12px;padding:0 10px;display:flex;flex-direction:column;gap:10px}
+#wSheet .wsSec[open]{padding-bottom:10px}
+#wSheet .wsSec>summary{min-height:52px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;cursor:pointer;list-style:none}
+#wSheet .wsSec>summary::-webkit-details-marker{display:none}
+#wSheet .wsSec>summary::before{content:'▸';font-size:14px;width:14px}
+#wSheet .wsSec[open]>summary::before{content:'▾'}
+#wSheet .wsSec>summary .muted{font-weight:500;font-size:13px}
+#wSheet .pill.tog{font-size:14px}
 #wSheet .opt .row{flex-wrap:wrap}
 #wSheet .wsTitle{flex-wrap:nowrap}
 #wSheet .wsTitle input{flex:1;min-width:0}

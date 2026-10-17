@@ -426,6 +426,29 @@ function tapRow(key, name, cur, G) {
 function optRow(key, name, opts, cur) { if (key === 'tap') return tapRow(key, name, cur, TAPG); if (key === 'hold') return tapRow(key, name, cur, HOLDG);
   if (opts === 'INFO') { const sel = Array.isArray(cur) && cur.length ? cur : ['heights']; return `<div class="opt"><span class="lbl">${name} · tap to add or remove</span><div class="row">${INFO_KEYS().map(([k, n]) => `<button class="pill" data-info="${k}" aria-pressed="${sel.includes(k)}">${esc(n)}</button>`).join('')}</div></div>`; }
   if (opts === 'TEXT') return `<div class="opt"><label class="lbl" for="wsT_${key}">${name}</label><input type="text" id="${key === 'infoText' ? 'wsInfoText' : 'wsT_' + key}" data-txt="${key}" value="${esc(cur || '')}" placeholder="${key === 'infoText' ? 'Optional text shown on top, e.g. radio channel' : 'Leave empty for the default'}"></div>`; if (!Array.isArray(opts)) return numRow(key, name, opts, cur); return `<div class="opt"><span class="lbl">${name}</span><div class="row">${opts.map(([v, n]) => `<button class="pill" data-ok="${key}" data-ov="${v}" aria-pressed="${String(cur) === String(v)}">${n}</button>`).join('')}</div></div>`; }
+/* edit sheet layout: the widget's own options first, then related ones in folding sections (closed until opened, remembered while
+   the app runs: st.sheetOpen), and runs of on/off options merged into one row of toggle chips. Every option stays reachable. */
+const SHEET_SEC = [[/^(track|trackMin|heading|start|gsize)$/, 'Track and glider'], [/^(task|taskCol|taskStyle|taskW|towp|towpCol|towpStyle|towpW)$/, 'Task'],
+  [/^home/, 'Line back to start'], [/^(air|notam)$/, 'Airspace'], [/^(places|pl[A-Z])/, 'Places'], [/^traffic/, 'Air traffic'], [/^windA/, 'Wind arrow at you'],
+  [/^(ctl|btnSz|ctlShow|me|ptr)$/, 'Buttons and position'], [/^(vis|towKeep|visDelay)$/, 'When shown'], [/^(tap|hold|infoItems|infoText)$/, 'Tap and hold'], [/^(size|bg|pad|showLabel)$/, 'Look']];
+const isBoolOpt = (o) => Array.isArray(o) && o.length === 2 && o.every((x) => typeof x[0] === 'boolean');
+function optRows(list) { // list of [key, name, opts, current]
+  let h = '';
+  for (let i = 0; i < list.length;) {
+    let j = i; while (j < list.length && isBoolOpt(list[j][2])) j++;
+    if (j - i >= 2) { // two or more on/off options in a row: one row of toggles
+      h += `<div class="opt"><span class="lbl">On / off · tap to switch</span><div class="row">${list.slice(i, j).map(([k, n, , cur]) => { const on = cur === true || cur === 'true'; return `<button class="pill tog" data-ok="${k}" data-ov="${!on}" aria-pressed="${on}">${on ? '✓ ' : ''}${esc(n)}</button>`; }).join('')}</div></div>`;
+      i = j; continue; }
+    const [k, n, o, cur] = list[i]; h += optRow(k, n, o, cur); i++;
+  }
+  return h;
+}
+function sheetGroups(list) {
+  const main = [], secs = SHEET_SEC.map(([, t]) => [t, []]);
+  list.forEach((r) => { const i = SHEET_SEC.findIndex(([re]) => re.test(r[0])); (i < 0 ? main : secs[i][1]).push(r); });
+  const open = st.sheetOpen || (st.sheetOpen = new Set());
+  return optRows(main) + secs.filter(([, l]) => l.length).map(([t, l]) => `<details class="wsSec" data-sec="${esc(t)}"${open.has(t) ? ' open' : ''}><summary>${esc(t)} <span class="muted">${l.length}</span></summary>${optRows(l)}</details>`).join('');
+}
 let sheetMode = 'normal', sheetFor = null;
 function sheetSide(W) { const side = S.sheetSide || ((W.x + W.w / 2) / GC > 0.5 ? 'left' : 'right'); $('wSheet').classList.toggle('left', side === 'left'); }
 function closeSheet() { $('wSheet').classList.remove('on'); wSel = null; if (st.force && st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } sheetFor = null; renderWidgets(); }
@@ -434,18 +457,19 @@ function openSheet(id) {
   const tm = sheetMode === 'thermal', hasT = !!W.cfgT, D = tm && hasT ? W.cfgT : W.cfg;
   const read = (k, d) => { const v = tm && hasT && W.cfgT[k] !== undefined ? W.cfgT[k] : W.cfg[k]; return v ?? d; };
   const dflt = (k, o) => (T.def && T.def[k] !== undefined ? T.def[k] : k === 'tap' ? defTap(W) : k === 'hold' ? defHold(W) : k === 'infoItems' ? ['heights'] : k === 'infoText' || o === 'TEXT' ? '' : Array.isArray(o) ? o[0][0] : o.def ?? o.presets[0]);
-  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay' || k === 'towKeep')) && !(k === 'towKeep' && W.cfg.vis !== 'tow') && !((k === 'infoItems' || k === 'infoText') && read('tap', defTap(W)) !== 'custom' && read('hold', defHold(W)) !== 'custom') && !(!tm && k === 'showLabel') && !(k === 'ctlShow' && !T.canvas) && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
+  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay' || k === 'towKeep')) && !(k === 'towKeep' && W.cfg.vis !== 'tow') && !((k === 'infoItems' || k === 'infoText') && read('tap', defTap(W)) !== 'custom' && read('hold', defHold(W)) !== 'custom') && !(!tm && k === 'showLabel') && !(k === 'ctlShow' && !T.canvas) && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => [k, n, o, read(k, dflt(k, o))]); const optsH = sheetGroups(opts);
   const typeOpts = Object.entries(WT).map(([k, t]) => `<option value="${k}" ${k === W.type ? 'selected' : ''}>${t.n}</option>`).join('');
   const tabs = `<div class="row"><button class="pill grow" data-sm="normal" aria-pressed="${!tm}">Normal${hasT && !tm ? ' •' : ''}</button><button class="pill grow" data-sm="thermal" aria-pressed="${tm}">When thermaling${hasT ? ' •' : ''}</button></div>`;
   let body;
   if (!tm) body = `<div class="opt"><label class="lbl" for="wsType">Widget</label><select id="wsType">${typeOpts}</select></div>
     <div class="opt"><label class="lbl" for="wsLabel">Title</label><div class="row wsTitle"><input type="text" id="wsLabel" value="${esc(W.cfg.label || '')}" placeholder="${esc(T.n)}"><button class="pill" data-ok="showLabel" data-ov="true" aria-pressed="${W.cfg.showLabel !== false && W.cfg.showLabel !== 'false'}">Show</button><button class="pill" data-ok="showLabel" data-ov="false" aria-pressed="${!(W.cfg.showLabel !== false && W.cfg.showLabel !== 'false')}">Hide</button></div></div>
-    ${opts}
+    ${optsH}
     <div class="opt"><span class="lbl">Size · grid cells, drag the widget to move it</span>${[['w', 'Width'], ['h', 'Height']].map(([k, n]) => `<div class="row wsSize"><span class="wsK">${n}</span><button class="pill step" data-wsz="${k}-" aria-label="${n} less">−</button><input type="number" class="numin" inputmode="decimal" data-wsi="${k}" value="${+(W[k] / GSC).toFixed(2)}" step="0.5" aria-label="${n}, grid cells"><button class="pill step" data-wsz="${k}+" aria-label="${n} more">+</button></div>`).join('')}</div>
     <div class="row" style="flex-wrap:wrap;margin-top:6px"><button class="btn" id="wsDup">Duplicate</button><button class="btn" id="wsFront">Bring to front</button><button class="btn warn" id="wsDel">Delete</button></div>`;
   else body = `<div class="muted" style="line-height:1.4">Shown live on the page now. These settings replace the normal ones only while thermaling is detected; everything you leave alone stays as in Normal.</div>
-    <div class="opt"><span class="lbl">Different settings when thermaling</span><div class="row"><button class="pill" data-tm="off" aria-pressed="${!hasT}">Off</button><button class="pill" data-tm="on" aria-pressed="${hasT}">On</button></div></div>${hasT ? opts + '<div class="row"><button class="btn" data-tm="clear">Clear thermal changes</button></div>' : ''}`;
+    <div class="opt"><span class="lbl">Different settings when thermaling</span><div class="row"><button class="pill" data-tm="off" aria-pressed="${!hasT}">Off</button><button class="pill" data-tm="on" aria-pressed="${hasT}">On</button></div></div>${hasT ? optsH + '<div class="row"><button class="btn" data-tm="clear">Clear thermal changes</button></div>' : ''}`;
   $('wSheet').innerHTML = `<div class="row wsHead" id="wsHead"><span class="grip" aria-hidden="true">⠿</span><h2>${T.n}</h2><button class="btn" id="wsFlip" aria-label="Move settings to the other side">⇄</button><button class="btn primary" id="wsClose">Close</button></div>${tabs}${body}`;
+  $('wSheet').querySelectorAll('details.wsSec').forEach((d) => d.addEventListener('toggle', () => { const o = st.sheetOpen || (st.sheetOpen = new Set()); d.open ? o.add(d.dataset.sec) : o.delete(d.dataset.sec); }));
   sheetSide(W); $('wSheet').classList.add('on'); renderWidgets(); bannerAvoid(document.querySelector(`.wg[data-id="${W.id}"]`));
   { const sh0 = $('wSheet'), hd = $('wsHead'); $('wsFlip').onclick = () => { S.sheetSide = sh0.classList.contains('left') ? 'right' : 'left'; save(); sheetSide(W); };
     hd.onpointerdown = (e) => { if (e.target.closest('button')) return; hd.setPointerCapture(e.pointerId); const sx = e.clientX; let dx = 0; sh0.style.transition = 'none';
