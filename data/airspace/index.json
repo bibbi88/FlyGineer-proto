@@ -2,12 +2,11 @@
  "source": "XCSoar data repository (download.xcsoar.org) + manual files",
  "countries": {
   "fi": {
-   "name": "Finland (XContest)",
-   "file": "fi_xcontest.txt",
-   "airspaces": 233,
-   "update": "2026-10-15",
-   "from": "airspace.xcontest.org export (aviamaps.com), downloaded by the owner",
-   "manual": true
+   "name": "Finland (your XContest file)",
+   "local": true,
+   "manual": true,
+   "update": "local",
+   "from": "your own export from airspace.xcontest.org, kept only on your device (Settings \u2192 Airspace data)"
   },
   "fi_oaip": {
    "name": "Finland (OpenAIP)",
