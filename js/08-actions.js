@@ -25,7 +25,7 @@ function runAction(a, text) {
     case 'pMap': case 'pThermal': case 'pAtmos': case 'pAir': case 'pPlan': goPage(a); break;
     case 'prev': backPage(); break;
     case 'center': MAPS.forEach((I) => { I.follow = true; I.panAt = 0; }); renderWidgets(); break;
-    case 'sound': applySet('sound', String(!S.sound)); toast('Vario sound ' + (S.sound ? 'on' : 'off')); break;
+    case 'sound': case 'mute': applySet('sound', String(!S.sound)); toast('Vario sound ' + (S.sound ? 'on' : 'off')); renderWidgets(); break;
     case 'time': showTime(); break;
     case 'start': setStartHere(); break;
     case 'pSwitch': goPage(pageKey() === 'thermal' ? 'pMap' : 'pThermal'); break;

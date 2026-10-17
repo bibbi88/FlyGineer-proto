@@ -6,7 +6,7 @@ const withU = (key, u, fn) => { if (!u) return fn(); const o = S[key]; S[key] = 
 const BTN = {
   thermalOn: ['Thermal mode on', 'THERMAL'], thermalOff: ['Thermal mode off', 'GLIDE'], thermalToggle: ['Toggle thermal mode', 'THERMAL'],
   pMap: ['Show Map page', 'MAP'], pThermal: ['Show Thermal page', 'THERMAL PAGE'], pAtmos: ['Show Atmosphere page', 'ATMOSPHERE'], pAir: ['Show Airspace page', 'AIRSPACE'], pPlan: ['Show XC planner', 'PLANNER'], prev: ['Previous page', 'BACK'],
-  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN'], fai: ['FAI triangle on/off', 'FAI'], copyTask: ['Copy task (FlyXC link)', 'COPY TASK'], skipWp: ['Skip to the next turnpoint', 'SKIP TP'], edit: ['Edit widgets', 'EDIT']
+  center: ['Centre maps on me', 'CENTRE'], sound: ['Vario sound on/off', 'SOUND'], mute: ['Mute vario (red while muted)', 'MUTE'], soundOn: ['Vario sound on', 'SOUND ON'], soundOff: ['Vario sound off', 'SOUND OFF'], time: ['Show local and UTC time', 'TIME'], start: ['Set Start here', 'SET START'], pSwitch: ['Switch Map / Thermal page', 'THERMAL'], titles: ['Widget titles on/off', 'TITLES'], fullscreen: ['Full screen on/off', 'FULL SCREEN'], fai: ['FAI triangle on/off', 'FAI'], copyTask: ['Copy task (FlyXC link)', 'COPY TASK'], skipWp: ['Skip to the next turnpoint', 'SKIP TP'], edit: ['Edit widgets', 'EDIT']
 };
 const WT = {
   vario: { n: 'Vario', d: 'Climb rate as number, bar or dial; averaging in 0.1 s steps', w: 6, h: 3, o: [['mode', 'Display', [['number', 'Number'], ['bar', 'Bar'], ['dial', 'Dial']]], ['barDir', 'Bar direction', [['auto', 'Auto'], ['v', 'Vertical'], ['h', 'Horizontal']]], ['win', 'Averaging', numOpt(0, 120, 0.1, 's', [0, 0.5, 1, 2, 5, 10], { zero: 'None', hint: '0 = no averaging', def: 0, snap: 0.1 })], ['range', 'Bar / dial scale', [[3, '±3 m/s'], [5, '±5 m/s'], [10, '±10 m/s']]], ['units', 'Units', U_V]] },
@@ -94,7 +94,8 @@ const DEFS = {
     ['airbtn', 0, 13, 12, 5, { showLabel: false }],
     ['fai', 48, 57, 25, 7, { tap: 'details', mode: 'auto' }],
     ['thchip', 79, 5, 8, 5, { bg: 0, showLabel: false }],
-    ['airwarn', 14, 0, 24, 4, { bg: 0, showLabel: false }]
+    ['airwarn', 14, 0, 24, 4, { bg: 0, showLabel: false }],
+    ['button', 87, 56, 9, 7, { bg: 100, showLabel: false, action: 'mute', color: 'plain', tap: 'none' }]
   ],
   thermal: [
     ['ta', 0, 0, 40, 46, { bg: 85, orient: 'wind', hist: 30, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1.96 }],
@@ -164,7 +165,7 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only
-  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true, fullBtnMig: true });
+  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true, fullBtnMig: true, muteBtnMig: true });
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};
   if (old && !S.layouts.map) { const k = GSC / (S.layoutGrid || 1); S.layouts.map = old.map((W) => Object.assign({}, W, { x: Math.round(W.x * k), y: Math.round(W.y * k), w: Math.round(W.w * k), h: Math.round(W.h * k) })); }
   Object.keys(LAYERID).forEach((pk) => { if (!Array.isArray(S.layouts[pk]) || !S.layouts[pk].length) S.layouts[pk] = defLayout(pk); S.layouts[pk] = S.layouts[pk].filter((W) => WT[W.type]); });
@@ -174,6 +175,8 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
   if (!S.radioMig) { S.radioMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type !== 'map') return; ['callsign', 'radioAlt', 'radioLang'].forEach((k) => { if (W.cfg[k] && (k !== 'callsign' || !S.callsign || S.callsign === 'Paraglider')) S[k] = W.cfg[k]; delete W.cfg[k]; }); })); }
   if (!S.poiMig) { S.poiMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'map' && (W.cfg.places === false || W.cfg.places === 'false')) W.cfg.places = true; })); } // airports and towns on the map (2026-10-17)
   if (!S.fullBtnMig) { S.fullBtnMig = true; S.layouts.map = S.layouts.map.filter((W) => !(W.type === 'button' && W.cfg.action === 'fullscreen')); } // full screen is in the hamburger menu now (2026-10-17)
+  // a mute button where the Full screen button was (2026-10-17), if that spot is free
+  if (!S.muteBtnMig) { S.muteBtnMig = true; const L = S.layouts.map, free = !L.some((W) => W.type !== 'map' && W.x < 96 && W.x + W.w > 87 && W.y < 63 && W.y + W.h > 56); if (free && !L.some((W) => W.type === 'button' && W.cfg.action === 'mute')) { const B = newW('button', 87, 56, 9, 7); Object.assign(B.cfg, { action: 'mute', color: 'plain', bg: 100, showLabel: false, tap: 'none' }); L.push(B); } }
   if (!S.faiBtnMig) { S.faiBtnMig = true; S.layouts.map = S.layouts.map.filter((W) => !(W.type === 'button' && W.cfg.action === 'fai')); } // the FAI switch is in the XC flight popup now
   if (!S.xcMig2) { S.xcMig2 = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'fai' && (W.cfg.tap === 'xcmode' || W.cfg.tap === 'fai')) W.cfg.tap = 'details'; })); }
   if (!S.xcMig) { S.xcMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'fai' && W.cfg.tap === 'fai') W.cfg.tap = 'xcmode'; })); }
@@ -311,7 +314,7 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
       const hit = st.wpHit && nowT() - st.wpHit.t < 20000 ? st.wpHit : null;
       return { l: hit ? `✓ ${hit.name} reached · next ${wp.name} (${st.nextWp + 1}/${st.task.pts.length})` : `Next · ${wp.name} (${st.nextWp + 1}/${st.task.pts.length})`, ...(hit ? { bgc: '#1F8A4C', col: '#FFFFFF' } : {}), html: `<div class="row" style="gap:14px;flex:1;align-items:center"><div><div class="ws">Dist</div><div class="num" style="font-size:26px">${fDist(dwp)}</div></div><div><div class="ws">Brg</div><div class="num" style="font-size:26px">${pad3(b)}°</div></div><div><div class="ws">ETA</div><div class="num" style="font-size:26px">${f.spd > 2 ? etaStr(dwp / f.spd) : '--'}</div></div></div><div class="ws">${arr != null ? (arr >= 0 ? 'Arrive ' + A(arr) + ' ' + AU + ' above ground' : 'Short by ' + A(-arr) + ' ' + AU) + ' at L/D ' + S.wingLD : ''}</div>` };
     }
-    case 'button': { const a = BTN[c.action] || BTN.thermalOn, bgc = { orange: 'var(--climb)', blue: 'var(--sink)', dark: 'var(--ink)' }[c.color || 'orange'], fg = { plain: 'var(--ink)' }[c.color] || (c.color === 'dark' ? 'var(--bg)' : '#FFFFFF'); let lab = c.label || a[1]; if (!c.label) { if (c.action === 'pSwitch') lab = pageKey() === 'thermal' ? 'MAP' : 'THERMAL'; if (c.action === 'fullscreen' && document.fullscreenElement) lab = 'EXIT FULL'; if (c.action === 'fai') lab = S.fai ? 'FAI ON' : 'FAI OFF'; } return { l: '', v: lab, col: fg, bgc, center: true, btn: true }; }
+    case 'button': { const a = BTN[c.action] || BTN.thermalOn, bgc = { orange: 'var(--climb)', blue: 'var(--sink)', dark: 'var(--ink)' }[c.color || 'orange'], fg = { plain: 'var(--ink)' }[c.color] || (c.color === 'dark' ? 'var(--bg)' : '#FFFFFF'); let lab = c.label || a[1]; if (!c.label) { if (c.action === 'pSwitch') lab = pageKey() === 'thermal' ? 'MAP' : 'THERMAL'; if (c.action === 'fullscreen' && document.fullscreenElement) lab = 'EXIT FULL'; if (c.action === 'fai') lab = S.fai ? 'FAI ON' : 'FAI OFF'; if (c.action === 'mute') lab = S.sound ? '🔊 VARIO' : '🔇 MUTED'; } if (c.action === 'mute' && !S.sound) return { l: '', v: lab, col: '#FFFFFF', bgc: 'var(--restr)', center: true, btn: true }; return { l: '', v: lab, col: fg, bgc, center: true, btn: true }; }
     case 'core': { const k = coreEstimate(); return { l: 'Centering', u: '', v: k ? Math.round(k.d) + ' m' : '--', s: k ? 'to ' + pad3(k.b) + '° ' + compass(k.b) + (st.circling ? '' : ' (last)') : 'start circling' }; }
     case 'groundT': { const fc = st.forecast; return { l: 'Ground T / dew pt', u: '°C', v: fc ? fc.T.toFixed(1) + ' / ' + fc.Td.toFixed(1) : '--', s: fc ? 'forecast 2 m · ' + fc.t.slice(11, 16) : 'load forecast' }; }
     case 'cbase': { const fc = st.forecast, cb = fc ? fc.elev + 125 * (fc.T - fc.Td) : null; return { l: 'Cloud base', u: AU, v: cb != null ? A(cb) : '--', col: css('--sink'), s: 'elev + 125 m × spread' }; }
@@ -458,14 +461,14 @@ function openSheet(id) {
   q('[data-wsi]', (i) => (i.onchange = () => { const k = i.dataset.wsi, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) { const n = Math.round(v * GSC / 2) * 2; if (k === 'w') W.w = clamp(n, 6, GC - W.x); else W.h = clamp(n, 4, GR - W.y); } saveLayout(); openSheet(W.id); }));
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
-const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'] };
-const ADD_NEW = ['radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
+const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'], 'button:mute': ['Mute vario button', 'Vario sound on/off, red while muted'] };
+const ADD_NEW = ['button:mute', 'radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
   ['Thermal', ['thchip', 'ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
   ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'tow', 'temp']],
   ['Speed, wind & glide', ['gs', 'trk', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
   ['Map & task', ['map', 'next', 'dist', 'fai', 'button:fai', 'button:copyTask']],
-  ['Buttons', ['button:pSwitch', 'button:fullscreen', 'button']],
+  ['Buttons', ['button:mute', 'button:pSwitch', 'button:fullscreen', 'button']],
   ['Weather', ['profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],
   ['Airspace & places', ['radiomsg', 'airwarn', 'airbtn', 'air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],
   ['Flight & tablet', ['flight', 'time', 'battery']]];
