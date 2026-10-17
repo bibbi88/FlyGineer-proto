@@ -732,7 +732,7 @@ function renderWidgets() {
   const L0 = S.layout, ids = new Set(L0.map((W) => W.id)), lr = layer.getBoundingClientRect();
   layer.querySelectorAll('.wg').forEach((e) => { if (!ids.has(e.dataset.id)) { disposeW(e); e.remove(); } });
   L0.forEach((W, zi) => {
-    const T = WT[W.type]; if (!T) return; const E = effW(W), ins = W.type === 'map' ? 0 : 2;
+    const T = WT[W.type]; if (!T) return; const E = effW(W), ins = W.type === 'map' ? 0 : sN('wGap', 4) / 2, pd = wPad(E.cfg);
     let el = layer.querySelector(`.wg[data-id="${W.id}"]`);
     if (!el || el.dataset.type !== W.type || el.dataset.cv !== (isCv(W) ? '1' : '0')) { if (el) { disposeW(el); el.remove(); } el = mkWidget(W, layer); }
     const vis = W.cfg.vis || 'always', tw = towNow(), cond = vis === 'always' || (vis === 'thermal' && !!st.thermMode) || (vis === 'glide' && !st.thermMode) || (vis === 'tow' && !!tw && (tw.active || nowT() - (st.towEnd || 0) < (W.cfg.towKeep ?? 60) * 1000)), vdl = vis === 'always' || vis === 'tow' ? 0 : +W.cfg.visDelay || 0, since = nowT() - (st.modeSince || 0);
@@ -741,8 +741,8 @@ function renderWidgets() {
     if (!shown && !wEdit) { if (el.style.display !== 'none') el.style.display = 'none'; el._gone = true; return; }
     if (el._gone || el.style.display === 'none') { el.style.display = ''; el._gone = false; el._tsz = el._sz = null; if (el._mi) el._mi.sz = null; }
     const b = wBox(W, layer, lr); curBox = b;
-    const sk = [b.x, b.y, b.w, b.h, zi, +E.cfg.bg].join('|');
-    if (el._sk !== sk) { el._sk = sk; el._bgc = null; Object.assign(el.style, el._st = { left: b.x + ins + 'px', top: b.y + ins + 'px', width: b.w - 2 * ins + 'px', height: b.h - 2 * ins + 'px', zIndex: 1 + zi, background: `color-mix(in srgb, var(--card) ${+E.cfg.bg}%, transparent)`, borderColor: +E.cfg.bg ? 'var(--line)' : 'transparent' }); }
+    const sk = [b.x, b.y, b.w, b.h, zi, +E.cfg.bg, ins, pd ? pd.join(',') : ''].join('|');
+    if (el._sk !== sk) { el._sk = sk; el._bgc = null; Object.assign(el.style, el._st = { left: b.x + ins + 'px', top: b.y + ins + 'px', width: b.w - 2 * ins + 'px', height: b.h - 2 * ins + 'px', zIndex: 1 + zi, background: `color-mix(in srgb, var(--card) ${+E.cfg.bg}%, transparent)`, borderColor: +E.cfg.bg ? 'var(--line)' : 'transparent', padding: W.type === 'map' ? '' : pd ? pd[1] + 'px ' + pd[0] + 'px' : '' }); }
     el.classList.toggle('sel', wEdit && wSel === W.id);
     const showL = E.cfg.showLabel !== false && E.cfg.showLabel !== 'false' && (S.titles !== 'hide' || wEdit);
     if (isCv(W)) {
@@ -758,12 +758,12 @@ function renderWidgets() {
     const d = wData(E, b); const lab = esc(E.cfg.label || d.l || ''); el.classList.toggle('void', !!d.hide && !wEdit); // nothing to show (warning, thermal mode chip): invisible and lets taps through
     const mul = E.cfg.size === 'auto' || !E.cfg.size ? 1 : +E.cfg.size;
     // small boxes (phones, tight layouts): the value gets the room first; the sub line goes below ~70 px, the title below ~48 px (kept while editing)
-    const noSub = !d.html && b.h < 70, showT = showL && (wEdit || d.html || b.h >= 48); if (noSub) d.s = '';
+    const lh = Math.round(sN('wLab', 12) * 1.3), noSub = !d.html && b.h < 70, showT = showL && (wEdit || d.html || b.h >= 48); if (noSub) d.s = '';
     let html = showT ? `<div class="wl"><span>${lab}</span><span>${esc(d.u || '')}${d.arrow != null ? ` <svg width="14" height="14" viewBox="0 0 14 14" style="vertical-align:-2px"><g transform="rotate(${d.arrow} 7 7)"><path d="M7 1l4 8H3z" fill="currentColor"/><line x1="7" y1="8" x2="7" y2="13" stroke="currentColor" stroke-width="2"/></g></svg>` : ''}</span></div>` : '';
     if (d.html) html += d.html;
     else {
-      const txt = String(d.v ?? '--'); const avail = b.h - 8 - (showT ? 16 : 0) - (d.s ? 16 : 0);
-      const fs = Math.max(12, Math.min(avail * 0.95, (b.w - 18) / Math.max(2.2, txt.length * (d.btn ? 0.68 : 0.5))) * mul);
+      const txt = String(d.v ?? '--'); const [px, py] = pd || [sN('wPadX', 8), sN('wPadY', 4)], avail = b.h - 2 * ins - 2 * py - 2 - (showT ? lh : 0) - (d.s ? lh : 0);
+      const fs = Math.max(12, Math.min(avail * 0.95, (b.w - 2 * ins - 2 * px - 4) / Math.max(2.2, txt.length * (d.btn ? 0.68 : 0.5))) * mul);
       html += `<div class="wv" style="font-size:${fs.toFixed(0)}px;${d.col ? 'color:' + d.col : ''}${d.center ? ';justify-content:center;text-align:center' : ''}">${esc(txt)}</div>` + (d.s ? `<div class="ws">${esc(d.s)}</div>` : '');
     }
     html += HANDLES;
@@ -960,7 +960,7 @@ const SECS = [['data', 'Vario & GPS'], ['widgets', 'Pages & widgets'], ['units',
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
-const SNUM = { warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeClimb: [-2, 3, 0.1, 'm/s', 'Average climb while circling at least'], toSpd: [5, 40, 0.5, 'km/h', 'Ground speed above'], toTime: [0, 30, 1, 's', 'For at least'], cirRate: [3, 20, 0.5, '°/s', 'Turning faster than'], cirWin: [3, 20, 1, 's', 'Turn rate measured over'], cirSpd: [0, 30, 0.5, 'km/h', 'Ground speed above'], thRec: [5, 300, 5, 's', 'Count as a thermal after'], towWin: [10, 600, 10, 's', 'Starts within'], towRelV: [-1, 2, 0.1, 'm/s', 'Released when climb is below'], towRelT: [1, 20, 1, 's', 'For'], xcOut: [0.5, 20, 0.5, 'km', 'Free distance until'], xcBack: [50, 95, 5, '%', 'Still going out while farther than'], xcTri: [5, 28, 1, '%', 'Triangle when the shortest leg is at least'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
+const SNUM = { warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], wGap: [0, 12, 1, 'px', 'Gap between widgets'], wPadX: [0, 16, 1, 'px', 'Padding left and right'], wPadY: [0, 12, 1, 'px', 'Padding top and bottom'], wLab: [8, 18, 1, 'px', 'Title and info text size'], wRad: [0, 16, 1, 'px', 'Rounded corners'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeClimb: [-2, 3, 0.1, 'm/s', 'Average climb while circling at least'], toSpd: [5, 40, 0.5, 'km/h', 'Ground speed above'], toTime: [0, 30, 1, 's', 'For at least'], cirRate: [3, 20, 0.5, '°/s', 'Turning faster than'], cirWin: [3, 20, 1, 's', 'Turn rate measured over'], cirSpd: [0, 30, 0.5, 'km/h', 'Ground speed above'], thRec: [5, 300, 5, 's', 'Count as a thermal after'], towWin: [10, 600, 10, 's', 'Starts within'], towRelV: [-1, 2, 0.1, 'm/s', 'Released when climb is below'], towRelT: [1, 20, 1, 's', 'For'], xcOut: [0.5, 20, 0.5, 'km', 'Free distance until'], xcBack: [50, 95, 5, '%', 'Still going out while farther than'], xcTri: [5, 28, 1, '%', 'Triangle when the shortest leg is at least'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
 function numField(key, hint) { const [min, max, step, unit, label] = SNUM[key]; return `<div class="field"><span class="k">${label}${hint ? ' · ' + hint : ''}</span><span class="row"><button class="pill step" data-sn="${key}" data-sdir="-1" aria-label="Less">−</button><input type="number" class="numin" inputmode="decimal" data-sni="${key}" value="${S[key]}" min="${min}" max="${max}" step="${step}" aria-label="${label}, ${unit}"><span class="unit">${unit}</span><button class="pill step" data-sn="${key}" data-sdir="1" aria-label="More">+</button></span></div>`; }
 function setNum(key, v) { const [min, max, step] = SNUM[key], d = (String(step).split('.')[1] || '').length; if (!isFinite(v)) return; applySet(key, String(clamp(+(Math.round(v / step) * step).toFixed(d), min, max))); renderSettings(); }
 function renderSettings() {
@@ -1041,6 +1041,7 @@ function renderSettings() {
     <div class="field"><span class="k"></span><button class="btn primary" id="bmCopy">Copy bookmark code</button></div>`;
   if (setSec === 'web') h = webSection();
   if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('corner', [['auto', 'Auto'], ['full', 'Clock, status, menu'], ['menu', 'Menu only']], 'Top-right buttons')}<div class="muted">Auto shows only the menu button on small screens (phones), so the buttons don't cover your widgets.</div>${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
+    <div class="card sec"><h2>Widget spacing</h2><div class="muted">Make widgets more compact: less space between and inside them leaves more room for the values (they grow to fill it).</div>${numField('wGap', '0 = edge to edge')}${numField('wPadX')}${numField('wPadY')}${numField('wLab')}${numField('wRad', '0 = square')}<div class="muted">One widget can have its own padding: edit it → Padding.</div><div class="field"><span class="k">Defaults</span><button class="btn" id="wSpReset">Normal spacing</button><button class="btn" id="wSpTight">Compact</button></div></div>
     <div class="card sec"><h2>Acoustic vario</h2>
     ${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}${numField('volPct')}
     ${numField('vLift', 'beeps start')}${seg('vSinkOn', [[true, 'On'], [false, 'Off']], 'Sink alarm')}${S.vSinkOn !== false ? numField('vSink') : ''}
@@ -1108,6 +1109,8 @@ function renderSettings() {
   on('cylR', 'onchange', (e) => { S.cylR = +e.target.value; save(); drawTask(); });
   on('voiceTest', 'onclick', () => { say(vt().test + '. ' + vt().alt(sayAlt(altNow() ?? 1000), ''), true); });
   document.querySelectorAll('[data-vtest]').forEach((b) => (b.onclick = () => beep.testRate(+b.dataset.vtest, 3)));
+  const wSp = (o) => { Object.assign(S, o); save(); wStyle(); document.querySelectorAll('.wg').forEach((e) => { e._sk = null; e._last = null; }); renderSettings(); };
+  on('wSpReset', 'onclick', () => wSp({ wGap: 4, wPadX: 8, wPadY: 4, wLab: 12, wRad: 10 })); on('wSpTight', 'onclick', () => wSp({ wGap: 1, wPadX: 3, wPadY: 1, wLab: 10, wRad: 4 }));
   on('fsBtn', 'onclick', () => document.documentElement.requestFullscreen?.());
 }
 // Settings → Flight modes: every automatic mode with its detection criteria, plus a live status card (modeLive, refreshed every second)
@@ -1148,6 +1151,9 @@ function modesSection() {
 }
 const MODE_KEYS = ['modeAuto', 'modeEnter', 'modeHold', 'modeClimbOn', 'modeClimb', 'toSpd', 'toTime', 'cirRate', 'cirWin', 'cirSpd', 'thRec', 'towDetect', 'towMin', 'towWin', 'towRelV', 'towRelT', 'xcOut', 'xcBack', 'xcTri'];
 setInterval(() => { const e = $('modeLive'); if (e && curPage === 'pSet' && setSec === 'modes') e.innerHTML = modeLiveHTML(); }, 1000);
+// widget spacing (Settings → Display → Widgets): gap between widgets, inner padding, title size, corner rounding; cfg.pad overrides the padding per widget
+function wPad(c) { const v = c.pad; if (v == null || v === 'page' || v === '') return null; const p = +v; return isFinite(p) ? [p, Math.round(p / 2)] : null; }
+function wStyle() { const r = document.documentElement.style; r.setProperty('--wpx', sN('wPadX', 8) + 'px'); r.setProperty('--wpy', sN('wPadY', 4) + 'px'); r.setProperty('--wlab', sN('wLab', 12) + 'px'); r.setProperty('--wrad', sN('wRad', 10) + 'px'); }
 function cornerMode() { document.body.classList.toggle('cornerFull', S.corner === 'full'); document.body.classList.toggle('cornerMenu', S.corner === 'menu'); }
 function applySet(key, raw) {
   const v = raw === 'true' ? true : raw === 'false' ? false : isNaN(+raw) ? raw : +raw;
@@ -1160,6 +1166,7 @@ function applySet(key, raw) {
   if (key === 'voice' && v) say(vt().test, true);
   if (key === 'wake') wake();
   if (key === 'corner') cornerMode();
+  if (/^w(Gap|PadX|PadY|Lab|Rad)$/.test(key)) { wStyle(); document.querySelectorAll('.wg').forEach((e) => { e._sk = null; e._last = null; }); }
   if (key === 'titles') renderWidgets();
   if (key === 'rate' || key === 'rateT') loop();
   if (key === 'autoImport' || key === 'taOrient') { /* stored */ }
