@@ -4,7 +4,7 @@
      otherwise installed apps keep running the old copy. A new version waits until the
      user taps "Reload" in the update banner (never reloads by itself mid-flight).
    - Map tiles are kept as they are viewed (cache first), up to MAX_TILES, oldest out first. */
-const VERSION = '2026.10.17-33';
+const VERSION = '2026.10.17-34';
 const APP = 'app-' + VERSION, LIBS = 'libs-v1', TILES = 'tiles-v1', MAX_TILES = 15000;
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/style.css', 'data/demo-flight.js',
   'js/01-core.js', 'js/02-analysis.js', 'js/03-replay.js', 'js/04-map.js', 'js/05-data-sources.js',
@@ -14,7 +14,7 @@ const LIB_URLS = ['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
   'https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.js'];
 const LIB_HOST = /^(cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)$/;
-const TILE_HOST = /(^|\.)(tile\.opentopomap\.org|server\.arcgisonline\.com|basemaps\.cartocdn\.com|tile\.openstreetmap\.org)$/;
+const TILE_HOST = /(^|\.)(tile\.opentopomap\.org|server\.arcgisonline\.com|basemaps\.cartocdn\.com|tile\.openstreetmap\.org|thermal\.kk7\.ch)$/;
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {

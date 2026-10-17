@@ -7,6 +7,10 @@ const LAYERS = {
   night: { name: 'Night', sw: ['#12161B', '#B794F6'], url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', o: { maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' } },
   streets: { name: 'Streets', sw: ['#F2EFE9', '#E8A05A'], url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', o: { maxZoom: 19, attribution: '© OpenStreetMap contributors' } }
 };
+/* kk7 thermal map (thermal.kk7.ch, CC BY-NC-SA 4.0, personal non-commercial use; attribution must stay): TMS tiles, every request names
+   its source with &src=; skyways = the paths pilots fly between thermals, hotspots = where thermals were found. [tile set, max native zoom, name] */
+const KK7 = { skyways: ['skyways_all_all', 13, 'Skyways'], thermals: ['thermals_all_all', 12, 'Hotspots'] };
+const kk7Layer = (k, op) => L.tileLayer(`https://thermal.kk7.ch/tiles/${KK7[k][0]}/{z}/{x}/{y}.png?src=${encodeURIComponent(location.hostname || 'flygineer')}`, { tms: true, maxNativeZoom: KK7[k][1], maxZoom: 19, opacity: op, zIndex: 5, attribution: 'Thermals © <a href="https://thermal.kk7.ch" target="_blank" rel="noopener">kk7.ch</a> (CC BY-NC-SA)' });
 /* ================= map widgets (any number of maps, each with its own settings) ================= */
 const ROT = { north: 'North up', track: 'Track up', bearing: 'Bearing up' };
 const MAPS = new Set();
@@ -234,6 +238,8 @@ function mapDraw(cv, E, el, b) {
   mapLive(I, !wEdit);
   const lk = LAYERS[C.layer] ? C.layer : 'topo';
   if (I.lk !== lk) { if (I.tile) m.removeLayer(I.tile); I.tile = L.tileLayer(LAYERS[lk].url, LAYERS[lk].o).addTo(m); I.tile.bringToBack(); I.lk = lk; }
+  { const kk = KK7[C.kk7] ? C.kk7 : '', op = clamp(+C.kk7o || 60, 20, 100) / 100, kq = kk + '|' + op; // kk7 thermal map over the base map
+    if (I.kq !== kq) { if (I.kk) m.removeLayer(I.kk); I.kk = kk ? kk7Layer(kk, op).addTo(m) : null; I.kq = kq; } }
   if (I.cf !== C.follow) { I.cf = C.follow; I.follow = on(C.follow); }
   const th = !!st.thermMode; if (I.mode !== th) { if (I.mode !== undefined && +C.z) m.setZoom(+C.z, { animate: false }); I.mode = th; }
   if (!I.follow && +C.ret > 0 && I.panAt && Date.now() - I.panAt > C.ret * 1000) { I.follow = true; I.panAt = 0; }
