@@ -68,14 +68,12 @@
 <section class="page" id="pPlan"><div id="planArea"></div></section>
 <section class="page" id="pWeb">
   <div id="webBar">
-    <button class="pill" data-web="windy" aria-pressed="true">Windy</button>
-    <button class="pill" data-web="flyxc" aria-pressed="false">FlyXC</button>
-    <button class="pill" data-web="flyk" aria-pressed="false">Flyk</button>
-    <button class="pill" data-web="ais" aria-pressed="false">AIS NOTAM</button>
-    <button class="pill" data-web="custom" aria-pressed="false" id="customTab">My page</button>
-    <span class="chip" style="height:40px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:20px;color:var(--sink);border-color:var(--sink);font-weight:600;font-size:14px">● Location shared</span>
+    <span id="webTabs" class="row"></span>
+    <span class="chip" id="webLoc" style="height:40px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:20px;color:var(--sink);border-color:var(--sink);font-weight:600;font-size:14px">● Location shared</span>
     <span id="webExtra" class="row"></span>
-    <button class="pill" id="webOpen" style="margin-left:auto">Open in browser</button>
+    <button class="pill" id="webReload" style="margin-left:auto" aria-label="Reload page">⟳</button>
+    <button class="pill" id="webOpen">Open in browser</button>
+    <button class="pill" id="webSet" aria-label="Web page settings">⚙</button>
   </div>
   <div id="webArea"></div>
 </section>

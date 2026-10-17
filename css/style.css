@@ -239,6 +239,8 @@ canvas{display:block;width:100%;touch-action:none}
 #pWeb{flex-direction:column}
 #webBar{height:64px;flex-shrink:0;display:flex;align-items:center;gap:6px;padding:6px 430px 6px 10px;border-bottom:1px solid var(--line);overflow-x:auto}
 #webArea{flex:1;position:relative}
+#webBar .pill,#webBar .chip,#webTabs{white-space:nowrap;flex-shrink:0}
+#webTabs{display:flex;gap:6px}
 #pPlan{flex-direction:row}
 #planArea{flex:1;display:flex;min-height:0;position:relative}
 /* the clock / status / menu buttons float at the top right: keep the panel's content below them */

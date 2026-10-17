@@ -868,24 +868,91 @@ function drawMiniPlaces() { }
 function renderNotams(msg) { st.ntLoading = false; st.ntMsg = msg || ''; markDirty(); }
 
 /* web */
-let webCur = 'windy';
+// S.webPages = [{id, kind: 'windy' | 'flyxc' | 'url', name, on, url?, ext?, o?}]: the tabs on the Web page, in order (Settings → Web pages)
+const WEB_MAX = 16;
+const WINDY_O = { overlay: [['wind', 'Wind'], ['gust', 'Gusts'], ['rain', 'Rain'], ['clouds', 'Clouds'], ['lclouds', 'Low clouds'], ['cbase', 'Cloud base'], ['cape', 'CAPE'], ['temp', 'Temperature'], ['pressure', 'Pressure']],
+  product: [['ecmwf', 'ECMWF'], ['gfs', 'GFS'], ['iconEu', 'ICON-EU']], level: [['surface', 'Surface'], ['100m', '100 m'], ['950h', '950 hPa · 500 m'], ['900h', '900 hPa · 1000 m'], ['850h', '850 hPa · 1500 m'], ['800h', '800 hPa · 2000 m'], ['700h', '700 hPa · 3000 m']],
+  unit: [['app', 'As the app'], ['km/h', 'km/h'], ['m/s', 'm/s'], ['kt', 'kt']] };
+const WINDY_DEF = { overlay: 'wind', product: 'ecmwf', level: 'surface', zoom: 9, unit: 'app' };
+const WEB_SUGGEST = [['XContest Live', 'https://live.xcontest.org/'], ['Paragliding Map', 'https://www.paraglidingmap.com/'], ['Meteoblue maps', 'https://www.meteoblue.com/en/weather/maps'], ['OpenStreetMap here', 'https://www.openstreetmap.org/#map=12/{lat}/{lon}']];
+const WEB_DEF = () => [{ id: 'windy', kind: 'windy', name: 'Windy', on: true, o: { ...WINDY_DEF } }, { id: 'flyxc', kind: 'flyxc', name: 'FlyXC', on: true },
+  { id: 'flyk', kind: 'url', name: 'Flyk', on: true, url: S.flykUrl || 'https://flyk.com/map?lang=en' }, { id: 'ais', kind: 'url', name: 'AIS NOTAM', on: true, url: 'https://www.ais.fi/bulletins/envfra.htm' }]
+  .concat(S.customUrl ? [{ id: 'my', kind: 'url', name: 'My page', on: true, url: S.customUrl }] : []);
+function webPages() { if (!Array.isArray(S.webPages) || !S.webPages.length) { S.webPages = WEB_DEF(); save(); } return S.webPages; } // first use builds them from the old Flyk / My page addresses
+const webGet = (id) => webPages().find((p) => p.id === id);
+const webUsesPos = (p) => p.kind !== 'url' || /\{(lat|lon)\}/.test(p.url || '');
+function windyUrl(p, f) {
+  const o = { ...WINDY_DEF, ...(p.o || {}) }, u = o.unit === 'app' ? S.uSpd : o.unit, la = f.lat.toFixed(3), lo = f.lon.toFixed(3);
+  return `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=${encodeURIComponent(u)}&zoom=${o.zoom}&overlay=${o.overlay}&product=${o.product}&level=${o.level}&lat=${la}&lon=${lo}&detailLat=${la}&detailLon=${lo}&marker=true`;
+}
+function webUrl(p, f) { // {lat} {lon} rounded to 0.01° so the frame does not reload as you move
+  if (p.kind === 'windy') return windyUrl(p, f);
+  if (p.kind === 'flyxc') return flyxcUrl();
+  return String(p.url || '').trim().replace(/\{lat\}/g, f.lat.toFixed(2)).replace(/\{lon\}/g, f.lon.toFixed(2));
+}
+let webCur = S.webCur || 'windy';
 function renderWeb() {
-  document.querySelectorAll('[data-web]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.web === webCur)));
-  const f = st.fix || { lat: 63.1, lon: 21.6 }; const area = $('webArea'); $('webExtra').innerHTML = '';
+  const L = webPages().filter((p) => p.on !== false);
+  if (!L.some((p) => p.id === webCur)) webCur = L.length ? L[0].id : '';
+  $('webTabs').innerHTML = L.map((p) => `<button class="pill" data-web="${esc(p.id)}" aria-pressed="${p.id === webCur}">${esc(p.name)}</button>`).join('');
+  document.querySelectorAll('[data-web]').forEach((b) => (b.onclick = () => { webCur = b.dataset.web; S.webCur = webCur; save(); renderWeb(); }));
+  const f = st.fix || { lat: 63.1, lon: 21.6 }, area = $('webArea'), P = webGet(webCur); $('webExtra').innerHTML = '';
   let url = '', html = '';
-  if (webCur === 'windy') url = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=9&overlay=wind&product=ecmwf&level=surface&lat=${f.lat.toFixed(3)}&lon=${f.lon.toFixed(3)}&detailLat=${f.lat.toFixed(3)}&detailLon=${f.lon.toFixed(3)}&marker=true`;
-  if (webCur === 'flyxc') { url = flyxcUrl(); $('webExtra').innerHTML = `<button class="pill" id="impAuto" aria-pressed="${S.autoImport}">Auto-import: ${S.autoImport ? 'on' : 'off'}</button>`; }
-  if (webCur === 'flyk') url = S.flykUrl || 'https://flyk.com/map?lang=en';
-  if (webCur === 'ais') url = 'https://www.ais.fi/bulletins/envfra.htm';
-  if (webCur === 'custom') { if (S.customUrl) url = S.customUrl; else html = `<div class="webMsg"><div class="card"><b style="font-size:18px">Add your own page</b><span class="muted">Set any web address in Settings → Web pages, for example a Flyk or club page.</span><button class="btn primary" onclick="openSettings('web')">Open settings</button></div></div>`; }
+  if (!P) html = `<div class="webMsg"><div class="card"><b style="font-size:18px">No web pages shown</b><span class="muted">Add a page or show one again in Settings → Web pages.</span><button class="btn primary" onclick="openSettings('web')">Open settings</button></div></div>`;
+  else {
+    url = webUrl(P, f);
+    if (P.kind === 'flyxc') $('webExtra').innerHTML = `<button class="pill" id="impAuto" aria-pressed="${S.autoImport}">Auto-import: ${S.autoImport ? 'on' : 'off'}</button>`;
+    if (!url) { html = `<div class="webMsg"><div class="card"><b style="font-size:18px">${esc(P.name)} has no address</b><span class="muted">Set its web address in Settings → Web pages.</span><button class="btn primary" onclick="openSettings('web')">Open settings</button></div></div>`; }
+    else if (P.ext) { html = `<div class="webMsg"><div class="card"><b style="font-size:18px">${esc(P.name)}</b><span class="muted" style="word-break:break-all">${esc(url)}</span><span class="muted">This page opens in the browser (set in Settings → Web pages).</span><button class="btn primary" id="webExtOpen">Open in browser ↗</button></div></div>`; }
+  }
+  $('webLoc').style.display = P && url && !P.ext && webUsesPos(P) ? 'flex' : 'none';
   const cur = area.querySelector('iframe');
-  if (url) { if (!cur || cur.dataset.src !== url) area.innerHTML = `<iframe data-src="${esc(url)}" src="${esc(url)}" allow="geolocation; fullscreen; clipboard-write" referrerpolicy="no-referrer-when-downgrade"></iframe>`; }
+  if (url && !html) { if (!cur || cur.dataset.src !== url) area.innerHTML = `<iframe data-src="${esc(url)}" src="${esc(url)}" allow="geolocation; fullscreen; clipboard-write" referrerpolicy="no-referrer-when-downgrade"></iframe>`; }
   else area.innerHTML = html;
   const ob = $('fxUse'); if (ob) ob.remove();
-  if (webCur === 'flyxc') { const b = document.createElement('button'); b.id = 'fxUse'; b.className = 'btn primary'; b.innerHTML = '<span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.15"><span><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" style="vertical-align:-5px;margin-right:6px"><path d="M11 3v11M6 9l5 5 5-5M4 18h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Use this route as my task</span><small style="font-weight:500;font-size:12px;opacity:.85">first: Share → copy link in FlyXC</small></span>'; b.style.cssText = 'position:absolute;right:16px;bottom:24px;z-index:5;height:64px;padding:0 20px;font-size:17px;box-shadow:0 6px 18px rgba(0,0,0,.3)'; b.onclick = useFlyxcRoute; area.appendChild(b); }
-  $('webOpen').onclick = () => { if (url) window.open(url, '_blank');  };
-  if (false) $('impPaste').onclick = async () => { try { importFlyXC(await navigator.clipboard.readText()); } catch (e) { const t = prompt('Paste the FlyXC link'); if (t) importFlyXC(t); } };
+  if (P && P.kind === 'flyxc') { const b = document.createElement('button'); b.id = 'fxUse'; b.className = 'btn primary'; b.innerHTML = '<span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.15"><span><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" style="vertical-align:-5px;margin-right:6px"><path d="M11 3v11M6 9l5 5 5-5M4 18h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Use this route as my task</span><small style="font-weight:500;font-size:12px;opacity:.85">first: Share → copy link in FlyXC</small></span>'; b.style.cssText = 'position:absolute;right:16px;bottom:24px;z-index:5;height:64px;padding:0 20px;font-size:17px;box-shadow:0 6px 18px rgba(0,0,0,.3)'; b.onclick = useFlyxcRoute; area.appendChild(b); }
+  $('webOpen').onclick = () => { if (url) window.open(url, '_blank'); };
+  if ($('webExtOpen')) $('webExtOpen').onclick = () => window.open(url, '_blank');
+  $('webReload').onclick = () => { const fr = area.querySelector('iframe'); if (fr) fr.src = fr.dataset.src; };
+  $('webSet').onclick = () => openSettings('web');
   if ($('impAuto')) $('impAuto').onclick = () => { S.autoImport = !S.autoImport; save(); renderWeb(); };
+}
+function webSection() {
+  const L = webPages(), sel = (P, k) => `<div class="field"><span class="k">${{ overlay: 'Layer', product: 'Model', level: 'Height', unit: 'Wind unit' }[k]}</span><span class="row" style="flex-wrap:wrap">${WINDY_O[k].map(([v, n]) => `<button class="pill" data-wbo="${P.id}" data-k="${k}" data-val="${v}" aria-pressed="${String({ ...WINDY_DEF, ...(P.o || {}) }[k]) === v}">${n}</button>`).join('')}</span></div>`;
+  return `<div class="card sec"><h2>Web pages</h2><div class="muted">The tabs on the Web page, in this order. Rename, hide, move or remove them, and add any site you like.</div>
+  ${L.map((P, i) => `<div class="card" style="padding:10px 12px;margin-top:10px${P.on === false ? ';opacity:.6' : ''}">
+    <div class="field"><input type="text" maxlength="24" data-wbname="${P.id}" value="${esc(P.name)}" aria-label="Tab name" style="flex:1;min-width:140px"><span class="row">
+      <button class="pill" data-wbon="${P.id}" aria-pressed="${P.on !== false}">${P.on !== false ? 'Shown' : 'Hidden'}</button>
+      <button class="btn" data-wbmove="${P.id}" data-d="-1" ${i ? '' : 'disabled'} aria-label="Move up">▲</button><button class="btn" data-wbmove="${P.id}" data-d="1" ${i < L.length - 1 ? '' : 'disabled'} aria-label="Move down">▼</button>
+      ${P.kind === 'url' ? `<button class="btn warn" data-wbdel="${P.id}" aria-label="Remove">✕</button>` : ''}</span></div>
+    ${P.kind === 'url' ? `<div class="field"><input type="url" data-wburl="${P.id}" value="${esc(P.url || '')}" placeholder="https://…" aria-label="Web address" style="flex:1;min-width:240px"></div>
+      <div class="field"><span class="k">Open</span><span class="row"><button class="pill" data-wbext="${P.id}" data-val="0" aria-pressed="${!P.ext}">Inside the app</button><button class="pill" data-wbext="${P.id}" data-val="1" aria-pressed="${!!P.ext}">In the browser</button></span></div>` : ''}
+    ${P.kind === 'windy' ? sel(P, 'overlay') + sel(P, 'product') + sel(P, 'level') + sel(P, 'unit') + `<div class="field"><span class="k">Zoom</span><span class="row"><button class="pill step" data-wbz="${P.id}" data-d="-1" aria-label="Less">−</button><b style="min-width:40px;text-align:center;font-size:18px">${(P.o && P.o.zoom) || WINDY_DEF.zoom}</b><button class="pill step" data-wbz="${P.id}" data-d="1" aria-label="More">+</button></span></div>` : ''}
+    ${P.kind === 'flyxc' ? '<div class="muted">Opens your task (or a starter line at your position) in the FlyXC planner.</div>' : ''}</div>`).join('')}
+  <h2 style="margin-top:12px">Add a page</h2>
+  <div class="field"><input type="text" id="wbNewName" maxlength="24" value="${esc(st.wbName || '')}" placeholder="Tab name, e.g. Club" style="flex:1;min-width:140px"><input type="url" id="wbNewUrl" value="${esc(st.wbUrl || '')}" placeholder="https://…" style="flex:2;min-width:220px"><button class="btn primary" id="wbAdd" ${L.length >= WEB_MAX ? 'disabled' : ''}>Add</button></div>
+  <div class="field"><span class="k">Ideas</span><span class="row" style="flex-wrap:wrap">${WEB_SUGGEST.map(([n, u], i) => `<button class="pill" data-wbsug="${i}">${esc(n)}</button>`).join('')}</span></div>
+  <div class="muted">In an address, {lat} and {lon} are replaced by your position (e.g. https://www.openstreetmap.org/#map=12/{lat}/{lon}). Pages can use your location once you allow it for this app. Some sites refuse to be shown inside another page: set those to open in the browser.</div>
+  <div class="field"><span class="k">Defaults</span><button class="btn warn" id="wbReset">Reset the web pages</button></div></div>`;
+}
+function webSectionWire() {
+  const L = webPages(), done = () => { save(); renderSettings(); if (curPage === 'pWeb') renderWeb(); }, soft = () => save(); // text fields only save: re-rendering in their change event (fired on blur) breaks the tap that caused it
+  document.querySelectorAll('[data-wbname]').forEach((e) => (e.onchange = () => { const P = webGet(e.dataset.wbname); P.name = e.value.trim().slice(0, 24) || P.name; soft(); }));
+  document.querySelectorAll('[data-wbon]').forEach((b) => (b.onclick = () => { const P = webGet(b.dataset.wbon); P.on = P.on === false; done(); }));
+  document.querySelectorAll('[data-wbmove]').forEach((b) => (b.onclick = () => { const i = L.findIndex((p) => p.id === b.dataset.wbmove), j = i + +b.dataset.d; if (j < 0 || j >= L.length) return; [L[i], L[j]] = [L[j], L[i]]; done(); }));
+  document.querySelectorAll('[data-wbdel]').forEach((b) => (b.onclick = () => { const i = L.findIndex((p) => p.id === b.dataset.wbdel), P = L[i]; L.splice(i, 1); done(); toast(`“${P.name}” removed`, [['Undo', () => { webPages().splice(i, 0, P); done(); }]]); }));
+  document.querySelectorAll('[data-wburl]').forEach((e) => (e.onchange = () => { webGet(e.dataset.wburl).url = e.value.trim(); soft(); }));
+  document.querySelectorAll('[data-wbext]').forEach((b) => (b.onclick = () => { webGet(b.dataset.wbext).ext = b.dataset.val === '1'; done(); }));
+  document.querySelectorAll('[data-wbo]').forEach((b) => (b.onclick = () => { const P = webGet(b.dataset.wbo); P.o = { ...WINDY_DEF, ...(P.o || {}), [b.dataset.k]: b.dataset.val }; done(); }));
+  document.querySelectorAll('[data-wbz]').forEach((b) => (b.onclick = () => { const P = webGet(b.dataset.wbz); P.o = { ...WINDY_DEF, ...(P.o || {}) }; P.o.zoom = clamp(P.o.zoom + +b.dataset.d, 3, 15); done(); }));
+  const nm = $('wbNewName'), nu = $('wbNewUrl'); if (nm) nm.oninput = () => (st.wbName = nm.value); if (nu) nu.oninput = () => (st.wbUrl = nu.value);
+  document.querySelectorAll('[data-wbsug]').forEach((b) => (b.onclick = () => { const [n, u] = WEB_SUGGEST[+b.dataset.wbsug]; st.wbName = n; st.wbUrl = u; renderSettings(); }));
+  if ($('wbAdd')) $('wbAdd').onclick = () => {
+    let u = nu.value.trim(); if (!u) { toast('Type a web address first'); return; } if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    const name = nm.value.trim().slice(0, 24) || (u.replace(/^https?:\/\/(www\.)?/i, '').split(/[/?#]/)[0]).slice(0, 24);
+    const P = { id: 'w' + Date.now().toString(36), kind: 'url', name, on: true, url: u }; L.push(P); st.wbName = st.wbUrl = ''; webCur = S.webCur = P.id; done(); toast(`“${name}” added to the Web page`, [['Show', () => showPage('pWeb')]]);
+  };
+  if ($('wbReset')) $('wbReset').onclick = () => { const old = S.webPages; S.webPages = null; webPages(); done(); toast('Web pages reset', [['Undo', () => { S.webPages = old; done(); }]]); };
 }
 
 /* settings */
@@ -972,8 +1039,7 @@ function renderSettings() {
     <div class="muted" style="line-height:1.45">Plan in FlyXC in a normal Chrome tab, then tap this bookmark to send the route here as your task. Set it up once: copy the code, bookmark any page, edit the bookmark, name it <b>Send to Bora</b> and paste the code as its address. To use it, type "Send to Bora" in the address bar while FlyXC is open and pick the bookmark.</div>
     <pre class="raw" id="bmCode" style="word-break:break-all">${esc(bookmarklet())}</pre>
     <div class="field"><span class="k"></span><button class="btn primary" id="bmCopy">Copy bookmark code</button></div>`;
-  if (setSec === 'web') h = `<div class="card sec"><h2>Web pages</h2><div class="field"><label for="fUrl">Flyk page address</label><input type="url" id="fUrl" value="${esc(S.flykUrl)}" placeholder="https://flyk.com/map?lang=en"></div>
-<div class="field"><label for="cUrl">My page address</label><input type="url" id="cUrl" value="${esc(S.customUrl)}" placeholder="https://…"></div><div class="muted">Pages can use your location once you allow it for this app. Some sites refuse to be shown inside another page; use Open in browser for those.</div></div>`;
+  if (setSec === 'web') h = webSection();
   if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('corner', [['auto', 'Auto'], ['full', 'Clock, status, menu'], ['menu', 'Menu only']], 'Top-right buttons')}<div class="muted">Auto shows only the menu button on small screens (phones), so the buttons don't cover your widgets.</div>${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
     <div class="card sec"><h2>Acoustic vario</h2>
     ${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}${numField('volPct')}
@@ -1014,6 +1080,7 @@ function renderSettings() {
   const on = (id, ev, fn) => { const e = $(id); if (e) e[ev] = fn; };
   on('bleBtn', 'onclick', connectBora);
   if (setSec === 'app') appSectionWire(on);
+  if (setSec === 'web') webSectionWire();
   on('modeTest', 'onclick', () => { st.force = !st.force; st.sheetForce = false; updateMode(); renderSettings(); });
   on('expAll', 'onclick', () => exportSettings('all')); on('expLay', 'onclick', () => exportSettings('layouts'));
   on('impFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (fl) openImport(await fl.text(), fl.name); e.target.value = ''; });
@@ -1051,8 +1118,6 @@ function renderSettings() {
   on('fxImp', 'onclick', () => { if (importFlyXC($('fxUrl').value)) renderSettings(); });
   on('bmCopy', 'onclick', async () => { try { await navigator.clipboard.writeText(bookmarklet()); toast('Bookmark code copied'); } catch (e) { toast('Select the code above and copy it'); } });
   on('cylR', 'onchange', (e) => { S.cylR = +e.target.value; save(); drawTask(); });
-  on('cUrl', 'onchange', (e) => { S.customUrl = e.target.value.trim(); save(); });
-  on('fUrl', 'onchange', (e) => { S.flykUrl = e.target.value.trim(); save(); });
   on('voiceTest', 'onclick', () => { say(vt().test + '. ' + vt().alt(sayAlt(altNow() ?? 1000), ''), true); });
   document.querySelectorAll('[data-vtest]').forEach((b) => (b.onclick = () => beep.testRate(+b.dataset.vtest, 3)));
   on('fsBtn', 'onclick', () => document.documentElement.requestFullscreen?.());
@@ -1141,7 +1206,6 @@ $('rpSeek').oninput = () => { if (st.replay) { st.replay.dragging = true; const 
 $('rpSeek').onchange = () => { if (st.replay) { st.replay.dragging = false; $('rpTime')._t = $('rpSeek')._v = null; seekReplay($('rpSeek').value / 1000); } };
 $('setBtn').onclick = () => openSettings(); $('statusBtn').onclick = () => openSettings('data'); $('timeBtn').onclick = showTime;
 $('dlg').onclick = (e) => { if (Date.now() - (st.tapGuard || 0) < 500) return; /* the click that follows the tap that opened it */ if (e.target.id === 'dlg') { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; } };
-document.querySelectorAll('[data-web]').forEach((b) => (b.onclick = () => { webCur = b.dataset.web; renderWeb(); }));
 $('setNav').onclick = (e) => { const b = e.target.closest('[data-sec]'); if (b) { setSec = b.dataset.sec; renderSettings(); } };
 $('setBody').addEventListener('change', (e) => {
   const i = e.target.closest('[data-sni]'); if (i) setNum(i.dataset.sni, parseFloat(String(i.value).replace(',', '.')));
@@ -1162,8 +1226,8 @@ $('setBody').onclick = (e) => {
   if (b.dataset.wdn) { const i = +b.dataset.wdn; if (i < S.widgets.length - 1) [S.widgets[i + 1], S.widgets[i]] = [S.widgets[i], S.widgets[i + 1]]; save(); renderSettings(); }
   if (b.dataset.wtog) { const w = b.dataset.wtog; S.hidden = S.hidden.includes(w) ? S.hidden.filter((x) => x !== w) : S.hidden.concat(w); save(); renderSettings(); }
 };
-window.addEventListener('focus', () => { if (S.autoImport && curPage === 'pWeb' && webCur === 'flyxc') tryClipboardImport(); });
-$('webBar').addEventListener('pointerdown', () => { if (webCur === 'flyxc') tryClipboardImport(); });
+window.addEventListener('focus', () => { if (S.autoImport && curPage === 'pWeb' && (webGet(webCur) || {}).kind === 'flyxc') tryClipboardImport(); });
+$('webBar').addEventListener('pointerdown', () => { if ((webGet(webCur) || {}).kind === 'flyxc') tryClipboardImport(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { tryClipboardImport(); wake(); } });
 document.addEventListener('pointerdown', () => { wake(); if (S.sound) beep.init(); }, { once: true });
 navigator.getBattery?.().then((b) => { const u = () => (st.deviceBat = Math.round(b.level * 100)); u(); b.addEventListener('levelchange', u); });
