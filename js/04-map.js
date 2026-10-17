@@ -160,11 +160,37 @@ function edgeUpdate(I, C) {
   const list = st.places.filter(want).map((p) => ({ p, d: dist(f.lat, f.lon, p.lat, p.lon), pt: m.latLngToContainerPoint([p.lat, p.lon]) }))
     .filter((x) => x.d <= R && (x.pt.x < 0 || x.pt.y < 0 || x.pt.x > sz.x || x.pt.y > sz.y)).sort((a, b) => (b.p.kind === 'airport') - (a.p.kind === 'airport') || a.d - b.d).slice(0, +C.plEdgeN || 6);
   let h = '';
-  // on a ring around you (the middle of the map is the part widgets leave free), in the direction of the place
   box._list = list.map((x) => x.p);
-  list.forEach(({ p, d, pt }, i) => { const dx = pt.x - me.x, dy = pt.y - me.y, l = Math.hypot(dx, dy) || 1, x = me.x + dx / l * ring, y = me.y + dy / l * ring, ang = Math.atan2(dx, -dy) * R2D;
-    h += `<div class="plEdge${p.kind === 'airport' ? ' ap' : ''}" data-i="${i}" role="button" style="left:${x.toFixed(0)}px;top:${y.toFixed(0)}px"><svg class="plEdgeA" width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.5L10 11L6 8.3L2 11Z" fill="currentColor" transform="rotate(${ang.toFixed(0)} 6 6)"/></svg>${p.kind === 'airport' ? '✈ ' : ''}${esc(p.name)} <b>${fDist(d)}</b></div>`; });
+  list.forEach(({ p, d, pt }, i) => { const ang = Math.atan2(pt.x - me.x, -(pt.y - me.y)) * R2D;
+    h += `<div class="plEdge${p.kind === 'airport' ? ' ap' : ''}" data-i="${i}" role="button"><svg class="plEdgeA" width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.5L10 11L6 8.3L2 11Z" fill="currentColor" transform="rotate(${ang.toFixed(0)} 6 6)"/></svg>${p.kind === 'airport' ? '✈ ' : ''}${esc(p.name)} <b>${fDist(d)}</b></div>`; });
   if (box._h !== h) { box.innerHTML = h; box._h = h; }
+  const tags = [...box.children]; if (!tags.length) return;
+  if (C.plEdgePos === 'ring') { // old style: on a ring around you
+    list.forEach(({ pt }, i) => { const dx = pt.x - me.x, dy = pt.y - me.y, l = Math.hypot(dx, dy) || 1; tags[i].style.left = (me.x + dx / l * ring).toFixed(0) + 'px'; tags[i].style.top = (me.y + dy / l * ring).toFixed(0) + 'px'; });
+    return;
+  }
+  // at the edge of the map, where the line from you to the place leaves it; slid inwards along that line while a widget,
+  // a map button, the replay bar or the corner buttons cover the spot, so the tag sits at the edge of the map you can see
+  const br = box.getBoundingClientRect(), z = +I.el.style.zIndex || 0, gap = 4, M = 6;
+  const obs = [...(I.el.parentElement ? I.el.parentElement.children : [])].filter((e) => e !== I.el && e.classList.contains('wg') && (+e.style.zIndex || 0) > z && e.style.display !== 'none' && !e.classList.contains('void'))
+    .concat([...I.el.querySelectorAll('.wctl .wcb')], [$('replayBar'), $('corner')].filter(Boolean))
+    .map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height).map((r) => ({ l: r.left - br.left - gap, t: r.top - br.top - gap, r: r.right - br.left + gap, b: r.bottom - br.top + gap }));
+  const hit = (x, y, w, hh) => obs.some((o) => x - w / 2 < o.r && x + w / 2 > o.l && y - hh / 2 < o.b && y + hh / 2 > o.t);
+  const pos = list.map(({ pt }, i) => {
+    const w = tags[i].offsetWidth, hh = tags[i].offsetHeight, dx = pt.x - me.x, dy = pt.y - me.y, l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l;
+    const x0 = w / 2 + M, x1 = sz.x - w / 2 - M, y0 = hh / 2 + M, y1 = sz.y - hh / 2 - M; // the tag's centre stays in here
+    let k = Infinity; if (ux > 1e-6) k = Math.min(k, (x1 - me.x) / ux); if (ux < -1e-6) k = Math.min(k, (x0 - me.x) / ux); if (uy > 1e-6) k = Math.min(k, (y1 - me.y) / uy); if (uy < -1e-6) k = Math.min(k, (y0 - me.y) / uy);
+    k = Math.max(0, isFinite(k) ? k : 0); const kMin = Math.min(k, 26 + Math.max(w, hh) / 2); // never onto the glider
+    let x = me.x + ux * k, y = me.y + uy * k; while (k > kMin && hit(x, y, w, hh)) { k -= 8; x = me.x + ux * k; y = me.y + uy * k; }
+    return { x: clamp(x, x0, Math.max(x0, x1)), y: clamp(y, y0, Math.max(y0, y1)), w, hh };
+  });
+  // spread tags that would overlap: push the later one away along the edge it sits on (sideways on top/bottom, up/down on the sides)
+  for (let pass = 0; pass < 4; pass++) for (let a = 0; a < pos.length; a++) for (let b = a + 1; b < pos.length; b++) {
+    const A = pos[a], B = pos[b], ox = (A.w + B.w) / 2 + 3 - Math.abs(A.x - B.x), oy = (A.hh + B.hh) / 2 + 3 - Math.abs(A.y - B.y); if (ox <= 0 || oy <= 0) continue;
+    const side = Math.min(B.x, sz.x - B.x) < Math.min(B.y, sz.y - B.y); // near the left/right edge → move vertically
+    if (side) B.y = clamp(B.y + (B.y >= A.y ? oy : -oy), B.hh / 2 + M, sz.y - B.hh / 2 - M); else B.x = clamp(B.x + (B.x >= A.x ? ox : -ox), B.w / 2 + M, sz.x - B.w / 2 - M);
+  }
+  pos.forEach((q, i) => { const L = q.x.toFixed(0) + 'px', T = q.y.toFixed(0) + 'px'; if (tags[i].style.left !== L) tags[i].style.left = L; if (tags[i].style.top !== T) tags[i].style.top = T; });
 }
 /* pointer while the map is moved away from you: crosshair at the centre, airspace there, distance and direction from you */
 function ptrUpdate(I) {
