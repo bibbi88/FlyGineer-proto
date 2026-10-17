@@ -9,9 +9,12 @@ function analyse(f) {
   const rate = turn / Math.max(1, span);
   const was = st.circling;
   st.turnRate = rate; st.circling = Math.abs(rate) > sN('cirRate', 7) && f.spd > sN('cirSpd', 7.2) / 3.6;
-  if (st.circling && !was) st.thermal = { t0: now, alt0: altNow(), lat0: f.lat, lon0: f.lon };
-  if (!st.circling && was && st.thermal) { st.thermal.end = now; const dur = (now - st.thermal.t0) / 1000; const a1 = altNow(); if (dur >= sN('thRec', 30) && a1 != null && st.thermal.alt0 != null) { st.thermals.push({ t0: st.thermal.t0, t1: now, alt0: st.thermal.alt0, alt1: a1, avg: (a1 - st.thermal.alt0) / dur, lat: f.lat, lon: f.lon }); rememberThermal(st.thermals[st.thermals.length - 1]); } }
-  if (st.thermal && !st.circling && now - (st.thermal.end || now) > 30000) st.thermal = null;
+  // circling again within S.thJoin s (Flight modes) continues the same thermal: a short straight bit or a slow turn does not restart gain and average
+  const join = sN('thJoin', 30) * 1000;
+  if (st.circling && !was) { const T = st.thermal; if (T && T.end && now - T.end <= join) delete T.end; else st.thermal = { t0: now, alt0: altNow(), lat0: f.lat, lon0: f.lon }; }
+  if (!st.circling && was && st.thermal) { const T = st.thermal; T.end = now; const dur = (now - T.t0) / 1000; const a1 = altNow(); T.alt1 = a1;
+    if (dur >= sN('thRec', 30) && a1 != null && T.alt0 != null) { const q = T.rec || (T.rec = {}); Object.assign(q, { t0: T.t0, t1: now, alt0: T.alt0, alt1: a1, avg: (a1 - T.alt0) / dur, lat: f.lat, lon: f.lon }); if (!st.thermals.includes(q)) st.thermals.push(q); rememberThermal(q); } }
+  if (st.thermal && !st.circling && now - (st.thermal.end || now) > Math.max(30000, join)) st.thermal = null;
   towDetect(f);
   // last full circle
   let acc = 0, i = fx.length - 1; const circ = [];

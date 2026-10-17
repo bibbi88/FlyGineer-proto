@@ -225,6 +225,14 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
 }
 Object.defineProperty(S, 'layout', { enumerable: false, configurable: true, get() { return S.layouts[pageKey()]; }, set(v) { S.layouts[pageKey()] = v; } });
 let wEdit = false, wSel = null;
+// thermal gain and average: live while circling (and during a short break, see S.thJoin), frozen at the result once you left, then the last recorded thermal
+function thRes(alt, now) {
+  const th = st.thermal, q = st.thermals[st.thermals.length - 1];
+  if (th && !th.end && alt != null && th.alt0 != null) { const d = Math.max(1, (now - th.t0) / 1000); return { gain: alt - th.alt0, avg: (alt - th.alt0) / d, s: '' }; }
+  if (th && th.end && th.alt1 != null && th.alt0 != null) { const d = Math.max(1, (th.end - th.t0) / 1000); return { gain: th.alt1 - th.alt0, avg: (th.alt1 - th.alt0) / d, s: 'last thermal' }; }
+  if (q) return { gain: q.alt1 - q.alt0, avg: q.avg, s: 'last thermal' };
+  return null;
+}
 function wData(W, bx) { bx = bx || { w: 300, h: 150 };
   const c = W.cfg, f = st.fix, alt = altNow(), now = nowT(), u = c.units || '';
   const V = (ms) => withU('uVario', u, () => fVario(ms)), VU = () => withU('uVario', u, uV);
@@ -244,8 +252,8 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
     case 'reqld': { const need = dwp != null && alt != null && st.groundElev != null ? dwp / Math.max(1, alt - st.groundElev - S.safety) : null; return { l: 'Req. glide', u: '', v: need && need > 0 ? need.toFixed(1) : '--', s: wp ? 'to ' + wp.name : 'no task' }; }
     case 'wind': return { l: 'Wind', u: SU, v: w ? Sp(w.spd) : '--', s: w ? 'from ' + pad3(w.from) + '° ' + compass(w.from) : 'circle once', arrow: w ? w.to : null };
     case 'dist': return { l: 'To ' + (wp ? wp.name : 'turnpoint'), u: '', v: dwp != null ? fDist(dwp) : '--', s: wp && f ? 'brg ' + pad3(brg(f.lat, f.lon, wp.lat, wp.lon)) + '°' : 'no task' };
-    case 'thermal': return { l: 'Thermal avg', u: VU(), v: th && alt != null ? V((alt - th.alt0) / Math.max(1, ((th.end || now) - th.t0) / 1000)) : '--' };
-    case 'gain': return { l: 'Thermal gain', u: AU, v: th && alt != null ? (alt - th.alt0 >= 0 ? '+' : '') + A(alt - th.alt0) : '--' };
+    case 'thermal': { const g = thRes(alt, now); return { l: 'Thermal avg', u: VU(), v: g ? V(g.avg) : '--', s: g ? g.s : '' }; }
+    case 'gain': { const g = thRes(alt, now); return { l: 'Thermal gain', u: AU, v: g ? (g.gain >= 0 ? '+' : '') + A(g.gain) : '--', s: g ? g.s : '' }; }
     case 'ttime': { const t = th ? Math.floor(((th.end || now) - th.t0) / 1000) : null; return { l: 'In thermal', u: '', v: t != null ? Math.floor(t / 60) + ':' + pad2(t % 60) : '--' }; }
     case 'flight': { const t = st.takeoffT ? Math.floor((now - st.takeoffT) / 1000) : null; return { l: 'Flight time', u: '', v: t != null ? Math.floor(t / 3600) + ':' + pad2(Math.floor(t / 60) % 60) : '--' }; }
     case 'time': { const d = new Date(c.zone === 'utc' && st.replay ? st.replay.vt : Date.now()); const U = c.zone === 'utc'; const hh = U ? d.getUTCHours() : d.getHours(), mm = U ? d.getUTCMinutes() : d.getMinutes(), ss = U ? d.getUTCSeconds() : d.getSeconds(); return { l: U ? 'UTC' : 'Local time', u: '', v: pad2(hh) + ':' + pad2(mm) + (c.sec ? ':' + pad2(ss) : ''), s: 'tap: both times' }; }
