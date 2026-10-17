@@ -34,6 +34,9 @@ function analyse(f) {
     const T = (circ[0].t - circ[circ.length - 1].t) / 1000;
     const rAvg = rs.reduce((s, r) => s + r, 0) / rs.length;
     st.lastTurn = { min: Math.min(...rs), max: Math.max(...rs), avg: rAvg, T, tas, pts: pts.map((p) => [p[0] - cx, p[1] - cy]), bankMin: Math.atan(tas * tas / (9.81 * Math.max(...rs))) * R2D, bankMax: Math.atan(tas * tas / (9.81 * Math.max(3, Math.min(...rs)))) * R2D };
+    // one entry per full turn: its radius and the climb during it (for the ideal circle's radius suggestion, idealR)
+    const tl = st.turnLog || (st.turnLog = []), lt = tl[tl.length - 1], th0 = st.thermal ? st.thermal.t0 : now;
+    if (!lt || now - lt.t >= T * 1000 * 0.95 || lt.t < th0) { const v = avgVario(T, now); if (v != null) tl.push({ t: now, r: rAvg, v }); while (tl.length > 12 || (tl.length && tl[0].t < th0)) tl.shift(); }
   }
   // samples for thermal assistant
   // position in the moving air (ax, ay in m), built up step by step with the wind known at that moment:

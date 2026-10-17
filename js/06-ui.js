@@ -117,10 +117,10 @@ const HIST_O = [30, 60, 120, 180, 300, 'thermal', 'circle'];
 // ground = positions over the ground (thermal assistant 'over the ground' or with the map behind); default in the moving air
 function coreEstimate(ground) {
   const f = st.fix; if (!f) return null; const now = f.t;
-  const ar = airRel(), pts = st.samples.filter((s) => s.t > now - 60000).map((s) => { const [x, y] = ground ? enu(f.lat, f.lon, s.lat, s.lon) : ar(s); return { x, y, v: s.v }; });
+  const ar = airRel(), pts = st.samples.filter((s) => s.t > now - 60000).map((s) => { const [x, y] = ground ? enu(f.lat, f.lon, s.lat, s.lon) : ar(s); return { x, y, v: s.v, t: s.t }; });
   const good = pts.filter((p) => p.v > 0.3); if (good.length < 5) return null;
-  const mn = Math.min(...pts.map((p) => p.v)); let sw = 0, sx = 0, sy = 0; good.forEach((p) => { const k = (p.v - mn) ** 2; sw += k; sx += p.x * k; sy += p.y * k; }); if (!sw) return null;
-  const x = sx / sw, y = sy / sw; return { x, y, d: Math.hypot(x, y), b: wrap360(Math.atan2(x, y) * R2D), v: Math.max(...good.map((p) => p.v)) };
+  const mn = Math.min(...pts.map((p) => p.v)); let sw = 0, sx = 0, sy = 0, sa = 0; good.forEach((p) => { const k = (p.v - mn) ** 2; sw += k; sx += p.x * k; sy += p.y * k; sa += (now - p.t) * k; }); if (!sw) return null;
+  const x = sx / sw, y = sy / sw; return { x, y, d: Math.hypot(x, y), b: wrap360(Math.atan2(x, y) * R2D), v: Math.max(...good.map((p) => p.v)), age: sa / sw / 1000 }; // age: weighted mean age of the lift samples, s
 }
 // where a logged sample is now in the moving air, relative to you (fixed when it was logged, see ax/ay in analyse)
 function airRel() { const me = st.samples[st.samples.length - 1]; return (s) => (me && s.ax != null ? [s.ax - me.ax, s.ay - me.ay] : [0, 0]); }
@@ -129,28 +129,51 @@ function wrapText(c, t, x, y, maxW, lh) { const words = t.split(' '), lines = []
 const hasRot = () => !!(window.L && L.Map && L.Map.prototype.setBearing);
 const haloText = (c, t, x, y, fill, halo) => { c.save(); c.lineWidth = 3.5; c.strokeStyle = halo; c.lineJoin = 'round'; c.strokeText(t, x, y); c.restore(); c.fillStyle = fill; c.fillText(t, x, y); };
 
-/* ideal circle (cfg.ideal, default on): the circle to fly, centred on the estimated core with your own turn radius (from your last
-   full circles), shown while circling or in thermal mode. Centre and radius follow smoothly (centre ~4 s, radius ~10 s), so the circle
-   moves a little with every turn instead of jumping; the centre is kept in fixed coordinates (moving air or ground, as the view). */
+/* ideal radius: from this thermal's turns (radius, climb), fit climb = a + b·radius; when wider or tighter turns climbed better,
+   suggest the last radius moved that way by up to 15 % (needs 3 turns and some spread in radius) */
+function idealR(r0) {
+  const L = (st.turnLog || []).slice(-8); if (L.length < 3) return { r: r0, why: '' };
+  const n = L.length, mr = L.reduce((s, q) => s + q.r, 0) / n, mv = L.reduce((s, q) => s + q.v, 0) / n; let num = 0, den = 0;
+  L.forEach((q, i) => { const w = 0.5 + i / n; num += w * (q.r - mr) * (q.v - mv); den += w * (q.r - mr) ** 2; }); // newer turns count more
+  if (den / n < 9) return { r: r0, why: '' }; // radii within ~3 m of each other: nothing to learn yet
+  const b = num / den, d = clamp(b * 300, -0.15 * r0, 0.15 * r0); // b in (m/s) per m
+  return Math.abs(d) < 1.5 ? { r: r0, why: '' } : { r: clamp(r0 + d, 12, 150), why: d > 0 ? 'wider climbs better' : 'tighter climbs better' };
+}
+/* ideal path (cfg.ideal, default on): your next full turn, centred on the estimated core, at your turn radius (idealR), shown while
+   circling or in thermal mode. The core's own drift in the view (it moves relative to the moving air, or over the ground with the
+   wind) is estimated from the smoothed centre, so the turn is drawn as the loop that keeps you on the core: a circle stretched by
+   that drift (an oval-like loop). Centre ~4 s, drift ~20 s, radius ~10 s smoothing; everything is recomputed every frame. */
 function idealCircle(c, cfg, el, core, gnd, f, now, tr, ink, card, Wd, wantBg) {
   el = el || {};
   if (cfg.ideal === false || cfg.ideal === 'false' || !(st.circling || st.thermMode) || !st.lastTurn || !core) { el._ic = null; return; }
   const me = st.samples[st.samples.length - 1]; if (!me) return;
-  const k = Math.cos(f.lat * D2R) * 111320, abs = gnd ? [f.lon * k + core.x, f.lat * 111320 + core.y] : [(me.ax || 0) + core.x, (me.ay || 0) + core.y];
-  const r0 = clamp(st.lastTurn.avg || 40, 10, 150), I = el._ic && el._ic.g === gnd ? el._ic : (el._ic = { g: gnd, X: abs[0], Y: abs[1], r: r0, t: now });
-  const dt = clamp((now - I.t) / 1000, 0, 5); I.t = now; const aC = 1 - Math.exp(-dt / 4), aR = 1 - Math.exp(-dt / 10);
-  I.X += (abs[0] - I.X) * aC; I.Y += (abs[1] - I.Y) * aC; I.r += (r0 - I.r) * aR;
-  const rx = gnd ? I.X - f.lon * k : I.X - (me.ax || 0), ry = gnd ? I.Y - f.lat * 111320 : I.Y - (me.ay || 0);
-  const [x, y] = tr(rx, ry), [x2, y2] = tr(rx + I.r, ry), rp = Math.hypot(x2 - x, y2 - y); if (rp < 4) return;
-  const col = '#1F8A4C';
-  c.save(); c.lineWidth = 6; c.strokeStyle = wantBg ? 'rgba(255,255,255,.85)' : card; c.beginPath(); c.arc(x, y, rp, 0, 7); c.stroke();
-  c.setLineDash([10, 7]); c.lineWidth = 3; c.strokeStyle = col; c.beginPath(); c.arc(x, y, rp, 0, 7); c.stroke(); c.restore();
-  // chevrons along it in your turn direction (right turn = clockwise)
-  const cw = (st.turnRate || 0) >= 0, n = rp > 60 ? 6 : 4, hs = clamp(rp * 0.12, 5, 10);
-  c.fillStyle = col; c.strokeStyle = wantBg ? 'rgba(255,255,255,.85)' : card; c.lineWidth = 2;
-  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, px = x + Math.cos(a) * rp, py = y + Math.sin(a) * rp, d = a + (cw ? Math.PI / 2 : -Math.PI / 2), tx = Math.cos(d), ty = Math.sin(d), nx = -ty, ny = tx;
-    c.beginPath(); c.moveTo(px + tx * hs, py + ty * hs); c.lineTo(px - tx * hs * 0.6 + nx * hs * 0.8, py - ty * hs * 0.6 + ny * hs * 0.8); c.lineTo(px - tx * hs * 0.6 - nx * hs * 0.8, py - ty * hs * 0.6 - ny * hs * 0.8); c.closePath(); c.stroke(); c.fill(); }
-  if (Wd >= 200) { c.font = '700 12px Barlow'; c.textAlign = 'center'; haloText(c, 'ideal · r ' + Math.round(I.r) + ' m', x, y + rp + 16, col, wantBg ? 'rgba(255,255,255,.9)' : card); }
+  const k = Math.cos(f.lat * D2R) * 111320, ref = gnd ? [f.lon * k, f.lat * 111320] : [me.ax || 0, me.ay || 0];
+  const w = st.wind || { vx: 0, vy: 0 }, sug = idealR(clamp(st.lastTurn.avg || 40, 10, 150)), T = clamp(st.lastTurn.T || 25, 8, 60);
+  // drift guess before it is measured: over the ground a thermal goes roughly with the wind, in the moving air it stays put
+  const raw = [ref[0] + core.x, ref[1] + core.y], lag = clamp(core.age || 0, 0, 40), v0 = gnd ? [w.vx * 0.8, w.vy * 0.8] : [0, 0];
+  let I = el._ic && el._ic.g === gnd ? el._ic : (el._ic = { g: gnd, Rx: raw[0], Ry: raw[1], X: raw[0] + v0[0] * lag, Y: raw[1] + v0[1] * lag, r: sug.r, t: now, vx: v0[0], vy: v0[1] });
+  const dt = clamp((now - I.t) / 1000, 0, 5); I.t = now;
+  if (dt > 0) { const aC = 1 - Math.exp(-dt / 4), aV = 1 - Math.exp(-dt / 20), aR = 1 - Math.exp(-dt / 10), px = I.Rx, py = I.Ry;
+    // drift = how fast the (smoothed, uncorrected) core estimate moves; kept within wind + 1.5 m/s
+    I.Rx += (raw[0] - I.Rx) * aC; I.Ry += (raw[1] - I.Ry) * aC;
+    const lim = Math.hypot(w.vx, w.vy) + 1.5; let vx = I.vx + (((I.Rx - px) / dt) - I.vx) * aV, vy = I.vy + (((I.Ry - py) / dt) - I.vy) * aV; const vl = Math.hypot(vx, vy); if (vl > lim) { vx *= lim / vl; vy *= lim / vl; }
+    I.vx = vx; I.vy = vy; I.r += (sug.r - I.r) * aR;
+    // the estimate averages the last minute of lift, so a drifting core is where it was ~age s ago: the centre is moved on by its drift
+    I.X = I.Rx + I.vx * lag; I.Y = I.Ry + I.vy * lag; }
+  const cw = (st.turnRate || 0) >= 0, sg = cw ? 1 : -1, cx0 = I.X - ref[0], cy0 = I.Y - ref[1];
+  // start where you are around the centre, go one turn forward in your turn direction while the centre drifts
+  const ph0 = Math.atan2(-cx0, -cy0), N = 48, P = [];
+  for (let i = 0; i <= N; i++) { const q = i / N, ph = ph0 + sg * q * Math.PI * 2, t = q * T; P.push(tr(cx0 + I.vx * t + Math.sin(ph) * I.r, cy0 + I.vy * t + Math.cos(ph) * I.r)); }
+  const [x, y] = tr(cx0, cy0), [x2, y2] = tr(cx0 + I.r, cy0), rp = Math.hypot(x2 - x, y2 - y); if (rp < 4) return;
+  const col = '#1F8A4C', halo = wantBg ? 'rgba(255,255,255,.85)' : card, line = () => { c.beginPath(); P.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py))); };
+  c.save(); c.lineJoin = 'round'; c.lineWidth = 6; c.strokeStyle = halo; line(); c.stroke();
+  c.setLineDash([10, 7]); c.lineWidth = 3; c.strokeStyle = col; line(); c.stroke(); c.restore();
+  // arrows along it in your turn direction
+  const hs = clamp(rp * 0.12, 5, 10); c.fillStyle = col; c.strokeStyle = halo; c.lineWidth = 2;
+  [6, 18, 30, 42].forEach((i) => { const [ax, ay] = P[i], [bx, by] = P[i + 1], d = Math.atan2(by - ay, bx - ax), tx = Math.cos(d), ty = Math.sin(d), nx = -ty, ny = tx;
+    c.beginPath(); c.moveTo(ax + tx * hs, ay + ty * hs); c.lineTo(ax - tx * hs * 0.6 + nx * hs * 0.8, ay - ty * hs * 0.6 + ny * hs * 0.8); c.lineTo(ax - tx * hs * 0.6 - nx * hs * 0.8, ay - ty * hs * 0.6 - ny * hs * 0.8); c.closePath(); c.stroke(); c.fill(); });
+  if (Wd >= 200) { const r1 = Math.round(I.r), r0 = Math.round(st.lastTurn.avg || 0), ly = Math.max(...P.map((p) => p[1])) + 16;
+    c.font = '700 12px Barlow'; c.textAlign = 'center'; haloText(c, 'ideal · r ' + r1 + ' m' + (sug.why && Math.abs(r1 - r0) >= 2 ? ' (' + sug.why + ')' : ''), x, Math.min(ly, (c.canvas.clientHeight || 9999) - 30), col, wantBg ? 'rgba(255,255,255,.9)' : card); }
 }
 
 /* ----- Thermal assistant: heat map, history, zoom, optional map behind ----- */
