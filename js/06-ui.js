@@ -282,7 +282,7 @@ function steadyRange(cv, key, lo, hi) { const r = cv._rng || (cv._rng = {}); let
 function sideDraw(cv, W, el) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const f = st.fix, alt = altNow();
   // horizontal scale buttons: show less / more to the sides (width each side, cfg.range)
-  if (el) { const cr = el.querySelector('.wctl.r'), xr = clamp(+W.cfg.range || 300, 50, 5000), h = `<span class="wcbl">±${xr >= 1000 ? (xr / 1000).toFixed(1) + ' km' : xr + ' m'}</span><button class="wcb" data-act="xin" aria-label="Narrower: show less to the sides">↔+</button><button class="wcb" data-act="xout" aria-label="Wider: show more to the sides">↔−</button>`; if (cr && cr._h !== h) { cr.innerHTML = h; cr._h = h; } }
+  if (el) { const cr = el.querySelector('.wctl.r'), xr = clamp(+W.cfg.range || 300, 50, 5000), h = `<span class="wcbl">±${xr >= 1000 ? (xr / 1000).toFixed(1) + ' km' : xr + ' m'}</span><button class="wcb" data-act="xin" aria-label="Narrower: show less to the sides">↔+</button><button class="wcb" data-act="xout" aria-label="Wider: show more to the sides">↔−</button><button class="wcb" data-act="sframe" aria-pressed="${W.cfg.frame === 'air'}" aria-label="${W.cfg.frame === 'air' ? 'In the moving air: tap for over the ground' : 'Over the ground: tap for in the moving air'}" style="font-size:13px;line-height:1.05">${W.cfg.frame === 'air' ? 'In<br>air' : 'Over<br>gnd'}</button>`; if (cr && cr._h !== h) { cr.innerHTML = h; cr._h = h; } }
   const view = W.type === 'tcross' ? 'cross' : W.type === 'thead' ? 'head' : 'along', hist = clamp(+W.cfg.hist || (view === 'head' ? 600 : 180), 30, 600) * 1000;
   if (!f || alt == null) { c.fillStyle = css('--muted'); c.font = '14px Barlow'; c.textAlign = 'center'; c.fillText('Waiting for GPS…', Wd / 2, H / 2); return; }
   // heading view: always looks the way you fly now (lightly smoothed), so you can steer a remembered thermal into the middle;
@@ -830,6 +830,7 @@ function widgetAct(W, act) {
     case 'rotl': D.yaw = ((+C.yaw || 0) - 30 + 540) % 360 - 180; break;
     case 'rotr': D.yaw = ((+C.yaw || 0) + 30 + 540) % 360 - 180; break;
     case 'depth': { const cur = +C.depth || 100; D.depth = DEPTH_O.find((v) => v > cur) ?? DEPTH_O[0]; break; }
+    case 'sframe': D.frame = C.frame === 'air' ? 'ground' : 'air'; toast(D.frame === 'air' ? 'Positions in the moving air' : 'Positions over the ground'); break; // side/front/heading views
     case 'xin': D.range = Math.round(clamp((+C.range || 300) / 1.5, 50, 5000) / 10) * 10; D.scale = 'fixed'; break;
     case 'xout': D.range = Math.round(clamp((+C.range || 300) * 1.5, 50, 5000) / 10) * 10; D.scale = 'fixed'; break;
     case 'reset3d': D.yaw = 0; D.zoom = 1; break;
