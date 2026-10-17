@@ -378,3 +378,8 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 #mapMenu{position:fixed;z-index:2200;background:var(--card)}
 .homeMk{overflow:visible}
 .homeLab{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font:700 13px var(--txt);color:#111418;background:rgba(255,255,255,.9);border:2px solid;border-radius:8px;padding:1px 6px;pointer-events:none}
+.plSaved{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+#plSide .plSaved input{height:48px;min-width:0}
+.plSaved .plSel{flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;gap:0;height:auto;min-height:52px;padding:4px 10px}
+.plSaved .plSel b{white-space:normal;line-height:1.15}
+.plSaved .plSel span{font-size:13px}

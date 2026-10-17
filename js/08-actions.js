@@ -257,7 +257,7 @@ const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'lay
 const IMPORT_OK = new Set(['titles', 'radioLang', 'radioTpl', 'callsign', 'radioAlt', 'airMaxAlt', 'warnBar', 'warnDist', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
-  const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)), pages: S.pages.map((p) => ({ id: p.id, name: p.name })) };
+  const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)), pages: S.pages.map((p) => ({ id: p.id, name: p.name })), routes: plRoutes() };
   if (scope === 'all') { o.settings = {}; Object.keys(S).forEach((k) => { if (!NO_EXPORT.has(k)) o.settings[k] = S[k]; }); }
   return o;
 }
@@ -282,14 +282,16 @@ function parseImport(txt) {
   const pg = (Array.isArray(o.pages) ? o.pages : o.settings && Array.isArray(o.settings.pages) ? o.settings.pages : []).filter((p) => p && isUserPage(p.id) && typeof p.name === 'string').slice(0, 20).map((p) => ({ id: p.id, name: p.name.slice(0, 24) }));
   [...new Set(Object.keys(LAYERID).concat(pg.map((p) => p.id)))].forEach((pk) => { const a = o.layouts && o.layouts[pk]; if (Array.isArray(a)) { lay[pk] = a.map(cleanW(k)).filter(Boolean); nW += lay[pk].length; } });
   const sets = {}; if (o.settings && typeof o.settings === 'object') Object.keys(o.settings).forEach((key) => { const v = o.settings[key]; if (!IMPORT_OK.has(key)) return; if (key === 'autoRules') { sets[key] = cleanRules(v); return; } const d = DEF[key]; if (d !== undefined && typeof d !== typeof v) return; if (v !== null && typeof v === 'object' && key !== 'poiKinds') return; sets[key] = key === 'poiKinds' ? cleanCfg(v) : v; });
-  return { lay, sets, pg, nW, pages: Object.keys(lay).length, nSets: Object.keys(sets).length, date: o.exported };
+  const routes = (Array.isArray(o.routes) ? o.routes : []).filter((r) => r && typeof r.name === 'string' && Array.isArray(r.pts) && r.pts.length > 1 && r.pts.every((q) => Array.isArray(q) && isFinite(q[0]) && isFinite(q[1]))).slice(0, 60).map((r) => ({ id: String(r.id || 'r' + Math.random().toString(36).slice(2, 8)), name: r.name.slice(0, 40), pts: r.pts.map((q) => [+q[0], +q[1]]), kind: String(r.kind || 'open'), len: +r.len || 0, t: +r.t || Date.now() }));
+  return { lay, sets, pg, routes, nW, pages: Object.keys(lay).length, nSets: Object.keys(sets).length, date: o.exported };
 }
 function applyImport(P) {
   const backup = { layouts: JSON.parse(JSON.stringify(S.layouts)), settings: {}, pages: S.pages.map((p) => ({ ...p })) }; Object.keys(P.sets).forEach((k) => (backup.settings[k] = S[k]));
+  const oldRoutes = plRoutes(); if (P.routes && P.routes.length) { const have = new Set(oldRoutes.map((r) => r.id)); plRoutesSave(oldRoutes.concat(P.routes.filter((r) => !have.has(r.id))).slice(0, 60)); } // saved routes from the file are added
   if (P.pg.length) pagesSet(S.pages.filter((p) => !P.pg.some((q) => q.id === p.id)).concat(P.pg)); // pages from the file are added (same id: renamed)
   const apply = (lay, sets) => { Object.assign(S.layouts, lay); Object.assign(S, sets); S.mapMigrated = true; save(); document.body.classList.toggle('dark', S.theme === 'dark'); document.body.classList.toggle('pinned', S.navMode === 'pinned'); drawTask(); loop(); renderWidgets(); if (curPage === 'pSet') renderSettings(); };
   apply(P.lay, P.sets);
-  toast(`Imported ${P.nW} widgets on ${P.pages} pages${P.nSets ? ' and ' + P.nSets + ' settings' : ''}`, [['Undo', () => { pagesSet(backup.pages); apply(backup.layouts, backup.settings); toast('Import undone'); }]]);
+  toast(`Imported ${P.nW} widgets on ${P.pages} pages${P.nSets ? ' and ' + P.nSets + ' settings' : ''}`, [['Undo', () => { pagesSet(backup.pages); plRoutesSave(oldRoutes); apply(backup.layouts, backup.settings); toast('Import undone'); }]]);
 }
 function openImport(txt, fname) {
   const P = parseImport(txt); if (P.err) { toast(P.err); return; }

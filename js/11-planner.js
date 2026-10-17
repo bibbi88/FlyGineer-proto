@@ -146,7 +146,10 @@ function plSide(A) {
       <button class="btn warn" id="plClear" ${n ? '' : 'disabled'}>Clear</button>
     </div>
     <div class="row plFxRow"><input type="url" id="plFxIn" class="grow" placeholder="FlyXC link…" aria-label="Paste a FlyXC link to load its route"><button class="btn" id="plFxLoad">Load</button><button class="btn" id="plCopy" ${n >= 2 ? '' : 'disabled'} aria-label="Copy as FlyXC link">Copy</button><button class="btn" id="plFx" ${n >= 2 ? '' : 'disabled'} aria-label="Open in FlyXC">FlyXC ↗</button></div>
-    <button class="btn primary" id="plUse" ${n >= 2 ? '' : 'disabled'}>Use as my task</button>${st.task ? `<button class="btn warn" id="plDelTask">Remove my task (${esc(st.task.name)})</button>` : ''}`;
+    <button class="btn primary" id="plUse" ${n >= 2 ? '' : 'disabled'}>Use as my task</button>${st.task ? `<button class="btn warn" id="plDelTask">Remove my task (${esc(st.task.name)})</button>` : ''}
+    <div class="plSaved"><button class="btn" id="plSavedTgl" aria-expanded="${!!PL.showSaved}">💾 Saved routes (${plRoutes().length}) ${PL.showSaved ? '▴' : '▾'}</button>
+    ${PL.showSaved ? `<div class="row"><input type="text" id="plSaveName" class="grow" maxlength="40" placeholder="${esc(plAutoName(A))}" aria-label="Name for the route"><button class="btn primary" id="plSaveBtn" ${n >= 2 ? '' : 'disabled'}>Save</button></div>
+      ${plRoutes().map((r, i) => `<div class="plRow"><button class="plSel" data-plload="${i}"><b>${esc(r.name)}</b><span class="muted">${esc(PL_KIND[r.kind] || '')} · ${fDist(r.len)}</span></button><button class="btn" data-plrdel="${i}" aria-label="Delete ${esc(r.name)}">✕</button></div>`).join('') || '<div class="muted">No saved routes yet.</div>'}` : ''}</div>`;
   const q = (id, fn) => { const e = $(id); if (e) e.onclick = fn; };
   document.querySelectorAll('[data-plsel]').forEach((b) => (b.onclick = () => { const i = +b.dataset.plsel; PL.sel = PL.sel === i ? -1 : i; if (PL.sel >= 0) PL.m.panTo(P[i]); plDraw(); }));
   document.querySelectorAll('[data-pldel]').forEach((b) => (b.onclick = () => plEdit(() => { P.splice(+b.dataset.pldel, 1); PL.sel = -1; })));
@@ -157,6 +160,11 @@ function plSide(A) {
   q('plFromTask', () => { plEdit(() => { PL.pts = st.task.pts.map((p) => [p.lat, p.lon]); PL.sel = -1; }); PL.m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); });
   q('plClear', () => plEdit(() => { P.length = 0; PL.sel = -1; }));
   q('plUse', () => plUseTask());
+  q('plSavedTgl', () => { PL.showSaved = !PL.showSaved; plDraw(); });
+  q('plSaveBtn', () => { if (n < 2) return; const L0 = plRoutes(), name = ($('plSaveName').value.trim() || plAutoName(A)).slice(0, 40), ex = L0.findIndex((r) => r.name === name), r = { id: 'r' + Date.now().toString(36), name, pts: P.map((p) => p.slice()), kind: A.kind, len: tri ? A.per : A.len, t: Date.now() };
+    if (ex >= 0) L0[ex] = r; else L0.unshift(r); plRoutesSave(L0.slice(0, 60)); toast(`Route “${name}” ${ex >= 0 ? 'updated' : 'saved'}`); plDraw(); });
+  document.querySelectorAll('[data-plload]').forEach((b) => (b.onclick = () => { const r = plRoutes()[+b.dataset.plload]; if (!r) return; plEdit(() => { PL.pts = r.pts.map((p) => p.slice()); PL.sel = -1; }); try { PL.m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); } catch (e) { } toast(`Route “${r.name}” loaded · Use as my task to fly it`); }));
+  document.querySelectorAll('[data-plrdel]').forEach((b) => (b.onclick = () => { const L0 = plRoutes(), i = +b.dataset.plrdel, r = L0[i]; if (!r) return; L0.splice(i, 1); plRoutesSave(L0); plDraw(); toast(`Route “${r.name}” deleted`, [['Undo', () => { const L1 = plRoutes(); L1.splice(i, 0, r); plRoutesSave(L1); plDraw(); }]]); }));
   q('plDelTask', () => { const old = st.task; clearTask(); plDraw(); toast('Task removed', [['Undo', () => { st.task = old; taskResume(); localStorage.setItem('bora.task', JSON.stringify(old)); drawTask(); renderWidgets(); plDraw(); }]]); });
   const fxLoad = (t) => { const m0 = String(t || '').match(/https?:\/\/(?:www\.)?flyxc\.app\/?\S*/i); let p = null; try { p = m0 && new URL(m0[0]).searchParams.get('p'); } catch (e) { }
     if (!p) { toast('No FlyXC route in that link'); return false; } const pts = decodePolyline(p); if (pts.length < 2) { toast('That route has fewer than 2 points'); return false; }
@@ -172,6 +180,10 @@ function plOpenTask() {
   if (st.task && st.task.pts.length) { const pts = st.task.pts.map((p) => [p.lat, p.lon]); if (JSON.stringify(pts) !== JSON.stringify(PL.pts)) { PL.hist.push(JSON.stringify(PL.pts)); PL.pts = pts; PL.sel = -1; plSave(); } }
   goPage('pPlan'); if (PL.m) setTimeout(() => { plDraw(); try { if (PL.pts.length) PL.m.fitBounds(PL.pts, { padding: [60, 60] }); } catch (e) { } }, 120);
 }
+// saved routes (localStorage 'bora.routes', newest first, max 60; in the settings export as routes)
+function plRoutes() { try { const a = JSON.parse(localStorage.getItem('bora.routes') || '[]'); return Array.isArray(a) ? a.filter((r) => r && Array.isArray(r.pts) && r.pts.length > 1) : []; } catch (e) { return []; } }
+function plRoutesSave(a) { try { localStorage.setItem('bora.routes', JSON.stringify(a)); } catch (e) { toast('Could not save the route: ' + e.message); } }
+function plAutoName(A) { const d = new Date(); return `${PL_KIND[A.kind] && A.kind !== 'none' ? PL_KIND[A.kind] : 'Route'} ${fDist(A.kind === 'fai' || A.kind === 'flat' ? A.per : A.len)} · ${d.getDate()}.${d.getMonth() + 1}.`; }
 function plUseTask() {
   const P = PL.pts, n = P.length; if (n < 2) return; const A = plAnalyse(P), d = new Date(), old = st.task;
   st.task = { name: 'Plan ' + d.getDate() + '.' + (d.getMonth() + 1), len: A.len, pts: P.map((p, i) => ({ lat: p[0], lon: p[1], name: plName(i, n) })) };
