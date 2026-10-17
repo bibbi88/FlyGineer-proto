@@ -181,7 +181,7 @@ function xcCalc(mode) {
   const now = nowT(), back = z.b, lg = st.log; let away = null; z.c = Math.max(z.c, back); const out = z.c; // the log lags the live position by up to a second
   for (let i = lg.length - 1; i >= 0; i--) { const p = lg[i]; if (p.lat == null) continue; if (now - p.t >= 60000) { away = (back - dist(z.A.lat, z.A.lon, p.lat, p.lon)) / ((now - p.t) / 1000); break; } } // m/s, + = away from the start
   let m = mode && mode !== 'auto' ? mode : null;
-  if (!m) m = out < 2000 || back > 0.75 * out ? 'line' : z.mn >= 0.15 ? 'tri' : 'oar';  // still going out → line; coming back: wide → triangle, narrow → out & return
+  if (!m) m = out < sN('xcOut', 2) * 1000 || back > sN('xcBack', 75) / 100 * out ? 'line' : z.mn >= sN('xcTri', 15) / 100 ? 'tri' : 'oar';  // still going out → line; coming back: wide → triangle, narrow → out & return
   const dur = st.takeoffT ? (now - st.takeoffT) / 1000 : null;
   return Object.assign({ mode: m, auto: !mode || mode === 'auto', away, dur, brgOut: brg(z.A.lat, z.A.lon, f.lat, f.lon), toStart: brg(f.lat, f.lon, z.A.lat, z.A.lon) }, z);
 }

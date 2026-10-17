@@ -84,7 +84,7 @@ function startDemoFlight() {
   try { const igc = demoIGC(); startReplay(igc, 'Demo flight'); }
   catch (e) { toast('Demo flight: ' + e.message); }
 }
-function resetFlightState() { st.tows = []; st.towEnd = 0; st.sideAx = null; st.log = []; st.thermals = []; st.winds = []; st.takeoffPos = null; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.thermal = null; st.lastTurn = null; st.ld = null; st.circling = false; st.tempPts = []; st.takeoffT = null; st.gpsV = null; st.fix = null; st.baro = null; }
+function resetFlightState() { st.toSince = 0; st.tows = []; st.towEnd = 0; st.sideAx = null; st.log = []; st.thermals = []; st.winds = []; st.takeoffPos = null; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.thermal = null; st.lastTurn = null; st.ld = null; st.circling = false; st.tempPts = []; st.takeoffT = null; st.gpsV = null; st.fix = null; st.baro = null; }
 // where the replayed flight took off: the first point from which it moves faster than 4 m/s for 5 s (else the first point)
 function replayLaunch(pts) {
   for (let i = 0, j = 0; i < pts.length; i++) { while (j < pts.length - 1 && pts[j].t - pts[i].t < 5000) j++; const dt = (pts[j].t - pts[i].t) / 1000; if (dt >= 5 && dist(pts[i].lat, pts[i].lon, pts[j].lat, pts[j].lon) / dt > 4) return [pts[i].lat, pts[i].lon, pts[i].alt]; }

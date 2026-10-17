@@ -956,11 +956,11 @@ function webSectionWire() {
 }
 
 /* settings */
-const SECS = [['data', 'Vario & GPS'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['radio', 'Radio message'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Update & thermal mode'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
+const SECS = [['data', 'Vario & GPS'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['radio', 'Radio message'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Flight modes'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
-const SNUM = { warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
+const SNUM = { warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeClimb: [-2, 3, 0.1, 'm/s', 'Average climb while circling at least'], toSpd: [5, 40, 0.5, 'km/h', 'Ground speed above'], toTime: [0, 30, 1, 's', 'For at least'], cirRate: [3, 20, 0.5, '°/s', 'Turning faster than'], cirWin: [3, 20, 1, 's', 'Turn rate measured over'], cirSpd: [0, 30, 0.5, 'km/h', 'Ground speed above'], thRec: [5, 300, 5, 's', 'Count as a thermal after'], towWin: [10, 600, 10, 's', 'Starts within'], towRelV: [-1, 2, 0.1, 'm/s', 'Released when climb is below'], towRelT: [1, 20, 1, 's', 'For'], xcOut: [0.5, 20, 0.5, 'km', 'Free distance until'], xcBack: [50, 95, 5, '%', 'Still going out while farther than'], xcTri: [5, 28, 1, '%', 'Triangle when the shortest leg is at least'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
 function numField(key, hint) { const [min, max, step, unit, label] = SNUM[key]; return `<div class="field"><span class="k">${label}${hint ? ' · ' + hint : ''}</span><span class="row"><button class="pill step" data-sn="${key}" data-sdir="-1" aria-label="Less">−</button><input type="number" class="numin" inputmode="decimal" data-sni="${key}" value="${S[key]}" min="${min}" max="${max}" step="${step}" aria-label="${label}, ${unit}"><span class="unit">${unit}</span><button class="pill step" data-sn="${key}" data-sdir="1" aria-label="More">+</button></span></div>`; }
 function setNum(key, v) { const [min, max, step] = SNUM[key], d = (String(step).split('.')[1] || '').length; if (!isFinite(v)) return; applySet(key, String(clamp(+(Math.round(v / step) * step).toFixed(d), min, max))); renderSettings(); }
 function renderSettings() {
@@ -1055,20 +1055,7 @@ function renderSettings() {
     ${seg('vcTp', [[true, 'On'], [false, 'Off']], 'Turnpoint and goal reached')}${seg('vcTow', [[true, 'On'], [false, 'Off']], 'Tow summary at release')}${seg('vcAir', [[true, 'On'], [false, 'Off']], 'Airspace warnings')}${numField('vcAlt', '0 = off')}
     <div class="field"><span class="k">Test</span><button class="btn" id="voiceTest">Say something</button></div>
     <div class="muted">Your own spoken messages: Settings → Automatic actions → “Say a message” for any event (with a delay if you like).</div></div>`;
-  if (setSec === 'modes') h = `<div class="card sec"><h2>Display update</h2>
-    ${numField('rate')}
-    <div class="muted">Faster is smoother on the map and dials, slower saves battery. Sound and measurements always run at full speed.</div></div>
-    <div class="card sec"><h2>Tow launch</h2>${seg('towDetect', [[true, 'On'], [false, 'Off']], 'Detect towing')}${numField('towMin')}<div class="muted">A tow is a straight climb of at least this rate for 5 s, starting within 90 s of takeoff (or of the previous release, for step towing). It ends when the climb stops for 4 s or you start circling. Show the Tow widget only then: its "Show when" is "Towing and after release".</div></div>
-    <div class="card sec"><h2>Thermal mode</h2>
-    ${seg('modeAuto', [[true, 'On'], [false, 'Off']], 'Detect thermaling')}
-    ${numField('modeEnter')}
-    ${numField('modeHold')}
-    ${numField('rateT', '0 = same')}
-    ${seg('thermPage', [['off', 'Stay'], ['pThermal', 'Thermal'], ['pMap', 'Map'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']].concat(S.pages.map((p) => [p.id, p.name])), 'Show page when thermaling')}
-    ${seg('thermBack', [[true, 'Yes'], [false, 'No']], 'Go back when gliding again')}
-    <div class="muted">THERMAL / THERMAL? is a widget: Thermal mode (edit a page → Add widget).</div>
-    <div class="field"><span class="k">Try it now</span><button class="btn ${st.force ? 'warn' : ''}" id="modeTest">${st.force ? 'Stop test' : 'Test thermal mode'}</button><b>${st.thermMode ? 'Thermal mode is ON' : 'Normal mode'}</b></div>
-    <div class="muted">The corner button shows <b>THERMAL?</b> when circling is seen (tap to start thermal mode now) and <b>THERMAL</b> while it's on (tap for the thermal page, tap again to go back, hold to leave thermal mode). Any widget can be shown only while thermalling or only after it stopped, and the <b>Button</b> widget can switch mode or page. Each widget can have its own settings while thermaling: long-press a widget, then open the <b>When thermaling</b> tab. For example a closer, north-up map and a shorter vario average.</div></div>`;
+  if (setSec === 'modes') h = modesSection();
   if (setSec === 'backup') h = `<div class="card sec"><h2>Export and import</h2>
     <div class="muted">Save widget placement and configuration to a file, as a backup or to copy to another tablet.</div>
     <div class="field"><span class="k">Export</span><span class="row" style="flex-wrap:wrap"><button class="btn primary" id="expAll">Layouts and settings</button><button class="btn" id="expLay">Layouts only</button></span></div>
@@ -1081,6 +1068,7 @@ function renderSettings() {
   on('bleBtn', 'onclick', connectBora);
   if (setSec === 'app') appSectionWire(on);
   if (setSec === 'web') webSectionWire();
+  on('modeReset', 'onclick', () => { const old = {}; MODE_KEYS.forEach((k) => { old[k] = S[k]; S[k] = DEF[k]; }); save(); renderSettings(); toast('Mode criteria reset', [['Undo', () => { Object.assign(S, old); save(); renderSettings(); }]]); });
   on('modeTest', 'onclick', () => { st.force = !st.force; st.sheetForce = false; updateMode(); renderSettings(); });
   on('expAll', 'onclick', () => exportSettings('all')); on('expLay', 'onclick', () => exportSettings('layouts'));
   on('impFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (fl) openImport(await fl.text(), fl.name); e.target.value = ''; });
@@ -1122,6 +1110,44 @@ function renderSettings() {
   document.querySelectorAll('[data-vtest]').forEach((b) => (b.onclick = () => beep.testRate(+b.dataset.vtest, 3)));
   on('fsBtn', 'onclick', () => document.documentElement.requestFullscreen?.());
 }
+// Settings → Flight modes: every automatic mode with its detection criteria, plus a live status card (modeLive, refreshed every second)
+function modeLiveHTML() {
+  const now = nowT(), on = (b) => (b ? 'color:var(--lift);font-weight:700' : 'opacity:.75'), T = towNow(), tow = T && T.active, x = typeof xcCalc === 'function' && st.takeoffT ? xcCalc('auto') : null;
+  const row = (name, b, txt) => `<div class="card" style="padding:8px 12px;flex:1;min-width:150px"><div class="muted" style="font-size:13px">${name}</div><div style="font-size:17px;${on(b)}">${txt}</div></div>`;
+  return row('Flight', !!st.takeoffT, st.takeoffT ? 'flying ' + Math.floor((now - st.takeoffT) / 60000) + ' min' : 'on the ground') +
+    row('Circling', !!st.circling, (st.circling ? 'yes · ' : 'no · ') + Math.abs(st.turnRate || 0).toFixed(1) + ' °/s') +
+    row('Thermal mode', !!st.thermMode, st.force ? 'ON (test)' : st.thermMode ? 'ON' : st.circling && st.cirSince ? 'in ' + Math.max(0, Math.ceil(sN('modeEnter', 6) - (now - st.cirSince) / 1000)) + ' s' : 'off') +
+    row('Tow', !!tow, tow ? 'towing' : st.tows && st.tows.length ? st.tows.length + ' tow' + (st.tows.length > 1 ? 's' : '') + ' done' : 'none') +
+    row('XC flight', !!(x && x.ready), x && x.ready ? { line: 'Free distance', oar: 'Out & return', tri: 'Triangle' }[x.mode] || x.mode : 'waiting for a flight');
+}
+function modesSection() {
+  const yes = (k) => S[k] === true || S[k] === 'true', H = (t) => `<h2 style="margin-top:10px">${t}</h2>`;
+  return `<div class="card sec"><h2>Flight modes</h2><div class="muted">What the app detects by itself, and when. The values below are the criteria; the status updates live.</div>
+    <div class="row" id="modeLive" style="flex-wrap:wrap;gap:8px;margin:8px 0">${modeLiveHTML()}</div>
+    <div class="field"><span class="k">Try it now</span><button class="btn ${st.force ? 'warn' : ''}" id="modeTest">${st.force ? 'Stop test' : 'Test thermal mode'}</button></div></div>
+  <div class="card sec">${H('Takeoff')}<div class="muted">Starts the flight: flight time, Start point, tow detection and the "Takeoff" automatic action.</div>
+    ${numField('toSpd')}${numField('toTime', '0 = at once')}</div>
+  <div class="card sec">${H('Circling')}<div class="muted">Seen as circling while you turn faster than this on average. Feeds wind, thermal views, THERMAL? and thermal mode.</div>
+    ${numField('cirRate', 'a 360° in ' + Math.round(360 / sN('cirRate', 7)) + ' s')}${numField('cirWin')}${numField('cirSpd')}${numField('thRec', 'thermal list, stats, voice summary')}</div>
+  <div class="card sec">${H('Thermal mode')}
+    ${seg('modeAuto', [[true, 'On'], [false, 'Off']], 'Start by itself')}
+    ${numField('modeEnter')}
+    ${seg('modeClimbOn', [[false, 'No'], [true, 'Yes']], 'Only when climbing')}${yes('modeClimbOn') ? numField('modeClimb', 'since circling started') : ''}
+    ${numField('modeHold', 'not circling')}
+    ${seg('thermPage', [['off', 'Stay'], ['pThermal', 'Thermal'], ['pMap', 'Map'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']].concat(S.pages.map((p) => [p.id, p.name])), 'Show page when thermaling')}
+    ${seg('thermBack', [[true, 'Yes'], [false, 'No']], 'Go back when gliding again')}
+    <div class="muted">THERMAL / THERMAL? is a widget: Thermal mode (edit a page → Add widget). Tap THERMAL? to start thermal mode now, hold THERMAL to leave it. Each widget can have its own settings while thermaling (edit sheet → <b>When thermaling</b>), and "Show when" can show it only while thermalling or only after it stopped.</div></div>
+  <div class="card sec">${H('Tow launch')}${seg('towDetect', [[true, 'On'], [false, 'Off']], 'Detect towing')}
+    ${S.towDetect === false || S.towDetect === 'false' ? '' : numField('towMin', 'straight, for 5 s') + numField('towWin', 'of takeoff or of the previous release') + numField('towRelV') + numField('towRelT')}
+    <div class="muted">Circling also ends a tow. The Tow widget's "Show when" can be "Towing and after release".</div></div>
+  <div class="card sec">${H('XC flight (auto mode)')}<div class="muted">Which flight type the XC flight widget shows when its mode is Auto.</div>
+    ${numField('xcOut', 'from the Start')}${numField('xcBack', 'of the farthest point')}${numField('xcTri', 'else out & return')}</div>
+  <div class="card sec">${H('Display update')}${numField('rate')}${numField('rateT', '0 = same')}
+    <div class="muted">Faster is smoother on the map and dials, slower saves battery. Sound and measurements always run at full speed.</div>
+    <div class="field"><span class="k">Defaults</span><button class="btn warn" id="modeReset">Reset the mode criteria</button></div></div>`;
+}
+const MODE_KEYS = ['modeAuto', 'modeEnter', 'modeHold', 'modeClimbOn', 'modeClimb', 'toSpd', 'toTime', 'cirRate', 'cirWin', 'cirSpd', 'thRec', 'towDetect', 'towMin', 'towWin', 'towRelV', 'towRelT', 'xcOut', 'xcBack', 'xcTri'];
+setInterval(() => { const e = $('modeLive'); if (e && curPage === 'pSet' && setSec === 'modes') e.innerHTML = modeLiveHTML(); }, 1000);
 function cornerMode() { document.body.classList.toggle('cornerFull', S.corner === 'full'); document.body.classList.toggle('cornerMenu', S.corner === 'menu'); }
 function applySet(key, raw) {
   const v = raw === 'true' ? true : raw === 'false' ? false : isNaN(+raw) ? raw : +raw;

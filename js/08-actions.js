@@ -238,7 +238,7 @@ function updateMode() {
   else if (st.manual === 'on') { want = true; if (st.circling) st.manual = null; }
   else if (st.manual === 'off') { want = false; if (!st.circling) { st.offAt = st.offAt || t; if (t - st.offAt > 3000) { st.manual = null; st.offAt = 0; } } else st.offAt = 0; }
   else if (S.modeAuto === false || S.modeAuto === 'false') want = false;
-  else if (st.circling) { st.gliSince = 0; st.cirSince = st.cirSince || t; want = !!st.thermMode || t - st.cirSince >= (+S.modeEnter || 6) * 1000; }
+  else if (st.circling) { st.gliSince = 0; st.cirSince = st.cirSince || t; want = !!st.thermMode || (t - st.cirSince >= (+S.modeEnter || 6) * 1000 && (!(S.modeClimbOn === true || S.modeClimbOn === 'true') || (avgVario((t - st.cirSince) / 1000, t) ?? -99) >= sN('modeClimb', 0.3))); }
   else { st.cirSince = 0; if (st.thermMode) { st.gliSince = st.gliSince || t; want = t - st.gliSince < (+S.modeHold || 20) * 1000; } else want = false; }
   if (want !== !!st.thermMode) setMode(want);
 }
@@ -254,7 +254,7 @@ function setMode(on) {
   fireEvent(on ? 'thermalStart' : 'thermalStop');
 }
 const NO_EXPORT = new Set(['openaipKey', 'notamProxy', 'layouts', 'layout', 'layoutGrid', 'widgets', 'hidden', 'mapMigrated']);
-const IMPORT_OK = new Set(['titles', 'radioLang', 'radioTpl', 'callsign', 'radioAlt', 'airMaxAlt', 'warnBar', 'warnDist', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'webPages', 'webCur', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
+const IMPORT_OK = new Set(['titles', 'radioLang', 'radioTpl', 'callsign', 'radioAlt', 'airMaxAlt', 'warnBar', 'warnDist', 'uVario', 'uAlt', 'uSpd', 'avgS', 'wingLD', 'rotDefault', 'taOrient', 'layer', 'poiRadius', 'poiKinds', 'cylR', 'safety', 'theme', 'navMode', 'trig', 'flykUrl', 'notamRadius', 'sound', 'volume', 'wake', 'autoImport', 'customUrl', 'webPages', 'webCur', 'qnh', 'rate', 'rateT', 'modeAuto', 'modeEnter', 'modeHold', 'modeClimbOn', 'modeClimb', 'toSpd', 'toTime', 'cirRate', 'cirWin', 'cirSpd', 'thRec', 'towWin', 'towRelV', 'towRelT', 'xcOut', 'xcBack', 'xcTri', 'thermPage', 'thermBack', 'modeChip', 'autoRules', 'volPct', 'vLift', 'vSinkOn', 'vSink', 'vF0', 'vFk', 'vRate', 'vWave', 'vBuzz', 'vDamp', 'voice', 'voiceVol', 'voiceRate', 'voiceLang', 'vcTherm', 'vcSum', 'vcTp', 'vcAir', 'vcAlt', 'vcTow', 'towDetect', 'towMin', 'corner']);
 function downloadJSON(obj, name) { const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function buildExport(scope) {
   const o = { app: 'bora-flight', version: 1, exported: new Date().toISOString(), layoutGrid: GSC, layouts: JSON.parse(JSON.stringify(S.layouts)), pages: S.pages.map((p) => ({ id: p.id, name: p.name })), routes: plRoutes() };

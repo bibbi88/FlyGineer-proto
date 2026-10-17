@@ -3,6 +3,7 @@
 const $ = (id) => document.getElementById(id);
 const D2R = Math.PI / 180, R2D = 180 / Math.PI, RE = 6371000;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const sN = (k, d) => { const v = parseFloat(S[k]); return isFinite(v) ? v : d; }; // numeric setting where 0 is valid, d when unset
 const wrap360 = (a) => ((a % 360) + 360) % 360;
 const angDiff = (a, b) => ((b - a + 540) % 360) - 180;
 function dist(a1, o1, a2, o2) { const p1 = a1 * D2R, p2 = a2 * D2R, dp = p2 - p1, dl = (o2 - o1) * D2R; const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2; return 2 * RE * Math.asin(Math.min(1, Math.sqrt(h))); }
@@ -21,7 +22,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp
 const DEF = {
   uVario: 'm/s', uAlt: 'm', uSpd: 'km/h', avgS: 5, wingLD: 9.0, rotDefault: 'north', taOrient: 'wind',
   layer: 'topo', poiRadius: 20, poiKinds: { town: true, airport: true, peak: false }, cylR: 400, safety: 150,
-  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 0.5, rateT: 0, modeAuto: true, modeEnter: 6, modeHold: 20, thermPage: 'pThermal', thermBack: true, modeChip: true, autoRules: [], notamProxy: '', notamRadius: 50, sound: true, volume: 0.3, volPct: 30, fai: true,
+  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 0.5, rateT: 0, modeAuto: true, modeEnter: 6, modeHold: 20, modeClimbOn: false, modeClimb: 0.3, toSpd: 14.4, toTime: 0, cirRate: 7, cirWin: 8, cirSpd: 7.2, thRec: 30, towWin: 90, towRelV: 0.3, towRelT: 4, xcOut: 2, xcBack: 75, xcTri: 15, thermPage: 'pThermal', thermBack: true, modeChip: true, autoRules: [], notamProxy: '', notamRadius: 50, sound: true, volume: 0.3, volPct: 30, fai: true,
   // acoustic vario: lift tone from vLift m/s, sink alarm below vSink, pitch vF0 + vFk per m/s, beep speed, waveform, near-lift buzzer, sound damping
   vLift: 0.2, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
   // voice messages (speech synthesis)
@@ -73,7 +74,7 @@ function onFix(f) {
     }
     st.varioSrc = 'gps'; pushVario(f.t, st.gpsV ?? 0, f.alt);
   }
-  if (!st.takeoffT && f.spd > 4) { st.takeoffT = f.t; fireEvent('takeoff'); }
+  if (!st.takeoffT) { if (f.spd > sN('toSpd', 14.4) / 3.6) { st.toSince = st.toSince || f.t; if (f.t - st.toSince >= sN('toTime', 0) * 1000) { st.takeoffT = st.toSince; fireEvent('takeoff'); } } else st.toSince = 0; } // Flight modes → Takeoff
   if (st.takeoffT && !st.takeoffPos) { st.takeoffPos = [f.lat, f.lon, f.alt ?? altNow()]; autoStart(); }
   const lg = st.log[st.log.length - 1]; if (lg && f.t - lg.t < 15000 && lg.spd == null) { lg.spd = f.spd; lg.lat = f.lat; lg.lon = f.lon; }
   analyse(f);

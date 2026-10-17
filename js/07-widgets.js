@@ -301,7 +301,7 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
     }
     case 'tow': {
       const T = towNow(), mmss = (s) => Math.floor(s / 60) + ':' + pad2(Math.floor(s % 60)), cell = (k, v, u) => `<div><div class="ws">${k}</div><div class="num" style="white-space:nowrap;font-size:${clamp(Math.min(bx.h * 0.3, bx.w / 13), 16, 60).toFixed(0)}px">${v}${u ? `<span style="font-size:.45em;font-weight:600"> ${u}</span>` : ''}</div></div>`;
-      if (!T) return { l: 'Tow', v: '--', s: S.towDetect === false ? 'tow detection is off (Settings → Update & thermal mode)' : 'no tow yet' };
+      if (!T) return { l: 'Tow', v: '--', s: S.towDetect === false ? 'tow detection is off (Settings → Flight modes)' : 'no tow yet' };
       const dur = Math.max(1, (T.t1 - T.t0) / 1000), g = T.alt1 - T.alt0, tot = (st.tows || []).reduce((s0, x) => s0 + (x.alt1 - x.alt0), 0);
       return { l: (T.active ? 'Towing' : 'Tow') + ((st.tows || []).length > 1 ? ' ' + T.n : ''), ...(T.active ? { bgc: '#1E50C8', col: '#FFFFFF' } : {}),
         html: `<div class="row" style="gap:16px;flex:1;align-items:center;justify-content:space-around">${cell('Time', mmss(dur))}${cell('Gain', (g >= 0 ? '+' : '') + A(g), AU)}${cell('Average', V(g / dur), VU())}</div><div class="ws">${T.active ? 'towing…' : 'released at ' + A(T.alt1) + ' ' + AU}${(st.tows || []).length > 1 ? ' · all tows ' + (tot >= 0 ? '+' : '') + A(tot) + ' ' + AU : ''}</div>` };
