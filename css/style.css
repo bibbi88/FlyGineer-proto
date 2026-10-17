@@ -116,7 +116,7 @@ body.wedit .wbg.live,body.wedit .wbg.live *{pointer-events:none!important}
 .wcb[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 body.wedit .wctl{display:none}
 /* map buttons keep their place while editing (hidden), so their outlines can be drawn above the widgets */
-body.wedit .wg[data-type="map"]:not(.compact) .wctl.l,body.wedit .wg[data-type="map"]:not(.compact) .wctl.r{display:flex;visibility:hidden}
+body.wedit .wg[data-type="map"]:not(.ctlOff) .wctl.l,body.wedit .wg[data-type="map"]:not(.ctlOff) .wctl.r{display:flex;visibility:hidden}
 .ctlGhost{position:absolute;inset:0;z-index:9000;pointer-events:none}
 .ctlGhost i{position:absolute;border:2px dashed rgba(30,80,200,.85);border-radius:10px;background:rgba(30,80,200,.12)}
 .ctlGhost i.hit{border-color:#B42318;background:rgba(180,35,24,.22)}
@@ -156,7 +156,8 @@ body.wedit #wBanner{display:flex}
 #wSheet .wsSize .numin{width:80px}
 #wSheet input[type=text],#wSheet select{height:48px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);width:100%}
 .wcbl{display:block;text-align:center;font-size:12px;font-weight:700;color:var(--muted);background:var(--card);border-radius:6px;padding:1px 4px}
-.wg.compact .wctl{display:none}
+.wg.ctlOff .wctl{display:none}
+body:not(.wedit) .wg.ctlOff:not([data-type="map"])::after{content:'⋯';position:absolute;right:8px;top:2px;font:700 18px var(--txt);color:var(--muted);opacity:.7;pointer-events:none}
 .wg.tint .wl,.wg.tint .ws{color:inherit;opacity:.9}
 .wg .fxW{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;min-height:0}
 .wg .fxW .row{gap:6px}

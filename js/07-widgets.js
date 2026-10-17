@@ -73,7 +73,7 @@ const TAP = TAPG.flatMap(([, l]) => l);
 const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio'], ['radiopoi', 'Radio message & place']]], ['Action', [['pages', 'Page menu'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
 const HOLD = HOLDG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling'], ['tow', 'Towing and after release']];
-const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['pad', 'Padding', [['page', 'As set in Display'], [0, 'None'], [2, 'Tight'], [4, 'Small'], [8, 'Normal']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
+const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['ctlShow', 'On-widget buttons', [['auto', 'Hide on small widgets'], ['always', 'Always show'], ['tap', 'Show when tapped']]], ['pad', 'Padding', [['page', 'As set in Display'], [0, 'None'], [2, 'Tight'], [4, 'Small'], [8, 'Normal']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
 let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
 // default layouts = the owner's own setup (exported 2026-10-12 11:10), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
@@ -434,7 +434,7 @@ function openSheet(id) {
   const tm = sheetMode === 'thermal', hasT = !!W.cfgT, D = tm && hasT ? W.cfgT : W.cfg;
   const read = (k, d) => { const v = tm && hasT && W.cfgT[k] !== undefined ? W.cfgT[k] : W.cfg[k]; return v ?? d; };
   const dflt = (k, o) => (T.def && T.def[k] !== undefined ? T.def[k] : k === 'tap' ? defTap(W) : k === 'hold' ? defHold(W) : k === 'infoItems' ? ['heights'] : k === 'infoText' || o === 'TEXT' ? '' : Array.isArray(o) ? o[0][0] : o.def ?? o.presets[0]);
-  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay' || k === 'towKeep')) && !(k === 'towKeep' && W.cfg.vis !== 'tow') && !((k === 'infoItems' || k === 'infoText') && read('tap', defTap(W)) !== 'custom' && read('hold', defHold(W)) !== 'custom') && !(!tm && k === 'showLabel') && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
+  const opts = T.o.concat(COMMON).filter(([k]) => !(tm && (k === 'vis' || k === 'visDelay' || k === 'towKeep')) && !(k === 'towKeep' && W.cfg.vis !== 'tow') && !((k === 'infoItems' || k === 'infoText') && read('tap', defTap(W)) !== 'custom' && read('hold', defHold(W)) !== 'custom') && !(!tm && k === 'showLabel') && !(k === 'ctlShow' && !T.canvas) && !(k === 'visDelay' && (W.cfg.vis || 'always') === 'always')).map(([k, n, o]) => optRow(k, n, o, read(k, dflt(k, o)))).join('');
   const typeOpts = Object.entries(WT).map(([k, t]) => `<option value="${k}" ${k === W.type ? 'selected' : ''}>${t.n}</option>`).join('');
   const tabs = `<div class="row"><button class="pill grow" data-sm="normal" aria-pressed="${!tm}">Normal${hasT && !tm ? ' •' : ''}</button><button class="pill grow" data-sm="thermal" aria-pressed="${tm}">When thermaling${hasT ? ' •' : ''}</button></div>`;
   let body;
@@ -537,7 +537,11 @@ function openAdd() {
     const up = (e) => {
       ptrs.delete(e.pointerId);
       if (pinch) { if (ptrs.size < 2) { save(); pinch = null; } return; }
-      if (lp) { clearTimeout(lp.t); const l1 = lp; lp = null; if (l1.held) { endHold(l1.shown); return; } st.tapGuard = Date.now(); if (l1.act) widgetAct(l1.W, l1.act); else handleTap(l1.W); return; }
+      if (lp) { clearTimeout(lp.t); const l1 = lp; lp = null; if (l1.held) { endHold(l1.shown); return; } st.tapGuard = Date.now();
+        const we = layer.querySelector(`.wg[data-id="${l1.W.id}"]`), hid = we && we.classList.contains('ctlOff') && we.querySelector('.wctl .wcb');
+        if (hid && !l1.act) { we._ctlUntil = Date.now() + 6000; renderWidgets(); return; } // buttons hidden on a small widget: the first tap shows them
+        if (we && l1.act && we._ctlUntil) we._ctlUntil = Date.now() + 6000; // pressing one keeps them a while longer
+        if (l1.act) widgetAct(l1.W, l1.act); else handleTap(l1.W); return; }
       if (!drag) return; const d = drag; drag = null; if (!d.moved) openSheet(d.W.id); else saveLayout();
     };
     layer.addEventListener('pointerup', up);
