@@ -52,6 +52,7 @@ function handleTap(W) {
   if (a === 'xcmode') { if (W.type !== 'fai') return openDetails(W); const D = cfgW(W), i = XC_MODES.findIndex((x) => x[0] === (effCfg(W).mode || 'auto')); D.mode = XC_MODES[(i + 1) % XC_MODES.length][0]; saveLayout(); toast('XC: ' + XC_MODES.find((x) => x[0] === D.mode)[1]); return; }
   if (a === 'thoff') { if (st.thermMode) leaveThermal(); return; }
   if (a === 'airlist') return openInfo('Airspace near you', () => airListHTML(W), W);
+  if (a === 'radiopoi') { const p = radioRef(effCfg(W).ref); if (p) openPoiInfo(p, 'me'); else toast('No place nearby yet'); return; }
   if (a === 'custom') return openInfo(effCfg(W).label || 'Info', () => infoHTML(W));
   // height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
   if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); return switchUnits(W); }
@@ -62,7 +63,7 @@ function handleTap(W) {
 }
 const GROUP = { vario: 'vario', avg: 'vario', varioDial: 'vario', thermal: 'vario', gain: 'vario', ttime: 'vario', climb: 'vario', ta: 'vario',
   alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', fai: 'task', dist: 'task',
-  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
+  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', radiomsg: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', temp: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
 function closeDetails() { clearInterval(detT); detT = null; detState = null; $('dlg').style.display = 'none'; }
 // XC flight widget: all three ways to score the flight at once, the FAI sectors switch and the mode
 function xcInfoHTML(W, held) {
@@ -432,6 +433,17 @@ function radioParts(p) {
   const ft = a != null ? Math.round(a * 3.28084 / 100) * 100 + ' ' + T.ft : '', m = a != null ? Math.round(a / 10) * 10 + ' ' + T.m : '', alU = S.radioAlt || 'ft';
   return { callsign: S.callsign || 'Paraglider', where: d < 500 ? T.over(p.name) : T.at(km, dir, p.name), dist: km + ' ' + T.km, km, dir, place: p.name, ft, m, alt: alU === 'm' ? m : alU === 'both' ? ft + ', ' + m : ft, thermal: st.thermMode ? ', ' + T.th : '' };
 }
+// the place a radio call refers to (Radio message widget): nearest town or airport (or only airports / towns), or the Start
+function radioRef(ref) {
+  const f = st.fix; if (!f) return null; if (ref === 'start') return startPlace();
+  const L0 = st.places.filter((p) => (ref === 'airport' ? p.kind === 'airport' : ref === 'town' ? p.kind === 'town' && p.rank >= 2 : p.kind === 'airport' || (p.kind === 'town' && p.rank >= 2)));
+  let b = null, bd = Infinity; L0.forEach((p) => { const d = dist(f.lat, f.lon, p.lat, p.lon); if (d < bd) { bd = d; b = p; } }); return b || (ref ? null : startPlace());
+}
+// the frequency to use: the airspace you are inside, else the nearest one at your height, that has a frequency
+function radioFreq() {
+  const s = airStatus(), w = (x) => x.a.freq && x.a.freq.length, x = s.find((y) => w(y) && y.inside && y.vert === 'in') || s.find((y) => w(y) && y.vert !== 'above' && y.d < 30000) || s.find(w);
+  return x ? { v: x.a.freq[0].v, n: x.a.freq[0].n || x.a.name, d: x.d, inside: x.inside && x.vert === 'in' } : null;
+}
 function radioCall(p) { const P = radioParts(p); if (!P) return ''; return (S.radioTpl || RADIO_TPL).replace(/\{(\w+)\}/g, (x, k) => (k in P ? P[k] : x)).replace(/,\s*,/g, ',').replace(/,\s*\./g, '.').replace(/\s+/g, ' ').trim(); }
 function poiInfoHTML(p, rel) {
   const f = st.fix; if (!f) return '<div class="muted">Waiting for a position</div>';
@@ -467,6 +479,7 @@ function runHold(W, a) {
   if (a === 'heights') { holdPop(true, heightsHTML); return 'pop'; }
   if (a === 'custom') { holdPop(true, () => infoHTML(W)); return 'pop'; }
   if (a === 'airlist') { holdPop(true, () => airListHTML(W)); return 'pop'; }
+  if (a === 'radiopoi') { const p = radioRef(effCfg(W).ref); if (!p) return null; holdPop(true, () => poiInfoHTML(p, 'me')); return 'pop'; }
   if (a === 'time') { holdPop(true, timeHTML); return 'pop'; }
   if (a === 'details') { if (W.type === 'button') return null; if (W.type === 'fai') { holdPop(true, () => '<b style="font-size:22px">XC flight</b>' + xcInfoHTML(W, true)); return 'pop'; } openDetails(W); return 'dlg'; }
   if (a === 'pages') { pageMenu(); return null; }

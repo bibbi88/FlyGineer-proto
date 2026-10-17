@@ -62,14 +62,15 @@ const WT = {
   aslist: { n: 'Airspace list', d: 'Nearest airspaces', w: 13, h: 5, o: [] },
   places: { n: 'Places nearby', d: 'Towns, airports, Start', w: 11, h: 7, o: [] },
   radio: { n: 'Radio', d: 'Frequencies from airspace', w: 11, h: 4, o: [] },
+  radiomsg: { n: 'Radio message', d: 'The frequency to use and your position call relative to the nearest place; tap to hear it or change the place', w: 14, h: 4, def: { tap: 'radiopoi' }, o: [['ref', 'Relative to', [['near', 'Nearest town or airport'], ['airport', 'Nearest airport'], ['town', 'Nearest town'], ['start', 'Start']]], ['freq', 'Frequency', [[true, 'Show'], [false, 'Hide']]]] },
   notams: { n: 'NOTAM', d: 'From ais.fi, tap to read', w: 11, h: 5, def: { radius: 50 }, o: [['radius', 'Within', [[25, '25 km'], [50, '50 km'], [100, '100 km']]]] }
 };
 // airplane seen from above, nose up (Airspace button)
 const PLANE_PATH = '<path d="M16 2.5c1.3 0 2.2 1.2 2.2 2.8v7.2l10.3 6.2v3l-10.3-3.1v6.1l3.3 2.5v2.3L16 28.3l-5.5 1.2v-2.3l3.3-2.5v-6.1L3.5 21.7v-3l10.3-6.2V5.3c0-1.6.9-2.8 2.2-2.8z" fill="currentColor"/>';
-const TAPG = [['Info', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['xcmode', 'Next XC mode (XC flight)'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio'], ['radiopoi', 'Radio message & place']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['xcmode', 'Next XC mode (XC flight)'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
 // when held: info is shown only while you hold; actions run once
-const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio']]], ['Action', [['pages', 'Page menu'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
+const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['airlist', 'Airspace & radio'], ['radiopoi', 'Radio message & place']]], ['Action', [['pages', 'Page menu'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
 const HOLD = HOLDG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling'], ['tow', 'Towing and after release']];
 const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
@@ -265,6 +266,13 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
       const html = `<div class="tcBox ${mode || 'idle'}" style="--tc:${col};font-size:${fs}px">${esc(wEdit && !mode && c.idle !== 'show' ? 'THERMAL?' : txt)}</div>`;
       return { l: 'Thermal mode', hide: !mode && c.idle !== 'show', html };
     }
+    case 'radiomsg': {
+      const p = radioRef(c.ref), fq = radioFreq(), on = (v) => v !== false && v !== 'false', bh = curBox.h, bw = curBox.w;
+      const msg = p ? radioCall(p) : st.fix ? 'No place nearby yet (places load from OpenStreetMap)' : 'Waiting for a position';
+      const fs = Math.round(clamp(Math.min(bh * 0.2, bw / 26), 13, 30) * (+c.size || 1)), ff = Math.round(clamp(bh * 0.3, 16, 44));
+      const top = on(c.freq) ? `<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span class="num" style="font-size:${ff}px;font-weight:700">📻 ${fq ? esc(fq.v) : '--'}</span><span class="ws" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fq ? esc(fq.n) + (fq.inside ? ' · you are inside' : ' · ' + fDist(fq.d)) : 'no frequency in the airspace data nearby'}</span></div>` : '';
+      return { l: 'Radio message', html: `<div style="flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:2px;overflow:hidden">${top}<div style="font-size:${fs}px;line-height:1.25;overflow:hidden">${esc(msg)}</div></div>` };
+    }
     case 'airbtn': {
       const R = (+c.radius || 20) * 1000, s = airStatus().filter((x) => x.d <= R), inn = s.filter((x) => x.inside && x.vert === 'in'), warn = !inn.length && s.find((x) => x.d < (+S.warnDist || 2000) && x.vert === 'in');
       const look = c.look || 'count', bw = curBox.w, bh = curBox.h, ic = Math.round(Math.max(22, Math.min(look === 'icon' ? bh - 14 : bh - 18, look === 'icon' ? bw - 16 : bw * 0.42, 72)));
@@ -451,7 +459,7 @@ function openSheet(id) {
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
 const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'] };
-const ADD_NEW = ['thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
+const ADD_NEW = ['radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
   ['Thermal', ['thchip', 'ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
   ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'tow', 'temp']],
@@ -459,7 +467,7 @@ const ADD_GROUPS = [
   ['Map & task', ['map', 'next', 'dist', 'fai', 'button:fai', 'button:copyTask']],
   ['Buttons', ['button:pSwitch', 'button:fullscreen', 'button']],
   ['Weather', ['profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],
-  ['Airspace & places', ['airwarn', 'airbtn', 'air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],
+  ['Airspace & places', ['radiomsg', 'airwarn', 'airbtn', 'air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],
   ['Flight & tablet', ['flight', 'time', 'battery']]];
 function openAdd() {
   const btn = (k, n, d, g) => `<button data-add="${k}" data-q="${esc((n + ' ' + d).toLowerCase())}">${ADD_NEW.includes(k) ? '<span class="newTag">New</span>' : ''}${n}<small>${d}</small></button>`, seen = new Set();
