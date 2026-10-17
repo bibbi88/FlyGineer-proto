@@ -98,6 +98,8 @@ function drawNotamAreas() { st.ntVer = (st.ntVer || 0) + 1; }
 const HEAT = [[-3, [28, 52, 140]], [-1.5, [66, 120, 206]], [-0.5, [160, 196, 236]], [0.25, [240, 240, 236]], [0.9, [255, 238, 120]], [1.7, [255, 184, 48]], [2.6, [240, 104, 30]], [3.6, [206, 32, 44]], [5, [130, 0, 120]]];
 function heat(v) { if (v <= HEAT[0][0]) return HEAT[0][1]; for (let i = 1; i < HEAT.length; i++) { if (v <= HEAT[i][0]) { const [v0, c0] = HEAT[i - 1], [v1, c1] = HEAT[i]; const t = (v - v0) / (v1 - v0); return c0.map((x, k) => Math.round(x + (c1[k] - x) * t)); } } return HEAT[HEAT.length - 1][1]; }
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const hexRgb = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h).trim()); if (!m) return [255, 255, 255]; const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+const fadeTo = (c, bg, k) => `rgb(${c.map((v, i) => Math.round(bg[i] + (v - bg[i]) * k)).join(',')})`; // opaque colour k of the way from bg to c
 // soft heat dot, pre-rendered once per colour step at the largest size and scaled when drawn (a new gradient for every sample was slow)
 const blobC = new Map();
 function heatBlob(v) {
@@ -186,12 +188,23 @@ function taDraw(cv, W, el) {
   if (trailSt && loc.length > 1) {
     const span = Math.max(1, now - tmin), w = 9, path = (arr) => { c.beginPath(); arr.forEach((p, i) => { const [x, y] = tr(p.x, p.y); i ? c.lineTo(x, y) : c.moveTo(x, y); }); };
     c.lineJoin = 'round'; c.lineCap = 'round';
+    if (cfg.taper !== 'off') {
+      // older = thinner and fainter; every piece gets its own edge, drawn in time order, so a newer pass lies visibly on top of an
+      // older one instead of merging into one blob (each edge is drawn before its own fill and the previous fill is redrawn, so joints stay clean)
+      const bgc = hexRgb(card), wMax = clamp(Math.min(Wd, H) / 32, 6, 12), wMin = clamp(wMax * 0.28, 2, 4), edge = wantBg ? '17,20,24' : dark ? '230,234,238' : '17,20,24';
+      const seg = loc.slice(1).map((b, i) => { const a = loc[i], rec = clamp(1 - (now - b.t) / span, 0, 1), [x0, y0] = tr(a.x, a.y), [x1, y1] = tr(b.x, b.y), isNew = now - b.t < newMs;
+        return { x0, y0, x1, y1, w: isNew ? wMax : wMin + (wMax - wMin) * rec ** 0.8, col: fadeTo(heat((a.v + b.v) / 2), bgc, isNew ? 1 : 0.35 + 0.65 * rec), ed: isNew ? ink : `rgba(${edge},${(0.15 + 0.45 * rec).toFixed(2)})`, ew: isNew ? 2 : 0.8 + 1.2 * rec, off: Math.max(x0, x1) < -wMax || Math.min(x0, x1) > Wd + wMax || Math.max(y0, y1) < -wMax || Math.min(y0, y1) > H + wMax }; });
+      const ln = (s, col, lw) => { c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(s.x0, s.y0); c.lineTo(s.x1, s.y1); c.stroke(); };
+      seg.forEach((s, i) => { if (s.off) return; ln(s, s.ed, s.w + 2 * s.ew); const p = seg[i - 1]; if (p && !p.off) ln(p, p.col, p.w); ln(s, s.col, s.w); });
+      const last = loc[loc.length - 1], [lx, ly] = tr(last.x, last.y); c.strokeStyle = ink; c.lineWidth = 2; c.beginPath(); c.arc(lx, ly, 15, 0, 7); c.stroke();
+    } else {
     path(loc); c.strokeStyle = wantBg ? 'rgba(17,20,24,.7)' : dark ? 'rgba(230,234,238,.5)' : 'rgba(17,20,24,.5)'; c.lineWidth = w + 2.5; c.stroke();
     const rc = loc.filter((p) => now - p.t < newMs); if (rc.length > 1) { path(rc); c.strokeStyle = ink; c.lineWidth = w + 4; c.stroke(); }
     c.lineWidth = w;
     for (let i = 1; i < loc.length; i++) { const a = loc[i - 1], b = loc[i], [x0, y0] = tr(a.x, a.y), [x1, y1] = tr(b.x, b.y); if (Math.max(x0, x1) < -w || Math.min(x0, x1) > Wd + w || Math.max(y0, y1) < -w || Math.min(y0, y1) > H + w) continue;
       c.strokeStyle = rgba(heat((a.v + b.v) / 2), 0.6 + 0.4 * clamp(1 - (now - b.t) / span, 0, 1)); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
     const last = loc[loc.length - 1], [lx, ly] = tr(last.x, last.y); c.strokeStyle = ink; c.lineWidth = 2; c.beginPath(); c.arc(lx, ly, 15, 0, 7); c.stroke();
+    }
   }
   // dots: outline gets thicker and darker the newer the sample
   if (style === 'both' || style === 'dots') {
