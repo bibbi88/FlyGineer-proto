@@ -8,10 +8,10 @@ const WIDGETS = {
 };
 function wHtml(id) {
   const f = st.fix, alt = altNow(), now = nowT();
-  const w = windFromSpd(), av = avgVario(S.avgS, now);
+  const w = windFromSpd(), av = avgVario(30, now);
   switch (id) {
     case 'vario': return `<div class="card w big"><div class="row" style="justify-content:space-between"><span class="lbl">Vario ${uV()}</span><span class="lbl">${st.varioSrc === 'gps' ? 'from GPS' : st.varioSrc}</span></div><div class="v num" style="color:${st.vario >= 0 ? css('--climb') : css('--sink')}">${fVario(st.vario)}</div></div>`;
-    case 'avg': return tile('Avg ' + S.avgS + ' s', fVario(av), uV());
+    case 'avg': return tile('Avg 30 s', fVario(av), uV());
     case 'alt': return tile('Altitude', fAlt(alt), S.uAlt, st.baro ? 'baro' : 'GPS');
     case 'agl': return tile('AGL', st.groundElev != null && alt != null ? fAlt(alt - st.groundElev) : '--', S.uAlt, st.groundElev != null ? 'ground ' + fAlt(st.groundElev) : 'needs data');
     case 'gs': return tile('Ground speed', fSpd(f?.spd), S.uSpd, f?.trk != null ? 'trk ' + pad3(f.trk) + '°' : '');
@@ -919,7 +919,7 @@ function renderSettings() {
     <div class="field"><span class="k">Start from</span><span class="row" style="flex-wrap:wrap">${[['', 'Empty'], ['map', 'Copy of Map'], ['thermal', 'Copy of Thermal'], ['atmos', 'Copy of Atmosphere'], ['air', 'Copy of Airspace']].concat(S.pages.map((p) => [p.id, 'Copy of ' + p.name])).map(([k, n]) => `<button class="pill" data-pgfrom="${k}" aria-pressed="${(st.pgFrom || '') === k}">${esc(n)}</button>`).join('')}</span></div>
     <div class="field"><span class="k"></span><button class="btn primary" id="pgAdd" ${S.pages.length >= 20 ? 'disabled' : ''}>Add page</button></div>
     <div class="field"><span class="k">Defaults</span><button class="btn warn" data-reset="all">Reset the built-in page layouts</button></div>
-    ${numField('avgS')}</div>`;
+    </div>`;
   if (setSec === 'units') h = `<div class="card sec"><h2>Units & glide</h2>${seg('uVario', [['m/s', 'm/s'], ['kt', 'kt'], ['fpm', 'ft/min']], 'Vario')}${seg('uAlt', [['m', 'm'], ['ft', 'ft']], 'Altitude')}${seg('uSpd', [['km/h', 'km/h'], ['m/s', 'm/s'], ['kt', 'kt']], 'Speed')}
     <div class="field"><label for="wingLD">Wing glide ratio (empty dot)</label><input type="number" id="wingLD" value="${S.wingLD}" step="0.1" min="3" max="20"></div>
     <div class="field"><label for="safety">Arrival safety height (m)</label><input type="number" id="safety" value="${S.safety}" step="10"></div>

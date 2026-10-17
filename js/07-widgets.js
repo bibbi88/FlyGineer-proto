@@ -80,7 +80,7 @@ function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (
 const DEFS = {
   map: [
     ['map', 0, 0, 96, 64, { bg: 0, showLabel: false, layer: 'sat', rot: 'track', smooth: 'normal', z: 17, follow: true, ret: 0, track: 'lift', trackMin: 0, heading: true, start: true, task: true, air: true, notam: true, places: true, traffic: true, trafficR: 25, trafficA: 1500, gsize: 1, ctl: true, tap: 'none', taskStyle: 'dashed', taskW: 3, towpCol: 'green', towpStyle: 'solid', towpW: 2, windAT: 'spd', windAS: 26, windAD: 50, windAC: 'white' }],
-    ['avg', 87, 5, 9, 8],
+    ['avg', 87, 5, 9, 8, { win: 5 }],
     ['agl', 87, 20, 9, 7, { units: '', label: '', tap: 'custom', infoItems: ['heights'] }],
     ['gs', 87, 27, 9, 6],
     ['ld', 15, 57, 9, 7],
@@ -101,7 +101,7 @@ const DEFS = {
     ['ta', 0, 0, 40, 46, { bg: 85, orient: 'wind', hist: 30, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1.96 }],
     ['tside', 47, 1, 20, 45, { hist: 180 }],
     ['vario', 40, 0, 7, 46, { mode: 'bar', barDir: 'v' }],
-    ['avg', 86, 5, 10, 8],
+    ['avg', 86, 5, 10, 8, { win: 5 }],
     ['thermal', 86, 13, 10, 8],
     ['gain', 86, 21, 10, 8],
     ['ttime', 32, 46, 9, 7],
@@ -165,7 +165,7 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only
-  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true, fullBtnMig: true, muteBtnMig: true });
+  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true, fullBtnMig: true, muteBtnMig: true, avgMig: true });
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};
   if (old && !S.layouts.map) { const k = GSC / (S.layoutGrid || 1); S.layouts.map = old.map((W) => Object.assign({}, W, { x: Math.round(W.x * k), y: Math.round(W.y * k), w: Math.round(W.w * k), h: Math.round(W.h * k) })); }
   Object.keys(LAYERID).forEach((pk) => { if (!Array.isArray(S.layouts[pk]) || !S.layouts[pk].length) S.layouts[pk] = defLayout(pk); S.layouts[pk] = S.layouts[pk].filter((W) => WT[W.type]); });
@@ -174,6 +174,8 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
   // radio message settings moved from the map widget to Settings → Radio message (2026-10-17)
   if (!S.radioMig) { S.radioMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type !== 'map') return; ['callsign', 'radioAlt', 'radioLang'].forEach((k) => { if (W.cfg[k] && (k !== 'callsign' || !S.callsign || S.callsign === 'Paraglider')) S[k] = W.cfg[k]; delete W.cfg[k]; }); })); }
   if (!S.poiMig) { S.poiMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'map' && (W.cfg.places === false || W.cfg.places === 'false')) W.cfg.places = true; })); } // airports and towns on the map (2026-10-17)
+  // the global "Default vario average" setting is gone (2026-10-17): Vario average widgets that used it keep its value
+  if (!S.avgMig) { S.avgMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'avg' && !(+W.cfg.win > 0)) W.cfg.win = +S.avgS || 30; })); }
   if (!S.fullBtnMig) { S.fullBtnMig = true; S.layouts.map = S.layouts.map.filter((W) => !(W.type === 'button' && W.cfg.action === 'fullscreen')); } // full screen is in the hamburger menu now (2026-10-17)
   // a mute button where the Full screen button was (2026-10-17), if that spot is free
   if (!S.muteBtnMig) { S.muteBtnMig = true; const L = S.layouts.map, free = !L.some((W) => W.type !== 'map' && W.x < 96 && W.x + W.w > 87 && W.y < 63 && W.y + W.h > 56); if (free && !L.some((W) => W.type === 'button' && W.cfg.action === 'mute')) { const B = newW('button', 87, 56, 9, 7); Object.assign(B.cfg, { action: 'mute', color: 'plain', bg: 100, showLabel: false, tap: 'none' }); L.push(B); } }
@@ -233,7 +235,7 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
   const dwp = f && wp ? dist(f.lat, f.lon, wp.lat, wp.lon) : null;
   switch (W.type) {
     case 'vario': { const win = +c.win || 0; const v = win ? avgVario(win, now) ?? st.vario : st.vario; return { l: 'Vario', u: VU() + (win ? ' · Ø ' + win + ' s' : ''), v: V(v), col: v >= 0 ? css('--climb') : css('--sink'), s: st.varioSrc === 'gps' ? 'from GPS' : '' }; }
-    case 'avg': { const win = +c.win || S.avgS; const a = avgVario(win, now); return { l: 'Vario average', u: VU() + ' · Ø ' + fmtDur(win), v: V(a), col: a == null ? null : a >= 0 ? css('--climb') : css('--sink') }; }
+    case 'avg': { const win = +c.win || 30; const a = avgVario(win, now); return { l: 'Vario average', u: VU() + ' · Ø ' + fmtDur(win), v: V(a), col: a == null ? null : a >= 0 ? css('--climb') : css('--sink') }; }
     case 'alt': { const a = c.src === 'gps' ? f?.alt : alt; return { l: 'Altitude', u: AU, v: A(a), s: c.src === 'gps' ? 'GPS' : st.baro ? 'vario' : 'GPS' }; }
     case 'agl': return { l: 'AGL', u: AU, v: st.groundElev != null && alt != null ? A(alt - st.groundElev) : '--', s: st.groundElev != null ? 'ground ' + A(st.groundElev) : 'needs terrain data' };
     case 'gs': return { l: 'Ground speed', u: SU, v: Sp(f?.spd) };
