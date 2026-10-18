@@ -76,45 +76,46 @@ const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stoppe
 const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['ctlShow', 'On-widget buttons', [['auto', 'Hide on small widgets'], ['always', 'Always show'], ['tap', 'Show when tapped']]], ['pad', 'Padding', [['page', 'As set in Display'], [0, 'None'], [2, 'Tight'], [4, 'Small'], [8, 'Normal']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
 let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
-// default layouts = the owner's own setup (exported 2026-10-12 11:10), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
+// default layouts = the owner's own setup (exported 2026-10-18), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
 const DEFS = {
   map: [
-    ['map', 0, 0, 96, 64, { bg: 0, showLabel: false, layer: 'sat', rot: 'track', smooth: 'normal', z: 17, follow: true, ret: 0, track: 'lift', trackMin: 0, heading: true, start: true, task: true, air: true, notam: true, places: true, traffic: true, trafficR: 25, trafficA: 1500, gsize: 1, ctl: true, tap: 'none', taskStyle: 'dashed', taskW: 3, towpCol: 'green', towpStyle: 'solid', towpW: 2, windAT: 'spd', windAS: 26, windAD: 50, windAC: 'white' }],
-    ['avg', 87, 5, 9, 8, { win: 5 }],
-    ['agl', 87, 20, 9, 7, { units: '', label: '', tap: 'custom', infoItems: ['heights'] }],
-    ['gs', 87, 27, 9, 6],
-    ['ld', 15, 57, 9, 7],
-    ['wind', 87, 33, 9, 7],
-    ['next', 81, 41, 15, 8],
-    ['flight', 0, 6, 12, 7],
-    ['button', 87, 49, 9, 7, { bg: 100, showLabel: false, action: 'pSwitch', color: 'plain', tap: 'none' }],
-    ['vario', 0, 46, 15, 16, { size: 1.15, showLabel: false, win: 0.6, mode: 'dial', barDir: 'v', range: 5 }],
-    ['alt', 87, 13, 9, 7, { units: '', label: 'AMSL [m]' }],
-    ['compass', 73, 49, 14, 15],
-    ['airbtn', 0, 13, 12, 5, { showLabel: false }],
-    ['fai', 48, 57, 25, 7, { tap: 'details', mode: 'auto' }],
-    ['thchip', 79, 5, 8, 5, { bg: 0, showLabel: false }],
-    ['airwarn', 14, 0, 24, 4, { bg: 0, showLabel: false }],
-    ['button', 87, 56, 9, 7, { bg: 100, showLabel: false, action: 'mute', color: 'plain', tap: 'none' }]
+    ['map', 15, 0, 73, 56, { bg: 0, showLabel: false, layer: 'sat', rot: 'track', smooth: 'normal', z: 13, follow: true, ret: 0, track: 'lift', trackMin: 0, heading: true, start: true, task: true, air: true, notam: true, places: true, traffic: true, trafficR: 25, trafficA: 1500, gsize: 1, ctl: true, tap: 'none', taskStyle: 'dashed', taskW: 3, towpCol: 'green', towpStyle: 'solid', towpW: 2, windAT: 'spd', windAS: 32, windAD: 52, windAC: 'white', kk7: 'thermals', ctlShow: 'tap' }],
+    ['avg', 0, 0, 15, 8, { win: 4 }],
+    ['agl', 88, 12, 8, 7, { tap: 'custom' }],
+    ['gs', 88, 26, 8, 7, { size: 1.35, label: 'GPS' }],
+    ['ld', 8, 8, 7, 6, { win: 5 }],
+    ['next', 15, 56, 20, 8],
+    ['flight', 88, 19, 8, 7],
+    ['button', 88, 56, 8, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'plain', tap: 'none' }],
+    ['vario', 0, 14, 15, 18, { size: 1.15, bg: 100, showLabel: false, win: 0.6, mode: 'dial', barDir: 'v', range: 5 }],
+    ['alt', 88, 5, 8, 7, { src: 'gps' }],
+    ['compass', 0, 32, 15, 16, { bg: 100, showLabel: false }],
+    ['fai', 51, 56, 21, 8, { tap: 'details', mode: 'line' }],
+    ['thchip', 78, 5, 10, 6, { bg: 0, showLabel: false }],
+    ['airwarn', 71, 56, 18, 8, { bg: 0, showLabel: false, look: 'warn' }],
+    ['avg', 0, 8, 8, 6, { win: 1 }],
+    ['button', 88, 33, 8, 7, { bg: 100, showLabel: false, action: 'mute', color: 'orange', tap: 'none' }],
+    ['ta', 0, 47, 15, 17, { bg: 85, orient: 'wind', hist: 120, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1 }],
   ],
   thermal: [
-    ['ta', 0, 0, 40, 46, { bg: 85, orient: 'wind', hist: 30, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1.96 }],
-    ['tside', 47, 1, 20, 45, { hist: 180 }],
-    ['vario', 40, 0, 7, 46, { mode: 'bar', barDir: 'v' }],
-    ['avg', 86, 5, 10, 8, { win: 5 }],
-    ['thermal', 86, 13, 10, 8],
-    ['gain', 86, 21, 10, 8],
-    ['ttime', 32, 46, 9, 7],
-    ['wind', 87, 34, 9, 7],
-    ['core', 86, 47, 10, 9],
-    ['compass', 0, 46, 16, 18],
+    ['ta', 7, 0, 40, 46, { bg: 85, orient: 'winddown', hist: 180, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1, range: 200 }],
+    ['tside', 47, 1, 20, 38, { hist: 180, frame: 'air', range: 680, scale: 'fixed', axTurn: 5 }],
+    ['vario', 0, 0, 7, 46, { mode: 'bar', barDir: 'v' }],
+    ['avg', 87, 5, 9, 6, { win: 4 }],
+    ['thermal', 87, 11, 9, 6],
+    ['gain', 87, 17, 9, 6],
+    ['ttime', 87, 23, 9, 6],
+    ['wind', 87, 35, 9, 6, { size: 1.35 }],
+    ['core', 87, 48, 9, 7],
+    ['compass', 0, 46, 14, 18],
     ['alt', 87, 41, 9, 7],
-    ['button', 85, 56, 11, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'orange', tap: 'none' }],
-    ['climb', 59, 46, 20, 8],
-    ['turn', 16, 46, 16, 18],
-    ['thead', 67, 1, 19, 45, { hist: 600, ahead: 1000, hold: false }],
-    ['theat', 32, 46, 18, 18, { bg: 100, orient: 'wind', hist: 90, depth: 70, blur: 25, range: 150, zoom: 1, colors: 'fixed' }],
-    ['thchip', 64, 0, 7, 4, { bg: 0, showLabel: false }]
+    ['button', 87, 56, 9, 8, { bg: 100, showLabel: false, action: 'pSwitch', color: 'orange', tap: 'none' }],
+    ['turn', 14, 46, 19, 18],
+    ['tcross', 67, 1, 20, 38, { hist: 600, ahead: 1000, hold: false, frame: 'ground', axTurn: 5, range: 680, scale: 'fixed' }],
+    ['theat', 33, 46, 14, 18, { bg: 100, orient: 'wind', hist: 90, depth: 70, blur: 25, range: 150, zoom: 0.51, colors: 'fixed' }],
+    ['thchip', 64, 0, 7, 4, { bg: 0, showLabel: false }],
+    ['map', 47, 39, 40, 25, { bg: 0, showLabel: false, layer: 'sat', rot: 'north', smooth: 'normal', z: 13, follow: true, ret: 0, track: 'plain', trackMin: 15, heading: true, start: true, task: true, air: true, notam: true, places: false, traffic: false, trafficR: 25, trafficA: 1500, gsize: 1, ctl: true, tap: 'none', kk7: 'thermals', ctlShow: 'tap' }],
+    ['gs', 87, 29, 9, 6],
   ],
   atmos: [
     ['profile', 0, 0, 44, 64],
@@ -125,7 +126,7 @@ const DEFS = {
     ['ttop', 68, 12, 28, 16],
     ['outlook', 44, 28, 52, 20],
     ['trigger', 44, 48, 52, 12],
-    ['thchip', 64, 0, 7, 4, { bg: 0, showLabel: false }]
+    ['thchip', 64, 0, 7, 4, { bg: 0, showLabel: false }],
   ],
   air: [
     ['asside', 0, 0, 52, 20, { range: 20 }],
@@ -134,8 +135,8 @@ const DEFS = {
     ['places', 52, 0, 44, 28],
     ['radio', 52, 28, 44, 16],
     ['notams', 52, 44, 44, 20, { radius: 50 }],
-    ['thchip', 64, 0, 7, 4, { bg: 0, showLabel: false }]
-  ]
+    ['thchip', 64, 0, 7, 4, { bg: 0, showLabel: false }],
+  ],
 };
 const PAGEKEY = { pMap: 'map', pThermal: 'thermal', pAtmos: 'atmos', pAir: 'air' };
 const LAYERID = { map: 'wLayer', thermal: 'wLayer_thermal', atmos: 'wLayer_atmos', air: 'wLayer_air' };
@@ -165,10 +166,12 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only
-  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true, fullBtnMig: true, muteBtnMig: true, avgMig: true });
+  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true, fullBtnMig: true, muteBtnMig: true, avgMig: true, padMig: true });
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};
   if (old && !S.layouts.map) { const k = GSC / (S.layoutGrid || 1); S.layouts.map = old.map((W) => Object.assign({}, W, { x: Math.round(W.x * k), y: Math.round(W.y * k), w: Math.round(W.w * k), h: Math.round(W.h * k) })); }
   Object.keys(LAYERID).forEach((pk) => { if (!Array.isArray(S.layouts[pk]) || !S.layouts[pk].length) S.layouts[pk] = defLayout(pk); S.layouts[pk] = S.layouts[pk].filter((W) => WT[W.type]); });
+  // padding: tight by default (2026-10-18); stored values still at the old default 8 / 4 move to 2 / 1 once
+  if (!S.padMig) { S.padMig = true; if (+S.wPadX === 8 && +S.wPadY === 4) { S.wPadX = 2; S.wPadY = 1; } }
   // the FAI widget became the XC flight widget (2026-10-16): its tap now switches mode (the FAI button still toggles the map sectors)
   // …and its tap became the info popup with the FAI switch (2026-10-17)
   // radio message settings moved from the map widget to Settings → Radio message (2026-10-17)

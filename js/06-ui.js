@@ -831,7 +831,7 @@ function renderWidgets() {
     let html = showT ? `<div class="wl"><span>${lab}</span><span>${esc(d.u || '')}${d.arrow != null ? ` <svg width="14" height="14" viewBox="0 0 14 14" style="vertical-align:-2px"><g transform="rotate(${d.arrow} 7 7)"><path d="M7 1l4 8H3z" fill="currentColor"/><line x1="7" y1="8" x2="7" y2="13" stroke="currentColor" stroke-width="2"/></g></svg>` : ''}</span></div>` : '';
     if (d.html) html += d.html;
     else {
-      const txt = String(d.v ?? '--'); const [px, py] = pd || [sN('wPadX', 8), sN('wPadY', 4)], avail = b.h - 2 * ins - 2 * py - 2 - (showT ? lh : 0) - (d.s ? lh : 0);
+      const txt = String(d.v ?? '--'); const [px, py] = pd || [sN('wPadX', 2), sN('wPadY', 1)], avail = b.h - 2 * ins - 2 * py - 2 - (showT ? lh : 0) - (d.s ? lh : 0);
       const fs = Math.max(12, Math.min(avail * 0.95, (b.w - 2 * ins - 2 * px - 4) / Math.max(2.2, txt.length * (d.btn ? 0.68 : 0.5))) * mul);
       html += `<div class="wv" style="font-size:${fs.toFixed(0)}px;${d.col ? 'color:' + d.col : ''}${d.center ? ';justify-content:center;text-align:center' : ''}">${esc(txt)}</div>` + (d.s ? `<div class="ws">${esc(d.s)}</div>` : '');
     }
@@ -1114,7 +1114,7 @@ function renderSettings() {
     <div class="field"><span class="k"></span><button class="btn primary" id="bmCopy">Copy bookmark code</button></div>`;
   if (setSec === 'web') h = webSection();
   if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('corner', [['auto', 'Auto'], ['full', 'Clock, status, menu'], ['menu', 'Menu only']], 'Top-right buttons')}<div class="muted">Auto shows only the menu button on small screens (phones), so the buttons don't cover your widgets.</div>${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
-    <div class="card sec"><h2>Widget spacing</h2><div class="muted">Make widgets more compact: less space between and inside them leaves more room for the values (they grow to fill it).</div>${numField('wGap', '0 = edge to edge')}${numField('wPadX')}${numField('wPadY')}${numField('wLab')}${numField('wRad', '0 = square')}<div class="muted">One widget can have its own padding: edit it → Padding.</div>${numField('ctlSmall', '0 = never')}<div class="muted">Small maps and thermal views hide their buttons (zoom, ±, orientation …) so they don't cover the picture; tap the widget to show them for a few seconds. Lower than ¾ of this height counts as small too. Per widget: edit it → On-widget buttons.</div><div class="field"><span class="k">Defaults</span><button class="btn" id="wSpReset">Normal spacing</button><button class="btn" id="wSpTight">Compact</button></div></div>
+    <div class="card sec"><h2>Widget spacing</h2><div class="muted">Make widgets more compact: less space between and inside them leaves more room for the values (they grow to fill it).</div>${numField('wGap', '0 = edge to edge')}${numField('wPadX')}${numField('wPadY')}${numField('wLab')}${numField('wRad', '0 = square')}<div class="muted">One widget can have its own padding: edit it → Padding.</div>${numField('ctlSmall', '0 = never')}<div class="muted">Small maps and thermal views hide their buttons (zoom, ±, orientation …) so they don't cover the picture; tap the widget to show them for a few seconds. Lower than ¾ of this height counts as small too. Per widget: edit it → On-widget buttons.</div><div class="field"><span class="k">Defaults</span><button class="btn" id="wSpReset">Default (tight)</button><button class="btn" id="wSpRoomy">Roomy</button><button class="btn" id="wSpTight">Compact</button></div></div>
     <div class="card sec"><h2>Acoustic vario</h2>
     ${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}${numField('volPct')}
     ${numField('vLift', 'beeps start')}${seg('vSinkOn', [[true, 'On'], [false, 'Off']], 'Sink alarm')}${S.vSinkOn !== false ? numField('vSink') : ''}
@@ -1183,7 +1183,7 @@ function renderSettings() {
   on('voiceTest', 'onclick', () => { say(vt().test + '. ' + vt().alt(sayAlt(altNow() ?? 1000), ''), true); });
   document.querySelectorAll('[data-vtest]').forEach((b) => (b.onclick = () => beep.testRate(+b.dataset.vtest, 3)));
   const wSp = (o) => { Object.assign(S, o); save(); wStyle(); document.querySelectorAll('.wg').forEach((e) => { e._sk = null; e._last = null; }); renderSettings(); };
-  on('wSpReset', 'onclick', () => wSp({ wGap: 4, wPadX: 8, wPadY: 4, wLab: 12, wRad: 10 })); on('wSpTight', 'onclick', () => wSp({ wGap: 1, wPadX: 3, wPadY: 1, wLab: 10, wRad: 4 }));
+  on('wSpReset', 'onclick', () => wSp({ wGap: 4, wPadX: 2, wPadY: 1, wLab: 12, wRad: 10 })); on('wSpRoomy', 'onclick', () => wSp({ wGap: 4, wPadX: 8, wPadY: 4, wLab: 12, wRad: 10 })); on('wSpTight', 'onclick', () => wSp({ wGap: 1, wPadX: 3, wPadY: 1, wLab: 10, wRad: 4 }));
   on('fsBtn', 'onclick', () => document.documentElement.requestFullscreen?.());
 }
 // Settings → Flight modes: every automatic mode with its detection criteria, plus a live status card (modeLive, refreshed every second)
@@ -1227,7 +1227,7 @@ const MODE_KEYS = ['modeAuto', 'modeEnter', 'modeHold', 'modeClimbOn', 'modeClim
 setInterval(() => { const e = $('modeLive'); if (e && curPage === 'pSet' && setSec === 'modes') e.innerHTML = modeLiveHTML(); }, 1000);
 // widget spacing (Settings → Display → Widgets): gap between widgets, inner padding, title size, corner rounding; cfg.pad overrides the padding per widget
 function wPad(c) { const v = c.pad; if (v == null || v === 'page' || v === '') return null; const p = +v; return isFinite(p) ? [p, Math.round(p / 2)] : null; }
-function wStyle() { const r = document.documentElement.style; r.setProperty('--wpx', sN('wPadX', 8) + 'px'); r.setProperty('--wpy', sN('wPadY', 4) + 'px'); r.setProperty('--wlab', sN('wLab', 12) + 'px'); r.setProperty('--wrad', sN('wRad', 10) + 'px'); }
+function wStyle() { const r = document.documentElement.style; r.setProperty('--wpx', sN('wPadX', 2) + 'px'); r.setProperty('--wpy', sN('wPadY', 1) + 'px'); r.setProperty('--wlab', sN('wLab', 12) + 'px'); r.setProperty('--wrad', sN('wRad', 10) + 'px'); }
 function cornerMode() { document.body.classList.toggle('cornerFull', S.corner === 'full'); document.body.classList.toggle('cornerMenu', S.corner === 'menu'); }
 function applySet(key, raw) {
   const v = raw === 'true' ? true : raw === 'false' ? false : isNaN(+raw) ? raw : +raw;

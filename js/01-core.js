@@ -18,11 +18,11 @@ function css(v) { const k = document.body.className + '|' + v; if (cssC[k]) retu
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 /* ================= settings ================= */
-// defaults = the owner's own export of 2026-10-16 (bora-settings-20261016.json)
+// defaults = the owner's own export of 2026-10-18 (bora-settings-20261018.json; callsign and radio message left generic), padding tight (2 / 1 px)
 const DEF = {
   uVario: 'm/s', uAlt: 'm', uSpd: 'km/h', avgS: 5, wingLD: 9.0, rotDefault: 'north', taOrient: 'wind',
-  layer: 'topo', poiRadius: 20, poiKinds: { town: true, airport: true, peak: false }, cylR: 400, safety: 150,
-  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 0.5, rateT: 0, ctlSmall: 320, wGap: 4, wPadX: 8, wPadY: 4, wLab: 12, wRad: 10, modeAuto: true, modeEnter: 6, modeHold: 20, modeClimbOn: false, modeClimb: 0.3, toSpd: 14.4, toTime: 0, cirRate: 7, cirWin: 8, cirSpd: 7.2, thRec: 30, thJoin: 30, windAvg: 120, towWin: 90, towRelV: 0.3, towRelT: 4, xcOut: 2, xcBack: 75, xcTri: 15, thermPage: 'pThermal', thermBack: true, modeChip: true, autoRules: [], notamProxy: '', notamRadius: 50, sound: true, volume: 0.3, volPct: 30, fai: true,
+  layer: 'sat', poiRadius: 20, poiKinds: { town: true, airport: true, peak: false }, cylR: 400, safety: 150,
+  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 1, rateT: 0.5, ctlSmall: 320, wGap: 4, wPadX: 2, wPadY: 1, wLab: 12, wRad: 10, modeAuto: true, modeEnter: 6, modeHold: 20, modeClimbOn: false, modeClimb: 0.3, toSpd: 14.4, toTime: 3, cirRate: 7, cirWin: 8, cirSpd: 7.2, thRec: 30, thJoin: 30, windAvg: 120, towWin: 20, towRelV: 0.3, towRelT: 8, xcOut: 2, xcBack: 75, xcTri: 15, thermPage: 'pThermal', thermBack: 'pMap', modeChip: true, autoRules: [{ id: 'arDef1', on: true, event: 'towStart', delay: 0, action: 'soundOff', text: '' }], notamProxy: '', notamRadius: 50, sound: true, volume: 0.3, volPct: 30, fai: false,
   // acoustic vario: lift tone from vLift m/s, sink alarm below vSink, pitch vF0 + vFk per m/s, beep speed, waveform, near-lift buzzer, sound damping
   vLift: 0.2, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
   // voice messages (speech synthesis)
