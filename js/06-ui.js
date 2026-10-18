@@ -310,11 +310,15 @@ function taDraw(cv, W, el) {
 /* ----- Thermal side views: your recent track around you, seen from the side ----- */
 // view 'along': axis = downwind (you see upwind ← → downwind, i.e. how the thermal leans with the wind)
 // view 'cross': axis = 90° right of downwind (you see the thermal from downwind, left ← → right)
-function sideAxis(view) {
-  const th = st.thermal, w = windFromSpd(), live = th && !th.end;
-  // the view only turns when the wind has clearly changed (> 30°) and never during a thermal, so the picture stays put
-  if (w && (st.sideAx == null || (!live && Math.abs(angDiff(st.sideAx, w.to)) > 30))) st.sideAx = w.to;
-  const base = st.sideAx ?? null;
+function sideAxis(view, cfg, cv) {
+  const th = st.thermal, w = windFromSpd(), live = th && !th.end, A = cv || {}, now = Date.now();
+  // per widget: turn with the wind once it has changed more than cfg.axTurn° (default 10), also during a thermal unless cfg.axTherm is off;
+  // the view then swings over smoothly (~1.5 s). The history is re-drawn from stored positions, so nothing is lost when it turns.
+  const thr = clamp(+(cfg && cfg.axTurn) || 10, 5, 90), inTh = !(cfg && (cfg.axTherm === false || cfg.axTherm === 'false'));
+  if (w && (A._axT == null || ((inTh || !live) && Math.abs(angDiff(A._axT, w.to)) > thr))) { A._axT = w.to; if (A._ax == null) A._ax = w.to; }
+  if (A._axT != null) { const dt = clamp((now - (A._axAt || now)) / 1000, 0, 2), d = angDiff(A._ax, A._axT); A._ax = Math.abs(d) < 0.5 ? A._axT : wrap360(A._ax + d * (1 - Math.exp(-dt / 0.6))); }
+  A._axAt = now; st.sideAx = A._ax ?? st.sideAx;
+  const base = A._ax ?? null;
   // no wind yet: north on the left, south on the right (as if the wind came from the north)
   return { ax: wrap360((base ?? 180) + (view === 'cross' ? 90 : 0)), hasWind: base != null };
 }
@@ -351,7 +355,7 @@ function sideDraw(cv, W, el) {
   const hold = W.cfg.hold === true || W.cfg.hold === 'true';
   let hd = 0; if (view === 'head') { const tk = f.trk ?? cv._hd ?? 0; hd = cv._hd == null ? tk : hold && st.circling ? cv._hd : wrap360(cv._hd + angDiff(cv._hd, tk) * 0.7); cv._hd = hd; }
   const ahead = clamp(+W.cfg.ahead || 1000, 100, 5000), fx = Math.sin(hd * D2R), fy = Math.cos(hd * D2R), fwd = (x, y) => x * fx + y * fy;
-  const { ax, hasWind } = view === 'head' ? { ax: wrap360(hd + 90), hasWind: true } : sideAxis(view), ux = Math.sin(ax * D2R), uy = Math.cos(ax * D2R), now = f.t, th = st.thermal;
+  const { ax, hasWind } = view === 'head' ? { ax: wrap360(hd + 90), hasWind: true } : sideAxis(view, W.cfg, cv), ux = Math.sin(ax * D2R), uy = Math.cos(ax * D2R), now = f.t, th = st.thermal;
   if (cv._ax !== ax) { cv._rng = null; cv._ax = ax; }
   const proj = (x, y) => x * ux + y * uy, wv = st.wind || { vx: 0, vy: 0 };
   // positions relative to you (you are at 0), in the moving air like the thermal assistant: older points move on with the wind,
