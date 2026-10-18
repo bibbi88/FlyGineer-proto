@@ -833,7 +833,7 @@ function renderWidgets() {
     else {
       const txt = String(d.v ?? '--'); const [px, py] = pd || [sN('wPadX', 2), sN('wPadY', 1)], avail = b.h - 2 * ins - 2 * py - 2 - (showT ? lh : 0) - (d.s ? lh : 0);
       const fs = Math.max(12, Math.min(avail * 0.95, (b.w - 2 * ins - 2 * px - 4) / Math.max(2.2, txt.length * (d.btn ? 0.68 : 0.5))) * mul);
-      html += `<div class="wv" style="font-size:${fs.toFixed(0)}px;${d.col ? 'color:' + d.col : ''}${d.center ? ';justify-content:center;text-align:center' : ''}">${esc(txt)}</div>` + (d.s ? `<div class="ws">${esc(d.s)}</div>` : '');
+      html += `<div class="wv" style="font-size:${fs.toFixed(0)}px;${d.col ? 'color:' + d.col : ''}${d.center ? ';justify-content:center;text-align:center' : ''}">${esc(txt)}</div>` + (d.s ? `<div class="ws">${d.sHtml ? d.s : esc(d.s)}</div>` : '');
     }
     html += HANDLES;
     const bgc = d.bgc ? d.bgc + '|' + (d.col || '') : null;
@@ -1391,6 +1391,6 @@ window.addEventListener('focus', () => { if (S.autoImport && curPage === 'pWeb' 
 $('webBar').addEventListener('pointerdown', () => { if ((webGet(webCur) || {}).kind === 'flyxc') tryClipboardImport(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { tryClipboardImport(); wake(); } });
 document.addEventListener('pointerdown', () => { wake(); if (S.sound) beep.init(); }, { once: true });
-navigator.getBattery?.().then((b) => { const u = () => (st.deviceBat = Math.round(b.level * 100)); u(); b.addEventListener('levelchange', u); });
+navigator.getBattery?.().then((b) => { const u = () => { st.deviceBat = Math.round(b.level * 100); st.deviceChg = b.charging; }; u(); b.addEventListener('levelchange', u); b.addEventListener('chargingchange', u); });
 
 

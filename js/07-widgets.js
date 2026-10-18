@@ -27,6 +27,7 @@ const WT = {
   gain: { n: 'Thermal gain', d: 'Height gained', w: 3, h: 2, o: [['units', 'Units', U_A]] },
   ttime: { n: 'Time in thermal', d: 'Minutes:seconds', w: 3, h: 2, o: [] },
   flight: { n: 'Flight time', d: 'Since takeoff', w: 3, h: 2, o: [] },
+  conn: { n: 'Connection & battery', d: 'Vario battery and sensor status; tap for the details (vario, GPS, tablet, internet)', w: 3, h: 2, o: [['look', 'Shows', [['bat', 'Battery only'], ['dots', 'Battery + G B T D']]], ['tab', 'Tablet battery below', [[true, 'Show'], [false, 'Hide']]]] },
   tclock: { n: 'Time (tap to switch)', d: 'Local time, UTC or flight time; a tap shows the next one', w: 3, h: 2, o: [['show', 'Showing', [['local', 'Local time'], ['utc', 'UTC'], ['flight', 'Flight time']]], ['others', 'The other two below', [[true, 'Show'], [false, 'Hide']]], ['sec', 'Seconds', [[false, 'Hide'], [true, 'Show']]]] },
   time: { n: 'Clock', d: 'Local or UTC', w: 3, h: 2, o: [['zone', 'Time zone', [['local', 'Local'], ['utc', 'UTC']]], ['sec', 'Seconds', [[false, 'Hide'], [true, 'Show']]]] },
   temp: { n: 'Temperature', d: 'From the vario', w: 3, h: 2, o: [] },
@@ -261,6 +262,14 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
     case 'gain': { const g = thRes(alt, now); return { l: 'Thermal gain', u: AU, v: g ? (g.gain >= 0 ? '+' : '') + A(g.gain) : '--', s: g ? g.s : '' }; }
     case 'ttime': { const t = th ? Math.floor(((th.end || now) - th.t0) / 1000) : null; return { l: 'In thermal', u: '', v: t != null ? Math.floor(t / 60) + ':' + pad2(t % 60) : '--' }; }
     case 'flight': { const t = st.takeoffT ? Math.floor((now - st.takeoffT) / 1000) : null; return { l: 'Flight time', u: '', v: t != null ? Math.floor(t / 3600) + ':' + pad2(Math.floor(t / 60) % 60) : '--' }; }
+    case 'conn': { // compact: the vario battery (red under 20 %), optional status dots like the corner (G = GPS, B = Bora, T = temperature, D = demo/replay); tap: connInfoHTML
+      const vb = st.bora && st.bora.batt, pct = vb && vb.pct != null ? vb.pct : null, gOk = st.fix && nowT() - st.fix.t < 4000, low = pct != null && pct < 20;
+      const v = vb ? (pct != null ? pct + '%' : vb.v.toFixed(2) + ' V') : st.bora ? '…' : st.sim ? (st.simBat || 90) + '%' : st.replay ? 'IGC' : '--';
+      const dot = (k, on) => `<span style="display:inline-block;min-width:1.25em;margin-right:3px;padding:0 3px;border-radius:4px;font-weight:700;${on ? 'background:var(--climb);color:#fff' : 'border:1px solid var(--line);opacity:.6'}">${k}</span>`;
+      const tab = c.tab === false || c.tab === 'false' || st.deviceBat == null ? '' : 'tablet ' + st.deviceBat + '%' + (st.deviceChg ? ' ⚡' : '');
+      const r = { l: st.bora ? (st.bora.name || 'Bora') : 'Vario', u: '', v, col: low ? css('--restr') : null, s: tab || (st.bora ? '' : 'not connected · tap') };
+      if (c.look === 'dots') r.s = dot('G', gOk) + dot('B', !!st.bora) + dot('T', st.baro && st.baro.temp != null) + dot('D', !!(st.sim || st.replay)) + (tab ? ' ' + tab : ''), r.sHtml = true;
+      return r; }
     case 'tclock': { // local / UTC / flight time, a tap goes to the next (tap action tcycle)
       const sec = c.sec === true || c.sec === 'true', d = new Date(st.replay ? st.replay.vt : Date.now()), hm = (h, m, s) => pad2(h) + ':' + pad2(m) + (sec ? ':' + pad2(s) : '');
       const ft = st.takeoffT ? Math.floor((nowT() - st.takeoffT) / 1000) : null, V = { local: hm(d.getHours(), d.getMinutes(), d.getSeconds()), utc: hm(d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()), flight: ft != null ? Math.floor(ft / 3600) + ':' + pad2(Math.floor(ft / 60) % 60) + (sec ? ':' + pad2(ft % 60) : '') : '--' };
@@ -507,7 +516,7 @@ function openSheet(id) {
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
 const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'], 'button:mute': ['Mute vario button', 'Vario sound on/off, red while muted'] };
-const ADD_NEW = ['tclock', 'baro', 'button:mute', 'radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
+const ADD_NEW = ['conn', 'tclock', 'baro', 'button:mute', 'radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
   ['Thermal', ['thchip', 'ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
   ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'tow', 'temp', 'baro']],
@@ -516,7 +525,7 @@ const ADD_GROUPS = [
   ['Buttons', ['button:mute', 'button:pSwitch', 'button:fullscreen', 'button']],
   ['Weather', ['profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],
   ['Airspace & places', ['radiomsg', 'airwarn', 'airbtn', 'air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],
-  ['Flight & tablet', ['tclock', 'flight', 'time', 'battery']]];
+  ['Flight & tablet', ['conn', 'tclock', 'flight', 'time', 'battery']]];
 function openAdd() {
   const btn = (k, n, d, g) => `<button data-add="${k}" data-q="${esc((n + ' ' + d).toLowerCase())}">${ADD_NEW.includes(k) ? '<span class="newTag">New</span>' : ''}${n}<small>${d}</small></button>`, seen = new Set();
   const groups = ADD_GROUPS.map(([g, ks]) => [g, ks.filter((k) => WT[k.split(':')[0]])]);

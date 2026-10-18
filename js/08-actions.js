@@ -2,7 +2,7 @@
 /* ================= widget tap actions & detail popups ================= */
 // default "When held": the page button opens the page menu, height widgets show heights in feet, maps and buttons nothing, other widgets their details
 function defHold(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'thoff' : W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' ? 'none' : 'details'; }
-function defTap(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'chip' : W.type === 'time' ? 'time' : W.type === 'tclock' ? 'tcycle' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
+function defTap(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'chip' : W.type === 'time' ? 'time' : W.type === 'tclock' ? 'tcycle' : W.type === 'conn' ? 'conninfo' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
 let detT = null, detState = null;
 function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); } catch (e) { toast('Full screen not available here'); } }
 document.addEventListener('fullscreenchange', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
@@ -57,6 +57,7 @@ function handleTap(W) {
   // height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
   if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); return switchUnits(W); }
   if (a === 'vmode') { if (W.type !== 'vario') return; const o = ['number', 'bar', 'dial'], D = cfgW(W); D.mode = o[(o.indexOf(effCfg(W).mode || 'number') + 1) % 3]; saveLayout(); return; }
+  if (a === 'conninfo') return openInfo('Connection & battery', connInfoHTML, W);
   if (a === 'tcycle') { if (W.type !== 'tclock') return openDetails(W); const o = ['local', 'utc', 'flight'], D = cfgW(W); D.show = o[(o.indexOf(effCfg(W).show || 'local') + 1) % 3]; saveLayout(); renderWidgets(); return; }
   if (a === 'sound') { applySet('sound', String(!S.sound)); toast('Vario sound ' + (S.sound ? 'on' : 'off')); return; }
   if (a[0] === 'p') return showPage(a);
@@ -64,7 +65,7 @@ function handleTap(W) {
 }
 const GROUP = { vario: 'vario', avg: 'vario', varioDial: 'vario', thermal: 'vario', gain: 'vario', ttime: 'vario', climb: 'vario', ta: 'vario',
   alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', fai: 'task', dist: 'task',
-  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', radiomsg: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', tclock: 'flight', temp: 'alt', baro: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
+  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', radiomsg: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', tclock: 'flight', conn: 'flight', temp: 'alt', baro: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
 function closeDetails() { clearInterval(detT); detT = null; detState = null; $('dlg').style.display = 'none'; }
 // XC flight widget: all three ways to score the flight at once, the FAI sectors switch and the mode
 function xcInfoHTML(W, held) {
@@ -408,6 +409,22 @@ function heightsHTML() {
   return row('AMSL', a, 'no altitude') + row('AGL', agl, 'needs terrain data');
 }
 // a popup that stays (tap) and refreshes every second
+// Connection & battery widget popup (live, redrawn every second by openInfo): vario, GPS, tablet, internet
+function connInfoHTML() {
+  const row = (k, v, ok) => `<div class="li" style="min-height:40px;justify-content:space-between;gap:12px"><span class="muted">${k}</span><b style="text-align:right${ok === false ? ';color:var(--restr)' : ''}">${v}</b></div>`;
+  const vb = st.bora && st.bora.batt, bs = typeof baroStats === 'function' ? baroStats() : {}, f = st.fix, gAge = f ? (nowT() - f.t) / 1000 : null;
+  let h = '<h3 style="margin:6px 0 2px">Vario</h3>';
+  if (st.bora) {
+    h += row('Connected', esc(st.bora.name || 'Bora')) + row('Battery', vb ? (vb.pct != null ? vb.pct + ' %' : vb.v.toFixed(2) + ' V') : 'not reported yet', vb && vb.pct != null ? vb.pct >= 20 : undefined);
+    h += row('Readings', bs.last ? bs.rate.toFixed(1) + ' per second' + (bs.age > 2 ? ' · last ' + bs.age.toFixed(0) + ' s ago' : '') : 'none yet', bs.last ? bs.age <= 2 : false);
+    if (bs.last && bs.last.pa) h += row('Pressure', (bs.last.pa / 100).toFixed(2) + ' hPa · QNH ' + (+sN('qnh', 1013.25)).toFixed(1));
+    if (st.baro && st.baro.temp != null) h += row('Temperature', st.baro.temp.toFixed(0) + ' °C');
+  } else h += row('Status', st.sim ? 'demo vario' : st.replay ? 'IGC replay (' + esc(st.replay.name || '') + ')' : 'not connected', st.sim || st.replay ? undefined : false) + `<div class="row" style="margin:6px 0"><button class="btn primary" onclick="connectBora()">Connect over Bluetooth</button></div>`;
+  h += '<h3 style="margin:10px 0 2px">GPS</h3>' + row('Position', f ? (gAge < 4 ? 'fix' : 'last fix ' + gAge.toFixed(0) + ' s ago') + (f.acc ? ' · ±' + Math.round(f.acc) + ' m' : '') : 'waiting for position', f ? gAge < 4 : false);
+  if (st.replay || st.sim) h += row('Real GPS', st.gpsPos ? '±' + Math.round(st.gpsPos.acc || 0) + ' m, ' + Math.round((Date.now() - st.gpsPos.t) / 1000) + ' s ago' : 'none');
+  h += '<h3 style="margin:10px 0 2px">Tablet</h3>' + row('Battery', st.deviceBat != null ? st.deviceBat + ' %' + (st.deviceChg ? ' · charging' : '') : 'not available', st.deviceBat == null || st.deviceBat >= 20 || st.deviceChg) + row('Internet', navigator.onLine ? 'online' : 'offline', navigator.onLine);
+  return h + `<div class="row" style="margin-top:10px"><button class="btn" onclick="$('dlg').style.display='none';openSettings('data')">Vario & GPS settings</button></div>`;
+}
 function openInfo(title, fn, W) { // W: adds a Settings button that opens this widget's settings
   const draw = () => { const b = document.getElementById('hBody'); if (b) b.innerHTML = fn(); };
   const close = () => { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; };
