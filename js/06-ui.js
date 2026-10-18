@@ -1288,6 +1288,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setNav(f
   chip.addEventListener('click', () => { if (held) { held = false; return; } chipTap(); }); }
 $('rpPlay').onclick = () => { const r = st.replay; if (!r) return; if (r.i >= r.pts.length) { seekReplay(0); return; } r.playing = !r.playing; renderReplayBar(); };
 $('rpStop').onclick = () => stopReplay();
+$('rpBack').onclick = () => replaySkip(-60); $('rpFwd').onclick = () => replaySkip(60);
 // floating replay bar: drag by the grip anywhere on the screen (position remembered), fold to play/pause only
 function placeReplayBar() {
   const b = $('replayBar'); if (!b || b.style.display === 'none') return;

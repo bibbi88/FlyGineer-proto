@@ -122,13 +122,20 @@ function replayTick() {
   if (r.i >= r.pts.length) { r.playing = false; toast('End of flight', [['Restart', () => seekReplay(0)], ['Stop', () => stopReplay()]]); }
   renderReplayBar();
 }
-function seekReplay(frac) {
+// ±1 min buttons: forward plays the minute through at once (all history kept); back rebuilds the flight up to the new time
+// from the start (seekReplay with full), so the thermal views and stats still have the earlier flight
+function replaySkip(sec) {
+  const r = st.replay; if (!r) return; const a = r.pts[0].t, b = r.pts[r.pts.length - 1].t;
+  if (sec > 0) { r.vt = Math.min(b, r.vt + sec * 1000); while (r.i < r.pts.length && r.pts[r.i].t <= r.vt) { feedPoint(r.pts[r.i], r.pts[r.i - 1]); r.i++; } if (r.i >= r.pts.length) r.playing = false; st.lastPredFetch = 0; renderReplayBar(); tick(); return; }
+  seekReplay((Math.max(a, r.vt + sec * 1000) - a) / (b - a), true);
+}
+function seekReplay(frac, full) {
   st.autoQ = [];
   const r = st.replay; if (!r) return; const keep = { pts: r.pts, speed: r.speed, playing: r.playing, timer: r.timer, name: r.name, launch: r.launch };
   const target = r.pts[0].t + frac * (r.pts[r.pts.length - 1].t - r.pts[0].t);
   resetFlightState(); Object.assign(r, keep, { i: 0, v: 0, vt: target }); st.takeoffT = r.pts[0].t; st.takeoffPos = r.launch ? r.launch.slice() : null;
   // replay the last 2 minutes quickly so wind, thermal and averages rebuild
-  while (r.i < r.pts.length && r.pts[r.i].t < target - 120000) r.i++;
+  if (!full) while (r.i < r.pts.length && r.pts[r.i].t < target - 120000) r.i++;
   while (r.i < r.pts.length && r.pts[r.i].t <= target) { feedPoint(r.pts[r.i], r.pts[r.i - 1]); r.i++; }
   if (r.i >= r.pts.length) r.playing = false; else if (frac === 0) r.playing = true;
   st.lastPredFetch = 0; MAPS.forEach((I) => (I.up = undefined)); renderReplayBar(); tick();
