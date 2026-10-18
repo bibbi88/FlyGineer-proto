@@ -245,8 +245,13 @@ function updateMode() {
 function setMode(on) {
   st.thermMode = on; if (!on) st.gliSince = 0;
   if (!wEdit && !st.force) {
+    // entering: show the thermal page (from any widget page); leaving: if you are still on the thermal page, go back (S.thermBack: true = the page
+    // you used before, a page id = that page, false = stay). Changing pages during the thermal no longer cancels this (it used to).
+    if (on) st.preTh = PAGEKEY[curPage] && curPage !== S.thermPage ? curPage : st.lastWPage || 'pMap'; // where you were when the thermal started
     if (on && S.thermPage && S.thermPage !== 'off' && PAGEKEY[curPage] && curPage !== S.thermPage) { st.prevPage = curPage; st.autoSwitched = true; st.autoNav = true; showPage(S.thermPage); st.autoNav = false; }
-    else if (!on && st.autoSwitched && S.thermBack !== false && S.thermBack !== 'false' && curPage === S.thermPage && st.prevPage) { st.autoNav = true; showPage(st.prevPage); st.autoNav = false; st.autoSwitched = false; }
+    else if (!on && S.thermPage && S.thermPage !== 'off' && curPage === S.thermPage && S.thermBack !== false && S.thermBack !== 'false') {
+      const tb = S.thermBack, to = tb === true || tb === 'true' || tb == null ? st.preTh || st.lastWPage || 'pMap' : tb;
+      if (PAGEKEY[to] && to !== curPage) { st.autoNav = true; showPage(to); st.autoNav = false; } st.autoSwitched = false; }
   }
   if (!on && !(st.autoSwitched && curPage === S.thermPage)) st.autoSwitched = false;
   st.modeSince = nowT();

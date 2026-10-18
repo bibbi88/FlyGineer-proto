@@ -1210,7 +1210,8 @@ function modesSection() {
     ${seg('modeClimbOn', [[false, 'No'], [true, 'Yes']], 'Only when climbing')}${yes('modeClimbOn') ? numField('modeClimb', 'since circling started') : ''}
     ${numField('modeHold', 'not circling')}
     ${seg('thermPage', [['off', 'Stay'], ['pThermal', 'Thermal'], ['pMap', 'Map'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']].concat(S.pages.map((p) => [p.id, p.name])), 'Show page when thermaling')}
-    ${seg('thermBack', [[true, 'Yes'], [false, 'No']], 'Go back when gliding again')}
+    ${seg('thermBack', [[true, 'Page before'], ['pMap', 'Map'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace']].concat(S.pages.map((p) => [p.id, p.name])).concat([[false, 'Stay']]), 'When gliding again, show')}
+    <div class="muted">Goes back when thermal mode ends while the thermal page is still shown, also if you changed pages in between. "Page before" = the page you were on when the thermal started.</div>
     <div class="muted">THERMAL / THERMAL? is a widget: Thermal mode (edit a page → Add widget). Tap THERMAL? to start thermal mode now, hold THERMAL to leave it. Each widget can have its own settings while thermaling (edit sheet → <b>When thermaling</b>), and "Show when" can show it only while thermalling or only after it stopped.</div></div>
   <div class="card sec">${H('Tow launch')}${seg('towDetect', [[true, 'On'], [false, 'Off']], 'Detect towing')}
     ${S.towDetect === false || S.towDetect === 'false' ? '' : numField('towMin', 'straight, for 5 s') + numField('towWin', 'of takeoff or of the previous release') + numField('towRelV') + numField('towRelT')}
@@ -1266,6 +1267,7 @@ function setNav(open) {
 let pageRaf = 0;
 function showPage(id) {
   if (!st.autoNav) st.autoSwitched = false;
+  if (PAGEKEY[curPage] && curPage !== S.thermPage) st.lastWPage = curPage; // the widget page you used before the thermal page (where "go back" returns)
   setNav(false); if (wEdit) exitEdit();
   curPage = id; document.body.dataset.page = id; document.body.classList.toggle('wpage', !!PAGEKEY[id]); document.querySelectorAll('.page').forEach((p) => p.classList.toggle('on', p.id === id));
   document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-current', t.dataset.page === id ? 'page' : 'false'));
