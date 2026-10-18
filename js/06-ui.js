@@ -356,7 +356,7 @@ function sideDraw(cv, W, el) {
   let hd = 0; if (view === 'head') { const tk = f.trk ?? cv._hd ?? 0; hd = cv._hd == null ? tk : hold && st.circling ? cv._hd : wrap360(cv._hd + angDiff(cv._hd, tk) * 0.7); cv._hd = hd; }
   const ahead = clamp(+W.cfg.ahead || 1000, 100, 5000), fx = Math.sin(hd * D2R), fy = Math.cos(hd * D2R), fwd = (x, y) => x * fx + y * fy;
   const { ax, hasWind } = view === 'head' ? { ax: wrap360(hd + 90), hasWind: true } : sideAxis(view, W.cfg, cv), ux = Math.sin(ax * D2R), uy = Math.cos(ax * D2R), now = f.t, th = st.thermal;
-  if (cv._ax !== ax) { cv._rng = null; cv._ax = ax; }
+  if (cv._axShown !== ax) { cv._rng = null; cv._axShown = ax; } // (cv._ax is sideAxis' own state, don't overwrite it)
   const proj = (x, y) => x * ux + y * uy, wv = st.wind || { vx: 0, vy: 0 };
   // positions relative to you (you are at 0), in the moving air like the thermal assistant: older points move on with the wind,
   // so a column shows its real lean in the air instead of your drift
