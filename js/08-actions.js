@@ -1,8 +1,8 @@
 'use strict';
 /* ================= widget tap actions & detail popups ================= */
 // default "When held": the page button opens the page menu, height widgets show heights in feet, maps and buttons nothing, other widgets their details
-function defHold(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'thoff' : W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' ? 'none' : 'details'; }
-function defTap(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'chip' : W.type === 'time' ? 'time' : W.type === 'tclock' ? 'tcycle' : W.type === 'conn' ? 'conninfo' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
+function defHold(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'thoff' : W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'tclock' ? 'times' : W.type === 'map' ? 'none' : 'details'; }
+function defTap(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'chip' : W.type === 'time' ? 'time' : W.type === 'tclock' ? 'times' : W.type === 'conn' ? 'conninfo' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
 let detT = null, detState = null;
 function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); } catch (e) { toast('Full screen not available here'); } }
 document.addEventListener('fullscreenchange', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
@@ -57,6 +57,7 @@ function handleTap(W) {
   // height widgets: switch m ↔ ft (a title like "AMSL [m]" follows along)
   if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); return switchUnits(W); }
   if (a === 'vmode') { if (W.type !== 'vario') return; const o = ['number', 'bar', 'dial'], D = cfgW(W); D.mode = o[(o.indexOf(effCfg(W).mode || 'number') + 1) % 3]; saveLayout(); return; }
+  if (a === 'times') return openInfo('Time', timesHTML);
   if (a === 'conninfo') return openInfo('Connection & battery', connInfoHTML, W);
   if (a === 'tcycle') { if (W.type !== 'tclock') return openDetails(W); const o = ['local', 'utc', 'flight'], D = cfgW(W); D.show = o[(o.indexOf(effCfg(W).show || 'local') + 1) % 3]; saveLayout(); renderWidgets(); return; }
   if (a === 'sound') { applySet('sound', String(!S.sound)); toast('Vario sound ' + (S.sound ? 'on' : 'off')); return; }
@@ -498,6 +499,13 @@ function infoHTML(W) {
   return h;
 }
 const timeHTML = () => { const d = new Date(); return `<div class="hRow"><span class="lbl">Local</span><span class="hFt num">${pad2(d.getHours())}:${pad2(d.getMinutes())}</span><span class="hM"></span></div><div class="hRow"><span class="lbl">UTC</span><span class="hFt num">${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}</span><span class="hM"></span></div>`; };
+// Time widget popup: local, UTC, takeoff (local and UTC) and flight time; follows the replay clock during a replay
+const timesHTML = () => {
+  const d = new Date(nowT()), hm = (x, u) => pad2(u ? x.getUTCHours() : x.getHours()) + ':' + pad2(u ? x.getUTCMinutes() : x.getMinutes()), hms = (x, u) => hm(x, u) + '<small>:' + pad2(u ? x.getUTCSeconds() : x.getSeconds()) + '</small>';
+  const off = -d.getTimezoneOffset() / 60, to = st.takeoffT ? new Date(st.takeoffT) : null, ft = to ? Math.floor((nowT() - st.takeoffT) / 1000) : null;
+  const row = (k, v, s) => `<div class="hRow"><span class="lbl">${k}</span><span class="hFt num">${v}</span><span class="hM">${s || ''}</span></div>`;
+  return row('Local', hms(d), 'UTC' + (off >= 0 ? '+' : '') + off) + row('UTC', hms(d, true)) + row('Takeoff', to ? hm(to) : '--', to ? hm(to, true) + ' UTC' : 'not flying yet') + row('Flight time', ft != null ? Math.floor(ft / 3600) + ':' + pad2(Math.floor(ft / 60) % 60) + '<small>:' + pad2(ft % 60) + '</small>' : '--');
+};
 // "When held": info shown while held (returns how to hide it), or an action run once
 function runHold(W, a) {
   if (a === 'none') return null;
@@ -506,6 +514,7 @@ function runHold(W, a) {
   if (a === 'airlist') { holdPop(true, () => airListHTML(W)); return 'pop'; }
   if (a === 'radiopoi') { const p = radioRef(effCfg(W).ref); if (!p) return null; holdPop(true, () => poiInfoHTML(p, 'me')); return 'pop'; }
   if (a === 'time') { holdPop(true, timeHTML); return 'pop'; }
+  if (a === 'times') { holdPop(true, timesHTML); return 'pop'; }
   if (a === 'details') { if (W.type === 'button') return null; if (W.type === 'fai') { holdPop(true, () => '<b style="font-size:22px">XC flight</b>' + xcInfoHTML(W, true)); return 'pop'; } openDetails(W); return 'dlg'; }
   if (a === 'pages') { pageMenu(); return null; }
   if (a === 'chip') { chipTap(); return null; }
