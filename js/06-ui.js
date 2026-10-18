@@ -873,7 +873,7 @@ function updateBackOverlay(layer) {
   ov.style.bottom = '18px';
 }
 function saveLayout() { save(); renderWidgets(); }
-function enterEdit(selId) { wEdit = true; document.body.classList.add('wedit'); wSel = selId || null; $('wbName').textContent = pageTitle(pageKey()); setNav(false); renderWidgets(); if (selId) openSheet(selId); }
+function enterEdit(selId) { wEdit = true; document.body.classList.add('wedit'); wSel = selId || null; $('wbName').textContent = pageTitle(pageKey()); setNav(false); renderWidgets(); bannerAvoid($('corner')); if (selId) openSheet(selId); } // the edit bar moves away from the menu buttons
 function exitEdit() { wEdit = false; wSel = null; document.body.classList.remove('wedit'); $('wSheet').classList.remove('on'); if (st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } sheetFor = null; saveLayout(); }
 
 /* ----- actions from buttons inside widgets ----- */
@@ -1113,7 +1113,7 @@ function renderSettings() {
     <pre class="raw" id="bmCode" style="word-break:break-all">${esc(bookmarklet())}</pre>
     <div class="field"><span class="k"></span><button class="btn primary" id="bmCopy">Copy bookmark code</button></div>`;
   if (setSec === 'web') h = webSection();
-  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('corner', [['auto', 'Auto'], ['full', 'Clock, status, menu'], ['menu', 'Menu only']], 'Top-right buttons')}<div class="muted">Auto shows only the menu button on small screens (phones), so the buttons don't cover your widgets.</div>${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
+  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('corner', [['auto', 'Auto'], ['full', 'Clock, status, menu'], ['menu', 'Menu only']], 'Top-right buttons')}${seg('cornerPos', [['tr', 'Top right'], ['tl', 'Top left'], ['br', 'Bottom right'], ['bl', 'Bottom left']].concat(S.cornerPos === 'free' ? [['free', 'Custom']] : []), 'Menu buttons position')}<div class="muted">Or drag them anywhere while editing a page (dashed outline). They can be moved but not removed.</div><div class="muted">Auto shows only the menu button on small screens (phones), so the buttons don't cover your widgets.</div>${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
     <div class="card sec"><h2>Widget spacing</h2><div class="muted">Make widgets more compact: less space between and inside them leaves more room for the values (they grow to fill it).</div>${numField('wGap', '0 = edge to edge')}${numField('wPadX')}${numField('wPadY')}${numField('wLab')}${numField('wRad', '0 = square')}<div class="muted">One widget can have its own padding: edit it → Padding.</div>${numField('ctlSmall', '0 = never')}<div class="muted">Small maps and thermal views hide their buttons (zoom, ±, orientation …) so they don't cover the picture; tap the widget to show them for a few seconds. Lower than ¾ of this height counts as small too. Per widget: edit it → On-widget buttons.</div><div class="field"><span class="k">Defaults</span><button class="btn" id="wSpReset">Default (tight)</button><button class="btn" id="wSpRoomy">Roomy</button><button class="btn" id="wSpTight">Compact</button></div></div>
     <div class="card sec"><h2>Acoustic vario</h2>
     ${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}${numField('volPct')}
@@ -1292,6 +1292,7 @@ function applySet(key, raw) {
   if (key === 'voice' && v) say(vt().test, true);
   if (key === 'wake') wake();
   if (key === 'corner') cornerMode();
+  if (key === 'cornerPos') placeCorner();
   if (/^w(Gap|PadX|PadY|Lab|Rad)$/.test(key)) { wStyle(); document.querySelectorAll('.wg').forEach((e) => { e._sk = null; e._last = null; }); }
   if (key === 'titles') renderWidgets();
   if (key === 'rate' || key === 'rateT') loop();
@@ -1359,6 +1360,28 @@ function placeReplayBar() {
   g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end); }
 $('rpMin').onclick = () => { S.rpMin = !S.rpMin; save(); placeReplayBar(); };
 addEventListener('resize', placeReplayBar);
+/* the top-right buttons (clock, battery/status, menu) can sit in any corner or anywhere (S.cornerPos 'tr' default / 'tl' / 'br' / 'bl' / 'free'
+   with S.cornerXY = fractions of the screen); they are not a widget, so they can be moved but never removed. While editing a page
+   they get a dashed outline and can be dragged (a drag of > 8 px; a plain tap still works). */
+function placeCorner() {
+  const c = $('corner'); if (!c) return; const p = S.cornerPos || 'tr', g = 'calc(env(safe-area-inset-top,0px) + 6px)';
+  const set = (o) => Object.assign(c.style, { top: '', bottom: '', left: '', right: '' }, o);
+  if (p === 'free' && S.cornerXY) { const r = c.getBoundingClientRect(); set({ left: clamp(S.cornerXY.x * innerWidth, 0, Math.max(0, innerWidth - r.width)) + 'px', top: clamp(S.cornerXY.y * innerHeight, 0, Math.max(0, innerHeight - r.height)) + 'px', right: 'auto' }); }
+  else if (p === 'tl') set({ top: g, left: '8px', right: 'auto' });
+  else if (p === 'br') set({ top: 'auto', bottom: '8px', right: '8px' });
+  else if (p === 'bl') set({ top: 'auto', bottom: '8px', left: '8px', right: 'auto' });
+  else set({});
+  document.body.dataset.corner = p;
+}
+{ let d = null; const c = $('corner');
+  c.addEventListener('pointerdown', (e) => { if (!document.body.classList.contains('wedit')) return; const r = c.getBoundingClientRect(); d = { sx: e.clientX, sy: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false, id: e.pointerId }; }, true);
+  addEventListener('pointermove', (e) => { if (!d || e.pointerId !== d.id) return; if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 8) return; if (!d.moved) { d.moved = true; try { c.setPointerCapture(d.id); } catch (x) { } }
+    const r = c.getBoundingClientRect(); Object.assign(c.style, { left: clamp(e.clientX - d.dx, 0, innerWidth - r.width) + 'px', top: clamp(e.clientY - d.dy, 0, innerHeight - r.height) + 'px', right: 'auto', bottom: 'auto' }); e.preventDefault(); }, true);
+  const end = (e) => { if (!d || (e && e.pointerId !== d.id)) return; const m = d.moved; d = null; if (!m) return; const r = c.getBoundingClientRect(); S.cornerPos = 'free'; S.cornerXY = { x: r.left / innerWidth, y: r.top / innerHeight }; save(); placeCorner(); bannerAvoid(c); c._noClick = Date.now(); };
+  addEventListener('pointerup', end, true); addEventListener('pointercancel', end, true);
+  c.addEventListener('click', (e) => { if (c._noClick && Date.now() - c._noClick < 400) { e.stopPropagation(); e.preventDefault(); } }, true); // the release after a drag is not a tap
+}
+addEventListener('resize', placeCorner);
 // the Next turnpoint widget's link field: a pasted FlyXC link with a route is imported right away, Enter imports too
 document.addEventListener('input', (e) => { const i = e.target.closest?.('.fxIn'); if (i && /flyxc\.app\/?\S*[?&]p=/i.test(i.value) && importFlyXC(i.value)) renderWidgets(); });
 document.addEventListener('keydown', (e) => { const i = e.target.closest?.('.fxIn'); if (i && e.key === 'Enter' && importFlyXC(i.value)) renderWidgets(); });

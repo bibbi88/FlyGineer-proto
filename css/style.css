@@ -32,6 +32,7 @@ body.pinned #top .iconBtn{width:52px;height:52px;padding:0;justify-content:cente
 body.pinned #top .mlbl{display:none}
 #corner{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);right:8px;z-index:2100;display:flex;gap:6px;align-items:center}
 #navBtn[aria-expanded="true"]{background:var(--ink);color:var(--bg)}
+body.wedit #corner{z-index:2160;outline:2px dashed var(--sink);outline-offset:3px;border-radius:12px;cursor:move;touch-action:none}
 body.pinned #navBtn{display:none}
 body:not(.pinned) #thermCol,body:not(.pinned) #atmCol,body:not(.pinned) #airCol,body:not(.pinned) #setBody{padding-top:60px}
 body.pinned #corner{top:calc(env(safe-area-inset-top,0px) + 6px)}
