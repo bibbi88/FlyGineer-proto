@@ -1036,9 +1036,7 @@ function seg(key, opts, label) { return `<div class="field"><span class="k">${la
 const SNUM = { warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], wGap: [0, 12, 1, 'px', 'Gap between widgets'], qnh: [900, 1100, 0.1, 'hPa', 'QNH'], baroTau: [0.2, 5, 0.1, 's', 'Vario response time'], baroNoise: [0.05, 2, 0.05, 'm', 'Sensor noise'], ctlSmall: [0, 800, 20, 'px', 'Hide on-widget buttons when narrower than'], wPadX: [0, 16, 1, 'px', 'Padding left and right'], wPadY: [0, 12, 1, 'px', 'Padding top and bottom'], wLab: [8, 18, 1, 'px', 'Title and info text size'], wRad: [0, 16, 1, 'px', 'Rounded corners'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeClimb: [-2, 3, 0.1, 'm/s', 'Average climb while circling at least'], toSpd: [5, 40, 0.5, 'km/h', 'Ground speed above'], toTime: [0, 30, 1, 's', 'For at least'], cirRate: [3, 20, 0.5, '°/s', 'Turning faster than'], cirWin: [3, 20, 1, 's', 'Turn rate measured over'], cirSpd: [0, 30, 0.5, 'km/h', 'Ground speed above'], thRec: [5, 300, 5, 's', 'Count as a thermal after'], thJoin: [0, 120, 5, 's', 'Same thermal when circling again within'], windAvg: [20, 600, 10, 's', 'Wind: average circles over'], towWin: [10, 600, 10, 's', 'Starts within'], towRelV: [-1, 2, 0.1, 'm/s', 'Released when climb is below'], towRelT: [1, 20, 1, 's', 'For'], xcOut: [0.5, 20, 0.5, 'km', 'Free distance until'], xcBack: [50, 95, 5, '%', 'Still going out while farther than'], xcTri: [5, 28, 1, '%', 'Triangle when the shortest leg is at least'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
 function numField(key, hint) { const [min, max, step, unit, label] = SNUM[key]; return `<div class="field"><span class="k">${label}${hint ? ' · ' + hint : ''}</span><span class="row"><button class="pill step" data-sn="${key}" data-sdir="-1" aria-label="Less">−</button><input type="number" class="numin" inputmode="decimal" data-sni="${key}" value="${S[key]}" min="${min}" max="${max}" step="${step}" aria-label="${label}, ${unit}"><span class="unit">${unit}</span><button class="pill step" data-sn="${key}" data-sdir="1" aria-label="More">+</button></span></div>`; }
 function setNum(key, v) { const [min, max, step] = SNUM[key], d = (String(step).split('.')[1] || '').length; if (!isFinite(v)) return; applySet(key, String(clamp(+(Math.round(v / step) * step).toFixed(d), min, max))); renderSettings(); }
-function renderSettings() {
-  if (S.volPct == null) S.volPct = Math.round((S.volume ?? 0.5) * 100);
-  $('setNav').innerHTML = SECS.map(([k, n]) => `<button data-sec="${k}" aria-current="${k === setSec}">${n}</button>`).join('');
+function setSecHTML() { // the HTML of section setSec
   let h = '';
   if (setSec === 'data') h = `<div class="card sec"><h2>Vario & GPS</h2>
     <div class="field"><span class="k">Bora vario</span>${st.bora ? `<b>Connected: ${esc(st.bora.name)}</b>` : `<button class="btn primary" id="bleBtn">Connect over Bluetooth</button>`}</div>
@@ -1137,11 +1135,19 @@ function renderSettings() {
     <div class="muted">The file holds every widget on all four pages with its position, size and settings, including the thermal-mode settings. API keys and proxy addresses are never saved to it.</div></div>`;
   if (setSec === 'auto') h = autoSection();
   if (setSec === 'app') h = appSection();
+  return h;
+}
+function renderSettings() {
+  if (S.volPct == null) S.volPct = Math.round((S.volume ?? 0.5) * 100);
+  const q = (st.setQ || '').trim();
+  $('setNav').innerHTML = SECS.map(([k, n]) => `<button data-sec="${k}" aria-current="${!q && k === setSec}">${n}</button>`).join('');
+  // search: every section rendered at once, then filtered (setFilter); without a search only the chosen section
+  let h; if (q) { const keep = setSec; h = SECS.map(([k, n]) => { setSec = k; return `<div class="setGroup" data-sk="${k}"><div class="setGroupT">${esc(n)}</div>${setSecHTML()}</div>`; }).join(''); setSec = keep; } else h = setSecHTML();
   $('setBody').innerHTML = h;
   const on = (id, ev, fn) => { const e = $(id); if (e) e[ev] = fn; };
   on('bleBtn', 'onclick', connectBora);
-  if (setSec === 'app') appSectionWire(on);
-  if (setSec === 'web') webSectionWire();
+  if (setSec === 'app' || q) appSectionWire(on);
+  if (setSec === 'web' || q) webSectionWire();
   on('modeReset', 'onclick', () => { const old = {}; MODE_KEYS.forEach((k) => { old[k] = S[k]; S[k] = DEF[k]; }); save(); renderSettings(); toast('Mode criteria reset', [['Undo', () => { Object.assign(S, old); save(); renderSettings(); }]]); });
   on('modeTest', 'onclick', () => { st.force = !st.force; st.sheetForce = false; updateMode(); renderSettings(); });
   on('expAll', 'onclick', () => exportSettings('all')); on('expLay', 'onclick', () => exportSettings('layouts'));
@@ -1149,7 +1155,8 @@ function renderSettings() {
   on('wEditBtn', 'onclick', () => { showPage('pMap'); setTimeout(() => enterEdit(), 80); });
   on('igcFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; try { startReplay(parseIGC(await fl.text()), fl.name.replace(/\.igc$/i, '')); } catch (err) { toast('Could not read the IGC file: ' + err.message); } });
   on('igcStop', 'onclick', () => { stopReplay(); renderSettings(); }); on('simBtn', 'onclick', () => { st.sim ? stopSim() : startSim(); renderSettings(); }); on('demoBtn', 'onclick', () => { isDemo() ? stopReplay() : startDemoFlight(); renderSettings(); });
-  if (setSec === 'data') baroWire(on);
+  if (setSec === 'data' || q) baroWire(on);
+  if (q) setFilter(q);
   on('wingLD', 'onchange', (e) => { S.wingLD = +e.target.value; save(); st.lastPredFetch = 0; });
   on('safety', 'onchange', (e) => { S.safety = +e.target.value; save(); });
   on('oaKey', 'onchange', (e) => { S.openaipKey = e.target.value.trim(); save(); });
@@ -1224,7 +1231,7 @@ function modesSection() {
     <div class="field"><span class="k">Defaults</span><button class="btn warn" id="modeReset">Reset the mode criteria</button></div></div>`;
 }
 const MODE_KEYS = ['modeAuto', 'modeEnter', 'modeHold', 'modeClimbOn', 'modeClimb', 'toSpd', 'toTime', 'cirRate', 'cirWin', 'cirSpd', 'thRec', 'thJoin', 'windAvg', 'towDetect', 'towMin', 'towWin', 'towRelV', 'towRelT', 'xcOut', 'xcBack', 'xcTri'];
-setInterval(() => { const e = $('modeLive'); if (e && curPage === 'pSet' && setSec === 'modes') e.innerHTML = modeLiveHTML(); }, 1000);
+setInterval(() => { const e = $('modeLive'); if (e && curPage === 'pSet') e.innerHTML = modeLiveHTML(); }, 1000);
 // widget spacing (Settings → Display → Widgets): gap between widgets, inner padding, title size, corner rounding; cfg.pad overrides the padding per widget
 function wPad(c) { const v = c.pad; if (v == null || v === 'page' || v === '') return null; const p = +v; return isFinite(p) ? [p, Math.round(p / 2)] : null; }
 function wStyle() { const r = document.documentElement.style; r.setProperty('--wpx', sN('wPadX', 2) + 'px'); r.setProperty('--wpy', sN('wPadY', 1) + 'px'); r.setProperty('--wlab', sN('wLab', 12) + 'px'); r.setProperty('--wrad', sN('wRad', 10) + 'px'); }
@@ -1279,7 +1286,7 @@ function baroWire(on) {
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'bora-baro-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '') + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); });
   baroChart();
 }
-setInterval(() => { if (curPage !== 'pSet' || setSec !== 'data') return; const e = $('baroLive'); if (e) e.innerHTML = baroLiveHTML(); const l = $('baroLines'); if (l) l.textContent = (st.baroLines || []).join('\n') || 'nothing received yet'; baroChart(); }, 500);
+setInterval(() => { if (curPage !== 'pSet' || !$('baroLive')) return; const e = $('baroLive'); if (e) e.innerHTML = baroLiveHTML(); const l = $('baroLines'); if (l) l.textContent = (st.baroLines || []).join('\n') || 'nothing received yet'; baroChart(); }, 500);
 function cornerMode() { document.body.classList.toggle('cornerFull', S.corner === 'full'); document.body.classList.toggle('cornerMenu', S.corner === 'menu'); }
 function applySet(key, raw) {
   const v = raw === 'true' ? true : raw === 'false' ? false : isNaN(+raw) ? raw : +raw;
@@ -1390,7 +1397,31 @@ $('rpSeek').oninput = () => { if (st.replay) { st.replay.dragging = true; const 
 $('rpSeek').onchange = () => { if (st.replay) { st.replay.dragging = false; $('rpTime')._t = $('rpSeek')._v = null; seekReplay($('rpSeek').value / 1000); } };
 $('setBtn').onclick = () => openSettings(); $('statusBtn').onclick = () => openSettings('data'); $('timeBtn').onclick = showTime;
 $('dlg').onclick = (e) => { if (Date.now() - (st.tapGuard || 0) < 500) return; /* the click that follows the tap that opened it */ if (e.target.id === 'dlg') { $('dlg').style.display = 'none'; clearInterval(detT); detT = null; } };
-$('setNav').onclick = (e) => { const b = e.target.closest('[data-sec]'); if (b) { setSec = b.dataset.sec; renderSettings(); } };
+$('setNav').onclick = (e) => { const b = e.target.closest('[data-sec]'); if (b) { setSec = b.dataset.sec; st.setQ = ''; $('setQ').value = ''; renderSettings(); $('setBody').scrollTop = 0; } };
+$('setQ').oninput = () => { st.setQ = $('setQ').value; renderSettings(); };
+/* settings search: show only the rows whose text (labels, values, placeholders, descriptions) contains the query, with their
+   card and sub-heading; a matching card heading or sub-heading shows its whole block, a matching section name the whole section;
+   a description right after a shown row stays. Accents and case are ignored. */
+const setNorm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function setFilter(q) {
+  const toks = setNorm(q).split(/\s+/).filter(Boolean), body = $('setBody'); let any = false; const has = (x) => toks.every((k) => x.includes(k)); // every word, in any order
+  const txt = (e) => setNorm(e.textContent + ' ' + [...e.querySelectorAll('input,select,textarea,button')].map((x) => [x.placeholder, x.value, x.getAttribute('aria-label')].join(' ')).join(' '));
+  body.querySelectorAll('.setGroup').forEach((g) => {
+    const gAll = has(setNorm(g.querySelector('.setGroupT').textContent)); let gHit = false;
+    g.querySelectorAll('.card.sec').forEach((card) => {
+      const kids = [...card.children], segs = []; kids.forEach((e) => { if (e.tagName === 'H2' || !segs.length) segs.push({ h: e.tagName === 'H2' ? e : null, items: [] }); if (e.tagName !== 'H2') segs[segs.length - 1].items.push(e); });
+      const cardAll = gAll || (segs[0].h && has(txt(segs[0].h))); let cardHit = false;
+      segs.forEach((sg) => {
+        const all = cardAll || (sg.h && has(txt(sg.h))); let shown = 0, prevShown = false;
+        sg.items.forEach((e) => { const m = all || has(txt(e)) || (prevShown && e.classList.contains('muted')); e.style.display = m ? '' : 'none'; e.classList.toggle('setHit', m && !all && !e.classList.contains('muted')); prevShown = m && !e.classList.contains('muted'); if (m) shown++; });
+        if (sg.h) sg.h.style.display = all || shown ? '' : 'none'; if (all || shown) cardHit = true;
+      });
+      card.style.display = cardHit ? '' : 'none'; if (cardHit) gHit = true;
+    });
+    g.style.display = gHit || gAll ? '' : 'none'; if (gHit || gAll) any = true;
+  });
+  if (!any) body.insertAdjacentHTML('afterbegin', `<div class="card sec"><div class="muted">No setting matches “${esc(q)}”.</div></div>`);
+}
 $('setBody').addEventListener('change', (e) => {
   const i = e.target.closest('[data-sni]'); if (i) setNum(i.dataset.sni, parseFloat(String(i.value).replace(',', '.')));
   const a = e.target.closest('[data-ari]'); if (!a || a.tagName === 'BUTTON') return; const n = +a.dataset.ari;
