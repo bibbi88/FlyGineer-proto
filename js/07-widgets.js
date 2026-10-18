@@ -27,7 +27,7 @@ const WT = {
   gain: { n: 'Thermal gain', d: 'Height gained', w: 3, h: 2, o: [['units', 'Units', U_A]] },
   ttime: { n: 'Time in thermal', d: 'Minutes:seconds', w: 3, h: 2, o: [] },
   flight: { n: 'Flight time', d: 'Since takeoff', w: 3, h: 2, o: [] },
-  conn: { n: 'Connection & battery', d: 'Vario battery and sensor status; tap for the details (vario, GPS, tablet, internet)', w: 3, h: 2, o: [['look', 'Shows', [['bat', 'Battery only'], ['dots', 'Battery + G B T D']]], ['tab', 'Tablet battery below', [[true, 'Show'], [false, 'Hide']]]] },
+  conn: { n: 'Connection & battery', d: 'Vario battery and sensor status; tap for the details (vario, GPS, tablet, internet)', w: 3, h: 2, o: [['look', 'Shows', [['both', 'Vario + tablet battery'], ['bat', 'Vario battery only'], ['dots', 'Vario battery + G B T D']]], ['tab', 'Tablet battery below (single look)', [[true, 'Show'], [false, 'Hide']]]] },
   tclock: { n: 'Time', d: 'Local time (or UTC / flight time); tap: local, UTC, takeoff and flight time', w: 3, h: 2, o: [['show', 'Showing', [['local', 'Local time'], ['utc', 'UTC'], ['flight', 'Flight time']]], ['others', 'The other two below', [[false, 'Hide'], [true, 'Show']]], ['sec', 'Seconds', [[false, 'Hide'], [true, 'Show']]]] },
   time: { n: 'Clock', d: 'Local or UTC', w: 3, h: 2, o: [['zone', 'Time zone', [['local', 'Local'], ['utc', 'UTC']]], ['sec', 'Seconds', [[false, 'Hide'], [true, 'Show']]]] },
   temp: { n: 'Temperature', d: 'From the vario', w: 3, h: 2, o: [] },
@@ -268,6 +268,10 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
       const dot = (k, on) => `<span style="display:inline-block;min-width:1.25em;margin-right:3px;padding:0 3px;border-radius:4px;font-weight:700;${on ? 'background:var(--climb);color:#fff' : 'border:1px solid var(--line);opacity:.6'}">${k}</span>`;
       const tab = c.tab === false || c.tab === 'false' || st.deviceBat == null ? '' : 'tablet ' + st.deviceBat + '%' + (st.deviceChg ? ' ⚡' : '');
       const r = { l: st.bora ? (st.bora.name || 'Bora') : 'Vario', u: '', v, col: low ? css('--restr') : null, s: tab || (st.bora ? '' : 'not connected · tap') };
+      if (!c.look || c.look === 'both') { // default: both batteries side by side, each value as large as the box allows
+        const tb = st.deviceBat != null ? st.deviceBat + '%' : '--', tLow = st.deviceBat != null && st.deviceBat < 20 && !st.deviceChg, fs = clamp(Math.min(bx.h * 0.42, bx.w / 7.5), 12, 90).toFixed(0);
+        const col = (k, val, red, extra) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span class="ws" style="opacity:.8">${k}</span><span class="num" style="font-size:${fs}px;line-height:1;font-weight:700${red ? ';color:' + css('--restr') : ''}">${esc(val)}${extra || ''}</span></div>`;
+        return { l: st.bora ? (st.bora.name || 'Bora') : 'Batteries', html: `<div class="row" style="flex:1;gap:6px;align-items:stretch">${col('Vario', v, low)}${col('Tablet', tb, tLow, st.deviceChg ? '<small style="font-size:.45em"> ⚡</small>' : '')}</div>` }; }
       if (c.look === 'dots') r.s = dot('G', gOk) + dot('B', !!st.bora) + dot('T', st.baro && st.baro.temp != null) + dot('D', !!(st.sim || st.replay)) + (tab ? ' ' + tab : ''), r.sHtml = true;
       return r; }
     case 'tclock': { // local / UTC / flight time, a tap goes to the next (tap action tcycle)
