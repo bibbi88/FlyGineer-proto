@@ -137,19 +137,38 @@ async function connectBora() {
     const srv = await dev.gatt.connect();
     const ch = await (await srv.getPrimaryService(NUS)).getCharacteristic(NUS_TX);
     await ch.startNotifications();
-    ch.addEventListener('characteristicvaluechanged', (e) => { bleBuf += new TextDecoder().decode(e.target.value); let k; while ((k = bleBuf.indexOf('\n')) >= 0) { parseLine(bleBuf.slice(0, k).trim()); bleBuf = bleBuf.slice(k + 1); } if (bleBuf.length > 400) bleBuf = ''; });
+    ch.addEventListener('characteristicvaluechanged', (e) => { bleBuf += new TextDecoder().decode(e.target.value); let m; while ((m = /\r\n|\n|\r/.exec(bleBuf))) { parseLine(bleBuf.slice(0, m.index).trim()); bleBuf = bleBuf.slice(m.index + m[0].length); } if (bleBuf.length > 400) bleBuf = ''; }); // lines end with \r\n; split over several BLE packets
     dev.addEventListener('gattserverdisconnected', () => { st.bora = null; toast('Bora disconnected'); renderSettings(); });
     st.bora = { name: dev.name || 'Bora', batt: null }; toast('Connected to ' + st.bora.name); renderSettings();
   } catch (e) { toast('Bluetooth: ' + e.message); }
 }
+/* barometer: the Bora sends only the pressure (Pa, ~12 per second) with altitude 99999 and vario 9999 = "not available", like
+   XCTrack expects; altitude comes from the pressure and QNH (S.qnh), climb from a Kalman filter (height + climb rate) on that
+   altitude. Tuning (Settings → Vario & GPS → Barometer): S.baroTau = response time in s (shorter = quicker, noisier),
+   S.baroNoise = sensor noise in m (σ of the raw altitude). A device that sends its own altitude / vario is used as it is. */
+const baroAlt = (pa) => 44330 * (1 - Math.pow(pa / 100 / (sN('qnh', 1013.25) || 1013.25), 0.1903));
+const baroK = { h: null, v: 0, P: null, t: 0, qnh: null };
+function baroFilter(z, t) {
+  const K = baroK, R = sN('baroNoise', 0.3) ** 2, tau = clamp(sN('baroTau', 1), 0.1, 10), q = 4 * R / tau ** 4;
+  if (K.h == null || t - K.t > 5000 || t < K.t || K.qnh !== S.qnh) { Object.assign(K, { h: z, v: 0, P: [[R, 0], [0, 1]], t, qnh: S.qnh }); return K; }
+  const dt = (t - K.t) / 1000; if (dt <= 0) return K; K.t = t;
+  const [[a, b], [c, d]] = K.P; K.h += K.v * dt; // predict (constant climb), process noise from the vertical acceleration q
+  const p00 = a + dt * (b + c) + dt * dt * d + q * dt ** 4 / 4, p01 = b + dt * d + q * dt ** 3 / 2, p10 = c + dt * d + q * dt ** 3 / 2, p11 = d + q * dt * dt;
+  const s = p00 + R, k0 = p00 / s, k1 = p10 / s, y = z - K.h; // update with the measured altitude
+  K.h += k0 * y; K.v += k1 * y; K.P = [[(1 - k0) * p00, (1 - k0) * p01], [p10 - k1 * p00, p11 - k1 * p01]];
+  return K;
+}
 function parseLine(l) {
+  if (l) { const L = st.baroLines || (st.baroLines = []); L.push(l); if (L.length > 12) L.shift(); }
   if (!l.startsWith('$LK8EX1')) return;
-  const p = l.split('*')[0].split(',');
-  const pres = +p[1], altR = +p[2], vCm = +p[3], temp = +p[4], bat = +p[5];
-  let alt = altR !== 99999 && !isNaN(altR) ? altR : null;
-  if (alt == null && pres && pres !== 999999) alt = 44330 * (1 - Math.pow(pres / 100 / (S.qnh || 1013.25), 0.1903));
+  const p = l.split('*')[0].split(','), t = Date.now();
+  const pres = +p[1], altR = +p[2], vCm = +p[3], temp = +p[4], bat = +p[5], pa = isFinite(pres) && pres > 30000 && pres < 120000 ? pres : null;
+  const own = isFinite(altR) && altR !== 99999 && p[2] !== '', raw = own ? altR : pa != null ? baroAlt(pa) : null;
   if (st.bora) st.bora.batt = isNaN(bat) || bat === 999 ? null : bat > 1000 ? { pct: bat - 1000 } : { v: bat };
-  onBaro({ t: Date.now(), alt, vario: isNaN(vCm) || vCm === 9999 ? 0 : vCm / 100, temp: isNaN(temp) || temp === 99 ? null : temp });
+  let alt = null, vario = isFinite(vCm) && vCm !== 9999 && p[3] !== '' ? vCm / 100 : null;
+  if (raw != null) { const K = baroFilter(raw, t); alt = K.h; if (vario == null) vario = K.v; }
+  const B = st.baroLog || (st.baroLog = []); B.push({ t, pa, raw, h: alt, v: vario }); while (B.length && B[0].t < t - 90000) B.shift();
+  onBaro({ t, alt, vario: vario ?? 0, temp: isNaN(temp) || temp === 99 ? null : temp, pa });
 }
 
 /* ================= GPS ================= */

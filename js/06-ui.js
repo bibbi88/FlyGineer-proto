@@ -1033,7 +1033,7 @@ const SECS = [['data', 'Vario & GPS'], ['widgets', 'Pages & widgets'], ['units',
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
-const SNUM = { warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], wGap: [0, 12, 1, 'px', 'Gap between widgets'], ctlSmall: [0, 800, 20, 'px', 'Hide on-widget buttons when narrower than'], wPadX: [0, 16, 1, 'px', 'Padding left and right'], wPadY: [0, 12, 1, 'px', 'Padding top and bottom'], wLab: [8, 18, 1, 'px', 'Title and info text size'], wRad: [0, 16, 1, 'px', 'Rounded corners'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeClimb: [-2, 3, 0.1, 'm/s', 'Average climb while circling at least'], toSpd: [5, 40, 0.5, 'km/h', 'Ground speed above'], toTime: [0, 30, 1, 's', 'For at least'], cirRate: [3, 20, 0.5, '°/s', 'Turning faster than'], cirWin: [3, 20, 1, 's', 'Turn rate measured over'], cirSpd: [0, 30, 0.5, 'km/h', 'Ground speed above'], thRec: [5, 300, 5, 's', 'Count as a thermal after'], thJoin: [0, 120, 5, 's', 'Same thermal when circling again within'], windAvg: [20, 600, 10, 's', 'Wind: average circles over'], towWin: [10, 600, 10, 's', 'Starts within'], towRelV: [-1, 2, 0.1, 'm/s', 'Released when climb is below'], towRelT: [1, 20, 1, 's', 'For'], xcOut: [0.5, 20, 0.5, 'km', 'Free distance until'], xcBack: [50, 95, 5, '%', 'Still going out while farther than'], xcTri: [5, 28, 1, '%', 'Triangle when the shortest leg is at least'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
+const SNUM = { warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], wGap: [0, 12, 1, 'px', 'Gap between widgets'], qnh: [900, 1100, 0.1, 'hPa', 'QNH'], baroTau: [0.2, 5, 0.1, 's', 'Vario response time'], baroNoise: [0.05, 2, 0.05, 'm', 'Sensor noise'], ctlSmall: [0, 800, 20, 'px', 'Hide on-widget buttons when narrower than'], wPadX: [0, 16, 1, 'px', 'Padding left and right'], wPadY: [0, 12, 1, 'px', 'Padding top and bottom'], wLab: [8, 18, 1, 'px', 'Title and info text size'], wRad: [0, 16, 1, 'px', 'Rounded corners'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeClimb: [-2, 3, 0.1, 'm/s', 'Average climb while circling at least'], toSpd: [5, 40, 0.5, 'km/h', 'Ground speed above'], toTime: [0, 30, 1, 's', 'For at least'], cirRate: [3, 20, 0.5, '°/s', 'Turning faster than'], cirWin: [3, 20, 1, 's', 'Turn rate measured over'], cirSpd: [0, 30, 0.5, 'km/h', 'Ground speed above'], thRec: [5, 300, 5, 's', 'Count as a thermal after'], thJoin: [0, 120, 5, 's', 'Same thermal when circling again within'], windAvg: [20, 600, 10, 's', 'Wind: average circles over'], towWin: [10, 600, 10, 's', 'Starts within'], towRelV: [-1, 2, 0.1, 'm/s', 'Released when climb is below'], towRelT: [1, 20, 1, 's', 'For'], xcOut: [0.5, 20, 0.5, 'km', 'Free distance until'], xcBack: [50, 95, 5, '%', 'Still going out while farther than'], xcTri: [5, 28, 1, '%', 'Triangle when the shortest leg is at least'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
 function numField(key, hint) { const [min, max, step, unit, label] = SNUM[key]; return `<div class="field"><span class="k">${label}${hint ? ' · ' + hint : ''}</span><span class="row"><button class="pill step" data-sn="${key}" data-sdir="-1" aria-label="Less">−</button><input type="number" class="numin" inputmode="decimal" data-sni="${key}" value="${S[key]}" min="${min}" max="${max}" step="${step}" aria-label="${label}, ${unit}"><span class="unit">${unit}</span><button class="pill step" data-sn="${key}" data-sdir="1" aria-label="More">+</button></span></div>`; }
 function setNum(key, v) { const [min, max, step] = SNUM[key], d = (String(step).split('.')[1] || '').length; if (!isFinite(v)) return; applySet(key, String(clamp(+(Math.round(v / step) * step).toFixed(d), min, max))); renderSettings(); }
 function renderSettings() {
@@ -1050,7 +1050,7 @@ function renderSettings() {
     <div class="muted">A real paraglider flight recorded with XCTrack on 19 June 2026: 52 minutes, a climb to 1000 m and three long thermals. It plays through every page with your own layouts and settings; use the bar on the map to pause, jump or change speed.</div>
     <div class="field"><span class="k">Synthetic test flight</span>${st.sim ? `<button class="btn warn" id="simBtn">Stop test flight</button>` : `<button class="btn" id="simBtn">Start test flight</button>`}</div>
     <div class="muted">Simulated thermals with 12 km/h wind from 250°, for testing.</div>
-    <div class="field"><label for="qnh">QNH for pressure only (hPa)</label><input type="number" id="qnh" value="${S.qnh || 1013.25}" step="0.25"></div></div>`;
+    </div>${baroSection()}`;
   if (setSec === 'widgets') h = `<div class="card sec"><h2>Page layouts</h2><div class="muted">Map, Thermal, Atmosphere, Airspace and your own pages are built from widgets you can move, resize, duplicate and configure.</div>
     <div class="field"><span class="k">Edit layout of</span><span class="row" style="flex-wrap:wrap"><button class="btn" data-edit="pMap">Map</button><button class="btn" data-edit="pThermal">Thermal</button><button class="btn" data-edit="pAtmos">Atmosphere</button><button class="btn" data-edit="pAir">Airspace</button>${S.pages.map((p) => `<button class="btn" data-edit="${p.id}">${esc(p.name)}</button>`).join('')}</span></div>
     <h2 style="margin-top:8px">Your own pages</h2>
@@ -1149,7 +1149,7 @@ function renderSettings() {
   on('wEditBtn', 'onclick', () => { showPage('pMap'); setTimeout(() => enterEdit(), 80); });
   on('igcFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; try { startReplay(parseIGC(await fl.text()), fl.name.replace(/\.igc$/i, '')); } catch (err) { toast('Could not read the IGC file: ' + err.message); } });
   on('igcStop', 'onclick', () => { stopReplay(); renderSettings(); }); on('simBtn', 'onclick', () => { st.sim ? stopSim() : startSim(); renderSettings(); }); on('demoBtn', 'onclick', () => { isDemo() ? stopReplay() : startDemoFlight(); renderSettings(); });
-  on('qnh', 'onchange', (e) => { S.qnh = +e.target.value; save(); });
+  if (setSec === 'data') baroWire(on);
   on('wingLD', 'onchange', (e) => { S.wingLD = +e.target.value; save(); st.lastPredFetch = 0; });
   on('safety', 'onchange', (e) => { S.safety = +e.target.value; save(); });
   on('oaKey', 'onchange', (e) => { S.openaipKey = e.target.value.trim(); save(); });
@@ -1228,6 +1228,58 @@ setInterval(() => { const e = $('modeLive'); if (e && curPage === 'pSet' && setS
 // widget spacing (Settings → Display → Widgets): gap between widgets, inner padding, title size, corner rounding; cfg.pad overrides the padding per widget
 function wPad(c) { const v = c.pad; if (v == null || v === 'page' || v === '') return null; const p = +v; return isFinite(p) ? [p, Math.round(p / 2)] : null; }
 function wStyle() { const r = document.documentElement.style; r.setProperty('--wpx', sN('wPadX', 2) + 'px'); r.setProperty('--wpy', sN('wPadY', 1) + 'px'); r.setProperty('--wlab', sN('wLab', 12) + 'px'); r.setProperty('--wrad', sN('wRad', 10) + 'px'); }
+/* Settings → Vario & GPS → Barometer: live readings, a chart of raw vs filtered altitude and the vario, the device's last lines,
+   QNH calibration and the filter settings (02 baroFilter). Refreshed twice a second while shown (baroLive). */
+function baroStats() {
+  const B = st.baroLog || [], now = Date.now(), L = B.filter((b) => b.t > now - 10000), n = L.length, last = B[B.length - 1];
+  let sd = null; if (n > 8) { const r = L.map((b) => b.raw - b.h); const m = r.reduce((a, x) => a + x, 0) / n; sd = Math.sqrt(r.reduce((a, x) => a + (x - m) ** 2, 0) / n); }
+  return { last, rate: n / 10, sd, age: last ? (now - last.t) / 1000 : null };
+}
+function baroSection() {
+  return `<div class="card sec"><h2>Barometer</h2>
+    <div class="muted">The Bora sends only the air pressure (about 12 times a second); altitude comes from it and the QNH, the climb rate from a filter. Shorter response = quicker vario but more jitter.</div>
+    <div class="row" id="baroLive" style="flex-wrap:wrap;gap:8px;margin:6px 0">${baroLiveHTML()}</div>
+    <canvas id="baroChart" style="width:100%;height:190px;border:1px solid var(--line);border-radius:10px;background:var(--bg)"></canvas>
+    <div class="muted" style="font-size:13px">Last 30 s · grey dots = altitude straight from the pressure, orange = filtered altitude, blue = vario (right scale)</div>
+    <h2 style="margin-top:8px">Calibration</h2>
+    ${numField('qnh', 'pressure at sea level')}
+    <div class="field"><span class="k">Set altitude from</span><span class="row" style="flex-wrap:wrap"><button class="btn" id="qnhGps">GPS altitude now</button><input type="number" id="qnhAltIn" inputmode="decimal" placeholder="known altitude, m" style="width:170px"><button class="btn" id="qnhAlt">Set</button><button class="btn" id="qnhStd">Standard 1013.25</button></span></div>
+    <h2 style="margin-top:8px">Filter</h2>
+    ${numField('baroTau', 'shorter = quicker, noisier')}${numField('baroNoise', 'σ of the raw altitude')}
+    <div class="field"><span class="k"></span><button class="btn" id="baroUseSd">Use the measured noise</button><button class="btn" id="baroCsv">Download the last 90 s (CSV)</button></div>
+    <h2 style="margin-top:8px">Last lines from the vario</h2><pre class="raw" id="baroLines" style="max-height:220px;overflow:auto;font-size:12px">${esc((st.baroLines || []).join('\n')) || 'nothing received yet'}</pre></div>`;
+}
+function baroLiveHTML() {
+  const s = baroStats(), b = s.last, box = (k, v) => `<div class="card" style="padding:6px 10px;flex:1;min-width:120px"><div class="muted" style="font-size:12px">${k}</div><div style="font-size:18px;font-weight:700">${v}</div></div>`;
+  if (!b) return box('Vario', st.bora ? 'connected, no pressure data yet' : 'not connected (Vario & GPS → Connect)');
+  return box('Pressure', b.pa ? (b.pa / 100).toFixed(2) + ' hPa' : '--') + box('Altitude raw', b.raw != null ? b.raw.toFixed(1) + ' m' : '--') + box('Altitude filtered', b.h != null ? b.h.toFixed(1) + ' m' : '--') +
+    box('Vario', b.v != null ? (b.v >= 0 ? '+' : '') + b.v.toFixed(2) + ' m/s' : '--') + box('Readings', s.rate.toFixed(1) + ' /s' + (s.age > 2 ? ' · last ' + s.age.toFixed(0) + ' s ago' : '')) + box('Noise σ', s.sd != null ? s.sd.toFixed(2) + ' m' : '--');
+}
+function baroChart() {
+  const cv = $('baroChart'); if (!cv) return; const [c, W, H] = fitCanvas(cv); c.clearRect(0, 0, W, H);
+  const now = Date.now(), B = (st.baroLog || []).filter((b) => b.t > now - 30000 && b.raw != null);
+  c.font = '12px Barlow'; c.fillStyle = css('--muted');
+  if (B.length < 2) { c.textAlign = 'center'; c.fillText('No pressure readings yet', W / 2, H / 2); return; }
+  let lo = Math.min(...B.map((b) => Math.min(b.raw, b.h))), hi = Math.max(...B.map((b) => Math.max(b.raw, b.h))); if (hi - lo < 4) { const m = (hi + lo) / 2; lo = m - 2; hi = m + 2; }
+  const vm = Math.max(1, ...B.map((b) => Math.abs(b.v || 0))), X = (t) => 40 + (W - 80) * (1 - (now - t) / 30000), Y = (h) => 8 + (H - 24) * (1 - (h - lo) / (hi - lo)), YV = (v) => 8 + (H - 24) * (0.5 - v / vm / 2);
+  c.strokeStyle = css('--line'); c.lineWidth = 1; c.beginPath(); c.moveTo(40, YV(0)); c.lineTo(W - 40, YV(0)); c.stroke();
+  c.textAlign = 'right'; c.fillText(hi.toFixed(0) + ' m', 36, 16); c.fillText(lo.toFixed(0) + ' m', 36, H - 16); c.textAlign = 'left'; c.fillStyle = '#1E5BC6'; c.fillText('+' + vm.toFixed(1), W - 36, 16); c.fillText('−' + vm.toFixed(1), W - 36, H - 16);
+  c.fillStyle = 'rgba(120,128,138,.55)'; B.forEach((b) => { c.beginPath(); c.arc(X(b.t), Y(b.raw), 1.8, 0, 7); c.fill(); });
+  const line = (f, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); B.forEach((b, i) => (i ? c.lineTo(X(b.t), f(b)) : c.moveTo(X(b.t), f(b)))); c.stroke(); };
+  line((b) => Y(b.h), '#E0601F', 2.5); line((b) => YV(b.v || 0), '#1E5BC6', 1.8);
+}
+function baroWire(on) {
+  const setQ = (q) => { if (!isFinite(q) || q < 900 || q > 1100) { toast('That gives an impossible QNH (' + (isFinite(q) ? q.toFixed(1) : '?') + ' hPa)'); return; } S.qnh = +q.toFixed(2); save(); renderSettings(); toast('QNH ' + S.qnh.toFixed(1) + ' hPa'); };
+  const qFor = (h) => { const b = baroStats().last; if (!b || !b.pa) { toast('No pressure from the vario yet'); return NaN; } return b.pa / 100 / Math.pow(1 - h / 44330, 1 / 0.1903); };
+  on('qnhGps', 'onclick', () => { const a = st.gpsPos && st.fix && !st.replay && !st.sim ? st.fix.alt : null; if (a == null) { toast('No GPS altitude yet'); return; } const q = qFor(a); if (isFinite(q)) setQ(q); });
+  on('qnhAlt', 'onclick', () => { const h = parseFloat(String($('qnhAltIn').value).replace(',', '.')); if (!isFinite(h)) { toast('Type the altitude first'); return; } const q = qFor(h); if (isFinite(q)) setQ(q); });
+  on('qnhStd', 'onclick', () => setQ(1013.25));
+  on('baroUseSd', 'onclick', () => { const s = baroStats().sd; if (s == null) { toast('Needs 10 s of readings, held still'); return; } S.baroNoise = clamp(+(Math.round(s / 0.05) * 0.05).toFixed(2), 0.05, 2); save(); renderSettings(); toast('Sensor noise ' + S.baroNoise + ' m'); });
+  on('baroCsv', 'onclick', () => { const B = st.baroLog || []; if (!B.length) { toast('Nothing logged yet'); return; } const csv = 'time,pressure_pa,alt_raw_m,alt_filtered_m,vario_ms\n' + B.map((b) => [new Date(b.t).toISOString(), b.pa ?? '', b.raw != null ? b.raw.toFixed(2) : '', b.h != null ? b.h.toFixed(2) : '', b.v != null ? b.v.toFixed(3) : ''].join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'bora-baro-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '') + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); });
+  baroChart();
+}
+setInterval(() => { if (curPage !== 'pSet' || setSec !== 'data') return; const e = $('baroLive'); if (e) e.innerHTML = baroLiveHTML(); const l = $('baroLines'); if (l) l.textContent = (st.baroLines || []).join('\n') || 'nothing received yet'; baroChart(); }, 500);
 function cornerMode() { document.body.classList.toggle('cornerFull', S.corner === 'full'); document.body.classList.toggle('cornerMenu', S.corner === 'menu'); }
 function applySet(key, raw) {
   const v = raw === 'true' ? true : raw === 'false' ? false : isNaN(+raw) ? raw : +raw;

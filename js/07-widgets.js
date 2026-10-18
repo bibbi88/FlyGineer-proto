@@ -29,6 +29,7 @@ const WT = {
   flight: { n: 'Flight time', d: 'Since takeoff', w: 3, h: 2, o: [] },
   time: { n: 'Clock', d: 'Local or UTC', w: 3, h: 2, o: [['zone', 'Time zone', [['local', 'Local'], ['utc', 'UTC']]], ['sec', 'Seconds', [[false, 'Hide'], [true, 'Show']]]] },
   temp: { n: 'Temperature', d: 'From the vario', w: 3, h: 2, o: [] },
+  baro: { n: 'Pressure', d: 'Air pressure from the vario, hPa', w: 3, h: 2, o: [] },
   battery: { n: 'Battery', d: 'Vario and tablet', w: 3, h: 2, o: [] },
   glide: { n: 'Landing prediction', d: 'Filled and empty dot', w: 6, h: 2, o: [] },
   climb: { n: 'Climb history', d: 'Climb and sink bars over time; time span and scale settable', w: 6, h: 3, canvas: true, o: [['time', 'Time shown', numOpt(10, 3600, 10, 's', [60, 120, 300, 600], { def: 120, hint: 'seconds back' })], ['scale', 'Scale (top of the bars)', numOpt(0.5, 20, 0.5, 'm/s', [3, 5, 8], { def: 5, snap: 0.5, hint: 'sink shown down to 60 %' })]] },
@@ -260,6 +261,7 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
     case 'ttime': { const t = th ? Math.floor(((th.end || now) - th.t0) / 1000) : null; return { l: 'In thermal', u: '', v: t != null ? Math.floor(t / 60) + ':' + pad2(t % 60) : '--' }; }
     case 'flight': { const t = st.takeoffT ? Math.floor((now - st.takeoffT) / 1000) : null; return { l: 'Flight time', u: '', v: t != null ? Math.floor(t / 3600) + ':' + pad2(Math.floor(t / 60) % 60) : '--' }; }
     case 'time': { const d = new Date(c.zone === 'utc' && st.replay ? st.replay.vt : Date.now()); const U = c.zone === 'utc'; const hh = U ? d.getUTCHours() : d.getHours(), mm = U ? d.getUTCMinutes() : d.getMinutes(), ss = U ? d.getUTCSeconds() : d.getSeconds(); return { l: U ? 'UTC' : 'Local time', u: '', v: pad2(hh) + ':' + pad2(mm) + (c.sec ? ':' + pad2(ss) : ''), s: 'tap: both times' }; }
+    case 'baro': { const pa = st.baro && st.baro.pa; return { l: 'Pressure', u: 'hPa', v: pa ? (pa / 100).toFixed(1) : '--', s: pa ? 'QNH ' + (+sN('qnh', 1013.25)).toFixed(1) : st.bora ? 'no pressure in the data' : 'vario not connected' }; }
     case 'temp': return { l: 'Temperature', u: '°C', v: st.baro?.temp != null ? st.baro.temp.toFixed(1) : '--' };
     case 'battery': { const vb = st.bora?.batt; return { l: 'Battery', u: '', v: vb ? (vb.pct != null ? vb.pct + '%' : vb.v.toFixed(2) + ' V') : st.sim ? (st.simBat || 90) + '%' : '--', s: st.deviceBat != null ? 'tablet ' + st.deviceBat + '%' : '' }; }
     case 'glide': { const p = st.pred; return { html: `<div class="ws" style="font-size:14px;color:var(--ink)">● <b>L/D ${p.ldNow ? p.ldNow.toFixed(1) : '--'} now</b> → ${p.now ? fDist(p.now[2]) : '--'}</div><div class="ws" style="font-size:14px;color:var(--ink)">○ <b>L/D ${S.wingLD} wing</b> → ${p.wing ? fDist(p.wing[2]) : st.groundElev == null ? 'needs terrain' : '--'}</div>`, l: 'Landing prediction' }; }
