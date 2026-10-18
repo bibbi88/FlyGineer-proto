@@ -6,7 +6,7 @@ function startSim() {
   const sim = { lat: base[0], lon: base[1], alt: 1450, hdg: 64, t: Date.now(), mode: 'glide', modeT: 0, tas: 10.5,
     wind: { from: 250, spd: 12 / 3.6 }, ground: 25, core: null, battery: 92 };
   sim.core = { lat: dest(sim.lat, sim.lon, 64, 700)[0], lon: dest(sim.lat, sim.lon, 64, 700)[1] };
-  st.sim = sim; st.varioSrc = 'demo'; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.tempPts = [];
+  st.sim = sim; st.varioSrc = 'demo'; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.windEst = []; st.tempPts = [];
   st.bora = st.bora || null;
   sim.timer = setInterval(simStep, 200);
   $('demoBadge').style.display = 'block'; document.body.classList.add('replaying'); toast('Demo flight started');
@@ -84,7 +84,7 @@ function startDemoFlight() {
   try { const igc = demoIGC(); startReplay(igc, 'Demo flight'); }
   catch (e) { toast('Demo flight: ' + e.message); }
 }
-function resetFlightState() { st.toSince = 0; st.turnLog = []; st.tows = []; st.towEnd = 0; st.sideAx = null; st.log = []; st.thermals = []; st.winds = []; st.takeoffPos = null; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.thermal = null; st.lastTurn = null; st.ld = null; st.circling = false; st.tempPts = []; st.takeoffT = null; st.gpsV = null; st.fix = null; st.baro = null; }
+function resetFlightState() { st.windEst = []; st.toSince = 0; st.turnLog = []; st.tows = []; st.towEnd = 0; st.sideAx = null; st.log = []; st.thermals = []; st.winds = []; st.takeoffPos = null; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.thermal = null; st.lastTurn = null; st.ld = null; st.circling = false; st.tempPts = []; st.takeoffT = null; st.gpsV = null; st.fix = null; st.baro = null; }
 // where the replayed flight took off: the first point from which it moves faster than 4 m/s for 5 s (else the first point)
 function replayLaunch(pts) {
   for (let i = 0, j = 0; i < pts.length; i++) { while (j < pts.length - 1 && pts[j].t - pts[i].t < 5000) j++; const dt = (pts[j].t - pts[i].t) / 1000; if (dt >= 5 && dist(pts[i].lat, pts[i].lon, pts[j].lat, pts[j].lon) / dt > 4) return [pts[i].lat, pts[i].lon, pts[i].alt]; }

@@ -20,10 +20,7 @@ function analyse(f) {
   let acc = 0, i = fx.length - 1; const circ = [];
   while (i > 0 && fx[i].t > now - 60000) { if (fx[i].trk == null || fx[i - 1].trk == null) break; acc += angDiff(fx[i - 1].trk, fx[i].trk); circ.push(fx[i]); if (Math.abs(acc) >= 360) break; i--; }
   if (st.circling && Math.abs(acc) >= 360 && circ.length > 8) {
-    let vx = 0, vy = 0; circ.forEach((p) => { vx += p.spd * Math.sin(p.trk * D2R); vy += p.spd * Math.cos(p.trk * D2R); });
-    vx /= circ.length; vy /= circ.length;
-    const nw = { vx, vy };
-    st.wind = st.wind ? { vx: st.wind.vx * 0.6 + vx * 0.4, vy: st.wind.vy * 0.6 + vy * 0.4 } : nw;
+    windUpdate(circ, now);
     { const lw = st.winds[st.winds.length - 1]; if (!lw || now - lw.t > 30000) { const sp = Math.hypot(st.wind.vx, st.wind.vy); st.winds.push({ t: now, alt: altNow(), spd: sp, from: wrap360(Math.atan2(st.wind.vx, st.wind.vy) * R2D + 180) }); } }
     // turn radius from air-relative positions
     const c0 = circ[circ.length - 1];
@@ -75,6 +72,34 @@ function towDetect(f) {
 }
 const towNow = () => { const T = st.tows && st.tows[st.tows.length - 1]; return T || null; };
 function avgSpd(sec, now) { const a = st.fixes.filter((p) => p.t > now - sec * 1000 && p.spd != null); return a.length ? a.reduce((s, p) => s + p.spd, 0) / a.length : null; }
+/* wind from circling, filtered (2026-10-18; it used to mix every 1 s sample's circle mean in at 40 %, so one uneven circle moved it):
+   1. per circle: the ground-speed vectors of a full turn lie on a circle whose centre is the wind and whose radius is your airspeed;
+      a least-squares circle fit finds it even with uneven sampling. Circles whose airspeed scatters (> 18 % of it: entry, corrections,
+      gusts) or is implausible are rejected.
+   2. at most one estimate per half turn (st.windEst, last 10 min).
+   3. st.wind = recency-weighted average (half weight after S.windAvg s, default 120) of the estimates, without the ones far off the rest. */
+function windFit(circ) {
+  const V = circ.map((p) => [p.spd * Math.sin(p.trk * D2R), p.spd * Math.cos(p.trk * D2R)]), n = V.length;
+  let mx = 0, my = 0; V.forEach(([x, y]) => { mx += x; my += y; }); mx /= n; my /= n;
+  // Kåsa fit around the mean: u² + v² = 2a·u + 2b·v + c, (u, v) = V − mean
+  let Suu = 0, Svv = 0, Suv = 0, Su3 = 0, Sv3 = 0, Suvv = 0, Svuu = 0;
+  V.forEach(([x, y]) => { const u = x - mx, v = y - my; Suu += u * u; Svv += v * v; Suv += u * v; Su3 += u * u * u; Sv3 += v * v * v; Suvv += u * v * v; Svuu += v * u * u; });
+  const det = 2 * (Suu * Svv - Suv * Suv); let cx = mx, cy = my;
+  if (Math.abs(det) > 1e-6) { const r1 = Su3 + Suvv, r2 = Sv3 + Svuu; cx = mx + (r1 * Svv - r2 * Suv) / det; cy = my + (r2 * Suu - r1 * Suv) / det; }
+  const R = V.map(([x, y]) => Math.hypot(x - cx, y - cy)), tas = R.reduce((s, r) => s + r, 0) / n, sd = Math.sqrt(R.reduce((s, r) => s + (r - tas) ** 2, 0) / n);
+  return { vx: cx, vy: cy, tas, q: tas > 0 ? sd / tas : 1 };
+}
+function windUpdate(circ, now) {
+  const E = st.windEst || (st.windEst = []), T = (circ[0].t - circ[circ.length - 1].t) || 20000, last = E[E.length - 1];
+  if (last && now - last.t < T * 0.5) return; // one estimate per half turn
+  const w = windFit(circ); if (!(w.tas > 4 && w.tas < 30 && w.q < 0.18 && Math.hypot(w.vx, w.vy) < 30)) return;
+  E.push({ t: now, vx: w.vx, vy: w.vy, q: w.q }); while (E.length && E[0].t < now - 600000) E.shift();
+  const half = clamp(sN('windAvg', 120), 20, 600) * 1000, wt = (e) => Math.pow(0.5, (now - e.t) / half) * (1 - e.q * 3);
+  const avg = (L) => { let sx = 0, sy = 0, sw = 0; L.forEach((e) => { const k = Math.max(0.05, wt(e)); sx += e.vx * k; sy += e.vy * k; sw += k; }); return sw ? { vx: sx / sw, vy: sy / sw } : null; };
+  let m = avg(E); const sp = Math.hypot(m.vx, m.vy), keep = E.filter((e) => Math.hypot(e.vx - m.vx, e.vy - m.vy) <= Math.max(1.5, sp * 0.4));
+  if (keep.length && keep.length < E.length) m = avg(keep);
+  st.wind = m;
+}
 function windFromSpd() { if (!st.wind) return null; const sp = Math.hypot(st.wind.vx, st.wind.vy); const to = wrap360(Math.atan2(st.wind.vx, st.wind.vy) * R2D); return { spd: sp, from: wrap360(to + 180), to }; }
 
 /* ================= elevation & glide prediction ================= */

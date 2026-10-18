@@ -242,8 +242,8 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
   const wp = st.task && st.task.pts[st.nextWp];
   const dwp = f && wp ? dist(f.lat, f.lon, wp.lat, wp.lon) : null;
   switch (W.type) {
-    case 'vario': { const win = +c.win || 0; const v = win ? avgVario(win, now) ?? st.vario : st.vario; return { l: win ? 'Vario ' + win + ' s' : 'Vario', u: VU(), v: V(v), col: v >= 0 ? css('--climb') : css('--sink'), s: st.varioSrc === 'gps' ? 'from GPS' : '' }; }
-    case 'avg': { const win = +c.win || 30; const a = avgVario(win, now); return { l: 'Vario average', u: VU() + ' · Ø ' + fmtDur(win), v: V(a), col: a == null ? null : a >= 0 ? css('--climb') : css('--sink') }; }
+    case 'vario': { const win = +c.win || 0; const v = win ? avgVario(win, now) ?? st.vario : st.vario; return { l: win ? 'Vario ' + durS(win) : 'Vario', u: VU(), v: V(v), col: v >= 0 ? css('--climb') : css('--sink'), s: st.varioSrc === 'gps' ? 'from GPS' : '' }; }
+    case 'avg': { const win = +c.win || 30; const a = avgVario(win, now); return { l: 'Vario ' + durS(win), u: VU(), v: V(a), col: a == null ? null : a >= 0 ? css('--climb') : css('--sink') }; }
     case 'alt': { const a = c.src === 'gps' ? f?.alt : alt; return { l: 'Altitude', u: AU, v: A(a), s: c.src === 'gps' ? 'GPS' : st.baro ? 'vario' : 'GPS' }; }
     case 'agl': return { l: 'AGL', u: AU, v: st.groundElev != null && alt != null ? A(alt - st.groundElev) : '--', s: st.groundElev != null ? 'ground ' + A(st.groundElev) : 'needs terrain data' };
     case 'gs': return { l: 'Ground speed', u: SU, v: Sp(f?.spd) };
