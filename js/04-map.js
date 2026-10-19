@@ -97,6 +97,7 @@ function trafficKind(a) { const c = a.category || '', t = a.t || ''; if (c === '
 const trafficOn = (C) => C.traffic === true || C.traffic === 'true', trafficNet = (C) => trafficOn(C) && C.trafficSrc !== 'vario', trafficVario = (C) => trafficOn(C) && C.trafficSrc !== 'net';
 async function loadTraffic() {
   const f = st.fix; if (!f || document.hidden || st.replay || st.trafficBusy) return;
+  if (typeof saverOn === 'function' && saverOn() && Date.now() - (st.trafficAt || 0) < 30000) return; // battery saver: every 30 s
   const ws = [...MAPS].map((I) => findW(I.id)).filter((W) => W && trafficNet(effCfg(W))), rk = typeof radarKm === 'function' ? radarKm() : 0; if (!ws.length && !rk) return;
   const km = Math.max(rk, ...ws.map((W) => +effCfg(W).trafficR || 25)), nm = Math.min(250, Math.max(3, Math.ceil(km / 1.852)));
   st.trafficBusy = true;

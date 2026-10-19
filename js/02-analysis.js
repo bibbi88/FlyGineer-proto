@@ -145,7 +145,7 @@ function reachWanted() { return [...MAPS].some((I) => { const W = findW(I.id); c
 async function updateReach(force) {
   const f = st.fix, alt = altNow(); if (!f || alt == null || st.reachBusy || !reachWanted()) return;
   const R = st.reach, now = Date.now();
-  if (!force && R && now - R.t < 20000 && dist(R.lat, R.lon, f.lat, f.lon) < 300 && Math.abs(R.alt - alt) < 30 && R.wk === windKey()) return;
+  if (!force && R && now - R.t < (typeof saverOn === 'function' && saverOn() ? 60000 : 20000) && dist(R.lat, R.lon, f.lat, f.lon) < 300 && Math.abs(R.alt - alt) < 30 && R.wk === windKey()) return;
   st.reachBusy = true;
   try {
     const V = Math.max(5, sN('wingSpd', 37) / 3.6), sink = V / Math.max(2, S.wingLD), safe = +S.safety || 0, g0 = st.groundElev ?? 0, N = 36, K = 14, rays = [];

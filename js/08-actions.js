@@ -31,6 +31,9 @@ function runAction(a, text) {
     case 'pSwitch': goPage(pageKey() === 'thermal' ? 'pMap' : 'pThermal'); break;
     case 'fullscreen': toggleFull(); break;
     case 'copyTask': copyTask(); break;
+    case 'share': sharePos(); break;
+    case 'retrieve': openRetrieve(); break;
+    case 'checklist': openChecklist(); break;
     case 'edit': if (PAGEKEY[curPage]) enterEdit(); break;
     default: if (isUserPage(a) && PAGEKEY[a]) goPage(a); break;
     case 'skipWp': if (!st.task) toast('No task loaded'); else if (st.nextWp >= st.task.pts.length - 1) toast('The next point is the goal'); else goWp(st.nextWp + 1); break;
@@ -60,6 +63,9 @@ function handleTap(W) {
   if (a === 'times') return openInfo('Time', timesHTML);
   if (a === 'logbook') return openSettings('flights');
   if (a === 'mc') return mcStep();
+  if (a === 'share') return sharePos();
+  if (a === 'retrieve') return openRetrieve();
+  if (a === 'checklist') return openChecklist();
   if (a === 'dayinfo') return openInfo('Thermal day', dayHTML);
   if (a === 'landlist') return openInfo('Landing fields', landListHTML);
   if (a === 'conninfo') return openInfo('Connection & battery', connInfoHTML, W);
@@ -228,7 +234,7 @@ function setStartHere() {
 
 /* ================= update rate, thermal mode, export / import ================= */
 let loopT = null;
-function rateNow() { const r = st.thermMode && +S.rateT > 0 ? +S.rateT : +S.rate; return clamp(r || 0.4, 0.1, 5); }
+function rateNow() { const r = st.thermMode && +S.rateT > 0 ? +S.rateT : +S.rate; return Math.max(typeof saverOn === 'function' && saverOn() ? 2 : 0, clamp(r || 0.4, 0.1, 5)); } // battery saver (18): at most every 2 s
 function loop() { clearTimeout(loopT); try { tick(); } catch (e) { console.error(e); } loopT = setTimeout(loop, rateNow() * 1000); }
 function enterThermal() { st.manual = 'on'; updateMode(); }
 function leaveThermal() { st.manual = 'off'; st.offAt = 0; updateMode(); toast('Thermal mode off · starts again when you next circle'); }

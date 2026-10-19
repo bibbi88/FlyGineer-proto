@@ -47,7 +47,7 @@ async function recSave() {
 }
 async function recStop(why) {
   const R = REC.cur; if (!R) return; R.open = false; if (typeof flightThermals === 'function') { R.therms = flightThermals(R.pts); HOT = null; } await recSave(); REC.cur = null; REC.wait = true; REC.moving = 0;
-  const s = R.stats || {}; toast((why === 'landed' ? 'Landed · ' : 'Flight saved · ') + fDur(s.dur) + ' · ' + fDist(s.far || 0) + ' from start', [['Logbook', () => openSettings('flights')]]);
+  const s = R.stats || {}; toast((why === 'landed' ? 'Landed · ' : 'Flight saved · ') + fDur(s.dur) + ' · ' + fDist(s.far || 0) + ' from start', [['Retrieve', () => openRetrieve()], ['Logbook', () => openSettings('flights')]]);
   if (typeof renderSettings === 'function' && curPage === 'pSet') renderSettings(); markDirty();
 }
 function logListSet(m) { const i = REC.list.findIndex((x) => x.id === m.id); if (i >= 0) REC.list[i] = m; else REC.list.unshift(m); REC.list.sort((a, b) => b.t0 - a.t0); }
