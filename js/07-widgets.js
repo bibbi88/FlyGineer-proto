@@ -34,6 +34,8 @@ const WT = {
   radar: { n: 'Traffic radar', d: 'Air traffic around you (vario FLARM port and adsb.fi), coloured by threat and height', w: 6, h: 6, canvas: true, def: { range: 5, orient: 'track', band: 0, names: true }, o: [['range', 'Range', numOpt(0.5, 50, 0.5, 'km', [], { def: 5 })], ['orient', 'Up is', [['track', 'Track'], ['north', 'North']]], ['band', 'Height band ±', numOpt(0, 5000, 100, 'm', [], { zero: 'All heights', hint: '0 = all heights', def: 0 })], ['names', 'Callsigns', [[true, 'Show'], [false, 'Hide']]]] },
   sgate: { n: 'Start gate', d: 'Competition start: time to the gate, distance to the start edge and speed needed; then race time and speed', w: 6, h: 3, o: [] },
   tdist: { n: 'Task to go', d: 'Distance still to fly along the optimised task route (touching each cylinder)', w: 4, h: 2, o: [] },
+  stf: { n: 'Speed to fly', d: 'MacCready speed for the wind to the next turnpoint and the air you fly in; tap: MacCready +0.5', w: 5, h: 3, o: [] },
+  fglide: { n: 'Final glide', d: 'Height above (or below) the glide to goal along the optimised route, with the wind per leg', w: 6, h: 3, o: [] },
   land: { n: 'Landing', d: 'Nearest landing field you can reach and your arrival height (wind and wing glide); tap: all fields', w: 6, h: 3, o: [] },
   rec: { n: 'Flight recorder', d: 'IGC recording: ● REC and the flight time; tap: logbook', w: 3, h: 2, o: [] },
   baro: { n: 'Pressure', d: 'Air pressure from the vario, hPa', w: 3, h: 2, o: [] },
@@ -75,7 +77,7 @@ const WT = {
 };
 // airplane seen from above, nose up (Airspace button)
 const PLANE_PATH = '<path d="M16 2.5c1.3 0 2.2 1.2 2.2 2.8v7.2l10.3 6.2v3l-10.3-3.1v6.1l3.3 2.5v2.3L16 28.3l-5.5 1.2v-2.3l3.3-2.5v-6.1L3.5 21.7v-3l10.3-6.2V5.3c0-1.6.9-2.8 2.2-2.8z" fill="currentColor"/>';
-const TAPG = [['Info', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['times', 'All times (local, UTC, takeoff, flight)'], ['airlist', 'Airspace & radio'], ['radiopoi', 'Radio message & place'], ['logbook', 'Flights & logbook'], ['landlist', 'Landing fields']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['xcmode', 'Next XC mode (XC flight)'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['tcycle', 'Next time (Time widget)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
+const TAPG = [['Info', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['times', 'All times (local, UTC, takeoff, flight)'], ['airlist', 'Airspace & radio'], ['radiopoi', 'Radio message & place'], ['logbook', 'Flights & logbook'], ['landlist', 'Landing fields']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Action', [['mc', 'MacCready +0.5 (Speed to fly)'], ['xcmode', 'Next XC mode (XC flight)'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['vmode', 'Switch display (vario)'], ['tcycle', 'Next time (Time widget)'], ['units', 'Switch m / ft (height)'], ['fai', 'FAI triangle on/off']]], ['Nothing', [['none', 'Nothing']]]];
 const TAP = TAPG.flatMap(([, l]) => l);
 // when held: info is shown only while you hold; actions run once
 const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['times', 'All times (local, UTC, takeoff, flight)'], ['airlist', 'Airspace & radio'], ['radiopoi', 'Radio message & place']]], ['Action', [['pages', 'Page menu'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
@@ -286,6 +288,8 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
       return { l: { local: 'Local time', utc: 'UTC', flight: 'Flight time' }[cur], u: '', v: V[cur], s: !(c.others === true || c.others === 'true') ? '' : rest.map((k) => N[k] + ' ' + V[k]).join(' · ') }; }
     case 'time': { const d = new Date(c.zone === 'utc' && st.replay ? st.replay.vt : Date.now()); const U = c.zone === 'utc'; const hh = U ? d.getUTCHours() : d.getHours(), mm = U ? d.getUTCMinutes() : d.getMinutes(), ss = U ? d.getUTCSeconds() : d.getSeconds(); return { l: U ? 'UTC' : 'Local time', u: '', v: pad2(hh) + ':' + pad2(mm) + (c.sec ? ':' + pad2(ss) : ''), s: 'tap: both times' }; }
     case 'land': return landWData(W);
+    case 'stf': return stfWData(W);
+    case 'fglide': return fglideWData(W);
     case 'sgate': return sgateWData(W);
     case 'tdist': return tdistWData(W);
     case 'rec': { const R = REC.cur, s = R && R.stats; if (R) return { l: 'Recording', v: '● REC', col: '#C62828', s: fDur(R.pts.length ? (R.pts[R.pts.length - 1][0] - R.t0) / 1000 : 0) + ' · ' + R.pts.length + ' pts' }; return { l: 'Recorder', v: !recOn() ? 'OFF' : st.replay || st.sim ? 'DEMO' : 'READY', s: !recOn() ? 'recording off' : st.replay || st.sim ? 'not recorded' : REC.wait ? 'landed' : 'starts at takeoff' }; }
@@ -529,11 +533,11 @@ function openSheet(id) {
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
 const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'], 'button:mute': ['Mute vario button', 'Vario sound on/off, red while muted'] };
-const ADD_NEW = ['sgate', 'tdist', 'land', 'radar', 'rec', 'conn', 'tclock', 'baro', 'button:mute', 'radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
+const ADD_NEW = ['fglide', 'stf', 'sgate', 'tdist', 'land', 'radar', 'rec', 'conn', 'tclock', 'baro', 'button:mute', 'radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
   ['Thermal', ['thchip', 'ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
   ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'tow', 'temp', 'baro']],
-  ['Speed, wind & glide', ['land', 'gs', 'trk', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
+  ['Speed, wind & glide', ['land', 'fglide', 'stf', 'gs', 'trk', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
   ['Map & task', ['map', 'radar', 'next', 'sgate', 'tdist', 'dist', 'fai', 'button:fai', 'button:copyTask']],
   ['Buttons', ['button:mute', 'button:pSwitch', 'button:fullscreen', 'button']],
   ['Weather', ['profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],

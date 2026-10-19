@@ -21,8 +21,8 @@ function landCalc() {
   const f = st.fix, alt = altNow(); if (!f || alt == null) return [];
   const V = Math.max(5, sN('wingSpd', 37) / 3.6), sink = V / Math.max(2, S.wingLD), safe = +S.safety || 0, R = st.reach;
   return landList().map((l) => {
-    const d = dist(f.lat, f.lon, l.lat, l.lon), b = brg(f.lat, f.lon, l.lat, l.lon), gs = gsAlong(b, V), el = l.el ?? null;
-    const arr = gs > 0 && el != null ? alt - (d * sink) / gs - el : null, need = el != null && alt - el > 0 ? d / (alt - el) : null;
+    const d = dist(f.lat, f.lon, l.lat, l.lon), b = brg(f.lat, f.lon, l.lat, l.lon), G = typeof glideAlong === 'function' ? glideAlong(b) : { gs: gsAlong(b, V), sink }, gs = G.gs, el = l.el ?? null;
+    const arr = gs > 0 && el != null ? alt - (d * G.sink) / gs - el : null, need = el != null && alt - el > 0 ? d / (alt - el) : null;
     const terr = R && R.terrain && Date.now() - R.t < 60000 ? inPoly(l.lat, l.lon, R.poly) : null;
     return { l, d, b, gs, arr, need, ok: arr != null && arr >= safe && terr !== false, terr };
   }).filter((x) => x.d < 80000).sort((a, b) => a.d - b.d);

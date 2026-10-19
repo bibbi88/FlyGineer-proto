@@ -149,13 +149,13 @@ async function updateReach(force) {
   st.reachBusy = true;
   try {
     const V = Math.max(5, sN('wingSpd', 37) / 3.6), sink = V / Math.max(2, S.wingLD), safe = +S.safety || 0, g0 = st.groundElev ?? 0, N = 36, K = 14, rays = [];
-    for (let i = 0; i < N; i++) { const b = i * 360 / N, gs = gsAlong(b, V), flat = gs > 0 ? Math.max(0, alt - g0 - safe) * gs / sink : 0, maxD = Math.min(80000, flat * 1.6 + 500); rays.push({ b, gs, maxD, pts: [] }); for (let k = 1; k <= K; k++) rays[i].pts.push(dest(f.lat, f.lon, b, maxD * k / K)); }
+    for (let i = 0; i < N; i++) { const b = i * 360 / N, G = typeof glideAlong === 'function' ? glideAlong(b) : { gs: gsAlong(b, V), sink }, gs = G.gs, flat = gs > 0 ? Math.max(0, alt - g0 - safe) * gs / G.sink : 0, maxD = Math.min(80000, flat * 1.6 + 500); rays.push({ b, gs, sink: G.sink, maxD, pts: [] }); for (let k = 1; k <= K; k++) rays[i].pts.push(dest(f.lat, f.lon, b, maxD * k / K)); }
     let el = null; try { el = await elevCached(rays.flatMap((r) => r.pts)); } catch (e) { el = null; }
     if (!el && st.groundElev == null) { st.reach = null; return; } // no terrain at all: better nothing than a guess
     const poly = rays.map((r, i) => {
       if (r.gs <= 0) return [f.lat, f.lon];
       let d = r.maxD, prevD = 0, prevM = alt - (st.groundElev ?? alt) - safe;
-      for (let k = 0; k < K; k++) { const dk = r.maxD * (k + 1) / K, gnd = el ? el[i * K + k] : g0, m = alt - dk * sink / r.gs - gnd - safe;
+      for (let k = 0; k < K; k++) { const dk = r.maxD * (k + 1) / K, gnd = el ? el[i * K + k] : g0, m = alt - dk * r.sink / r.gs - gnd - safe;
         if (m < 0) { d = prevM > 0 ? prevD + (dk - prevD) * prevM / (prevM - m) : prevD; break; } prevD = dk; prevM = m; }
       return dest(f.lat, f.lon, r.b, d);
     });
