@@ -93,10 +93,10 @@ function drawPlacesInto(g, f, C) {
 st.traffic = []; st.trafficAt = 0;
 const HELI_T = /^(R22|R44|R66|EC\d|H\d{2,3}|AS\d|B06|B407|B412|B429|A109|A119|A139|A169|AW\d|S76|S92|S61|MD5|MD6|EH10|NH90|KA\d|BK17|B105|H60|H47|CH47|UH|AH6|MI\d|G2CA|GAZL|LAMA|TIGR|EXEC|SCOU|ALO\d)/i, BIG_T = /^(A3\d\d|A2\d\d|A4\d\d|B7\d\d|B3\d\d|B38|E1\d\d|E2\d\d|E75|CRJ|DH8D|AT7|MD8|MD9|C17|C130|A400|IL76|AN\d)/i;
 function trafficKind(a) { const c = a.category || '', t = a.t || ''; if (c === 'A7' || HELI_T.test(t)) return 'heli'; if (/^A[3-6]$/.test(c)) return 'big'; if (!c && BIG_T.test(t)) return 'big'; return 'small'; }
-const trafficOn = (C) => C.traffic === true || C.traffic === 'true';
+const trafficOn = (C) => C.traffic === true || C.traffic === 'true', trafficNet = (C) => trafficOn(C) && C.trafficSrc !== 'vario', trafficVario = (C) => trafficOn(C) && C.trafficSrc !== 'net';
 async function loadTraffic() {
   const f = st.fix; if (!f || document.hidden || st.replay || st.trafficBusy) return;
-  const ws = [...MAPS].map((I) => findW(I.id)).filter((W) => W && trafficOn(effCfg(W))); if (!ws.length) return;
+  const ws = [...MAPS].map((I) => findW(I.id)).filter((W) => W && trafficNet(effCfg(W))); if (!ws.length) return;
   const km = Math.max(...ws.map((W) => +effCfg(W).trafficR || 25)), nm = Math.min(250, Math.max(3, Math.ceil(km / 1.852)));
   st.trafficBusy = true;
   try {
@@ -108,20 +108,22 @@ async function loadTraffic() {
   st.trafficBusy = false;
 }
 setInterval(loadTraffic, 8000);
-const TR_SVG = { small: '<path d="M20 3 L22 14 L36 22 L36 25 L22 21 L22 31 L27 34 L27 36.5 L20 35 L13 36.5 L13 34 L18 31 L18 21 L4 25 L4 22 L18 14 Z"/>', big: '<path d="M20 1 L22.5 11 L38 24 L38 28 L22.5 23 L22 31 L27.5 35 L27.5 38 L20 36.5 L12.5 38 L12.5 35 L18 31 L17.5 23 L2 28 L2 24 L17.5 11 Z"/><circle cx="12" cy="22" r="2" fill="#fff" stroke="none"/><circle cx="28" cy="22" r="2" fill="#fff" stroke="none"/>', heli: '<ellipse cx="20" cy="18" rx="5.5" ry="8"/><path d="M18.8 25 H21.2 V35 H18.8Z"/><path d="M15 36 H25" fill="none" stroke-width="3" stroke-linecap="round"/><path d="M4 18 H36 M20 2 V34" fill="none" stroke-width="2" stroke-linecap="round" opacity=".85"/>' };
+const TR_SVG = { pg: '<path d="M4 15 Q20 3 36 15 L34 19.5 Q20 9.5 6 19.5 Z"/><path d="M6.5 19 L20 30 L33.5 19" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="20" cy="31" r="4"/>', glider: '<path d="M20 7 L21.6 16.5 L38.5 18.5 L38.5 21 L21.6 21 L21 31 L25.5 32.5 L25.5 34.5 L20 34 L14.5 34.5 L14.5 32.5 L19 31 L18.4 21 L1.5 21 L1.5 18.5 L18.4 16.5 Z"/>', small: '<path d="M20 3 L22 14 L36 22 L36 25 L22 21 L22 31 L27 34 L27 36.5 L20 35 L13 36.5 L13 34 L18 31 L18 21 L4 25 L4 22 L18 14 Z"/>', big: '<path d="M20 1 L22.5 11 L38 24 L38 28 L22.5 23 L22 31 L27.5 35 L27.5 38 L20 36.5 L12.5 38 L12.5 35 L18 31 L17.5 23 L2 28 L2 24 L17.5 11 Z"/><circle cx="12" cy="22" r="2" fill="#fff" stroke="none"/><circle cx="28" cy="22" r="2" fill="#fff" stroke="none"/>', heli: '<ellipse cx="20" cy="18" rx="5.5" ry="8"/><path d="M18.8 25 H21.2 V35 H18.8Z"/><path d="M15 36 H25" fill="none" stroke-width="3" stroke-linecap="round"/><path d="M4 18 H36 M20 2 V34" fill="none" stroke-width="2" stroke-linecap="round" opacity=".85"/>' };
 const trafficIcon = (kind, col, lab) => L.divIcon({ className: '', html: `<div style="width:60px;text-align:center;font:700 12px Barlow Condensed,sans-serif;color:${col};text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff"><svg viewBox="0 0 40 40" width="${kind === 'big' ? 50 : 42}" height="${kind === 'big' ? 50 : 42}" style="display:block;margin:0 auto;overflow:visible"><g class="trg" fill="${col}" stroke="#fff" stroke-width="2" stroke-linejoin="round">${TR_SVG[kind]}</g></svg>${esc(lab)}</div>`, iconSize: [60, 66], iconAnchor: [30, 25] });
 function trafficDraw(I, C, mb, f) {
   const g = I.g.traffic, tm = I.tmk || (I.tmk = new Map());
-  { const ATTR = 'Air traffic: <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>', want = trafficOn(C); if (!!I.trAttr !== want) { I.trAttr = want; const ac = I.m.attributionControl; if (ac) want ? ac.addAttribution(ATTR) : ac.removeAttribution(ATTR); } }
+  { const ATTR = 'Air traffic: <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>', want = trafficNet(C); if (!!I.trAttr !== want) { I.trAttr = want; const ac = I.m.attributionControl; if (ac) want ? ac.addAttribution(ATTR) : ac.removeAttribution(ATTR); } }
   if (!trafficOn(C) || !f) { if (tm.size) { g.clearLayers(); tm.clear(); } return; }
   const R = (+C.trafficR || 25) * 1000, band = C.trafficA === undefined ? 1500 : +C.trafficA, now = Date.now(), seen = new Set();
-  st.traffic.forEach((a) => {
-    const age = Math.min(30, (now - st.trafficAt) / 1000 + a.seen), p = a.gs > 5 ? dest(a.lat, a.lon, a.trk, a.gs * 0.5144 * age) : [a.lat, a.lon];
-    const rel = f.alt != null ? a.altM - f.alt : null; if (dist(f.lat, f.lon, p[0], p[1]) > R || (band > 0 && rel != null && Math.abs(rel) > band)) return;
-    const col = rel == null ? '#4A5058' : Math.abs(rel) <= 300 ? '#C62828' : Math.abs(rel) <= 800 ? '#E07B00' : '#4A5058';
-    const lab = (rel == null ? fAlt(a.altM) : (rel >= 0 ? '+' : '−') + fAlt(Math.abs(rel))) + ' ' + (a.call || ''), sig = a.kind + col + lab; seen.add(a.hex);
+  // FLARM-port traffic from the vario first (fresher, and it sees what the internet does not); the same ICAO address from adsb.fi is left out
+  const loc = trafficVario(C) ? flarmList() : [], have = new Set(loc.map((a) => a.hex)), list = loc.concat(trafficNet(C) ? st.traffic.filter((a) => !have.has(String(a.hex).toLowerCase())) : []);
+  list.forEach((a) => {
+    const age = a.local ? Math.min(5, (now - a.t) / 1000) : Math.min(30, (now - st.trafficAt) / 1000 + a.seen), p = a.gs > 5 && a.trk != null ? dest(a.lat, a.lon, a.trk, a.gs * 0.5144 * age) : [a.lat, a.lon];
+    const rel = a.local && a.rel != null ? a.rel : f.alt != null && a.altM != null ? a.altM - f.alt : null; if (dist(f.lat, f.lon, p[0], p[1]) > R || (band > 0 && rel != null && Math.abs(rel) > band && !(a.alarm >= 2))) return;
+    const col = a.alarm >= 2 ? '#C62828' : a.alarm === 1 ? '#E07B00' : rel == null ? '#4A5058' : Math.abs(rel) <= 300 ? '#C62828' : Math.abs(rel) <= 800 ? '#E07B00' : '#4A5058';
+    const lab = (a.alarm >= 2 ? '⚠ ' : '') + (rel == null ? (a.altM != null ? fAlt(a.altM) : '') : (rel >= 0 ? '+' : '−') + fAlt(Math.abs(rel))) + ' ' + (a.call || ''), sig = a.kind + col + lab; seen.add(a.hex);
     let mk = tm.get(a.hex); if (!mk) { mk = L.marker(p, { icon: trafficIcon(a.kind, col, lab), interactive: false, zIndexOffset: 500 }).addTo(g); mk._sig = sig; tm.set(a.hex, mk); } else { mk.setLatLng(p); if (mk._sig !== sig) { mk.setIcon(trafficIcon(a.kind, col, lab)); mk._sig = sig; } }
-    const el = mk.getElement(), gg = el && el.querySelector('.trg'); if (gg) gg.setAttribute('transform', `rotate(${a.trk + mb} 20 20)`);
+    const el = mk.getElement(), gg = el && el.querySelector('.trg'); if (gg) gg.setAttribute('transform', `rotate(${(a.trk || 0) + mb} 20 20)`);
   });
   tm.forEach((mk, k) => { if (!seen.has(k)) { g.removeLayer(mk); tm.delete(k); } });
 }

@@ -420,6 +420,7 @@ function connInfoHTML() {
     h += row('Readings', bs.last ? bs.rate.toFixed(1) + ' per second' + (bs.age > 2 ? ' · last ' + bs.age.toFixed(0) + ' s ago' : '') : 'none yet', bs.last ? bs.age <= 2 : false);
     if (bs.last && bs.last.pa) h += row('Pressure', (bs.last.pa / 100).toFixed(2) + ' hPa · QNH ' + (+sN('qnh', 1013.25)).toFixed(1));
     if (st.baro && st.baro.temp != null) h += row('Temperature', st.baro.temp.toFixed(0) + ' °C');
+    if (st.flarmAt) { const n = flarmList().length, ag = (Date.now() - st.flarmAt) / 1000; h += row('Traffic ($PFLAA)', n + ' aircraft' + (ag > 5 ? ' · last ' + ag.toFixed(0) + ' s ago' : '')); }
   } else h += row('Status', st.sim ? 'demo vario' : st.replay ? 'IGC replay (' + esc(st.replay.name || '') + ')' : 'not connected', st.sim || st.replay ? undefined : false) + `<div class="row" style="margin:6px 0"><button class="btn primary" onclick="connectBora()">Connect over Bluetooth</button></div>`;
   h += '<h3 style="margin:10px 0 2px">GPS</h3>' + row('Position', f ? (gAge < 4 ? 'fix' : 'last fix ' + gAge.toFixed(0) + ' s ago') + (f.acc ? ' · ±' + Math.round(f.acc) + ' m' : '') : 'waiting for position', f ? gAge < 4 : false);
   if (st.replay || st.sim) h += row('Real GPS', st.gpsPos ? '±' + Math.round(st.gpsPos.acc || 0) + ' m, ' + Math.round((Date.now() - st.gpsPos.t) / 1000) + ' s ago' : 'none');

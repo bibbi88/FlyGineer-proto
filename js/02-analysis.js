@@ -160,6 +160,7 @@ function baroFilter(z, t) {
 }
 function parseLine(l) {
   if (l) { const L = st.baroLines || (st.baroLines = []); L.push(l); if (L.length > 12) L.shift(); }
+  if (l.startsWith('$PFLAA')) { flarmLine(l); return; }
   if (!l.startsWith('$LK8EX1')) return;
   const p = l.split('*')[0].split(','), t = Date.now();
   const pres = +p[1], altR = +p[2], vCm = +p[3], temp = +p[4], bat = +p[5], pa = isFinite(pres) && pres > 30000 && pres < 120000 ? pres : null;
@@ -170,6 +171,26 @@ function parseLine(l) {
   const B = st.baroLog || (st.baroLog = []); B.push({ t, pa, raw, h: alt, v: vario }); while (B.length && B[0].t < t - 90000) B.shift();
   onBaro({ t, alt, vario: vario ?? 0, temp: isNaN(temp) || temp === 99 ? null : temp, pa });
 }
+
+/* FLARM data port traffic ($PFLAA) from the vario or any Bluetooth device sending it (ADS-L / FANET / OGN / ADS-B receivers):
+   $PFLAA,<alarm 0-3>,<rel north m>,<rel east m>,<rel vertical m>,<id type>,<id hex>,<track>,<turn rate>,<ground speed m/s>,<climb m/s>,<aircraft type hex>[,<no-track>,<source>,<rssi>]
+   positions are relative to the sender's GPS; placed from our own fix when the line arrives. */
+st.flarm = new Map();
+const FLARM_KIND = { 1: 'glider', 3: 'heli', 4: 'pg', 6: 'pg', 7: 'pg', 9: 'big' }, FLARM_NAME = { 1: 'Glider', 2: 'Tow', 3: 'Heli', 4: 'Skydiver', 5: 'Drop plane', 6: 'HG', 7: 'PG', 8: 'Plane', 9: 'Jet', 11: 'Balloon', 12: 'Airship', 13: 'Drone', 15: 'Obstacle' };
+function flarmLine(l) {
+  const [body, cs] = l.slice(1).split('*');
+  if (cs && /^[0-9A-F]{2}/i.test(cs)) { let x = 0; for (let i = 0; i < body.length; i++) x ^= body.charCodeAt(i); if (x !== parseInt(cs.slice(0, 2), 16)) return; }
+  const p = body.split(','), f = st.fix; if (p.length < 11 || !f) return;
+  const n = +p[2], e = +p[3], v = p[4] === '' ? null : +p[4], id = (p[6] || '').trim().toLowerCase(); if (!isFinite(n) || !isFinite(e) || !id) return;
+  const ty = parseInt(p[11], 16) || 0, noTrk = p[12] === '1' || p[7] === '', trk = noTrk ? null : +p[7], gs = noTrk ? 0 : +p[9] || 0, now = Date.now();
+  const lat = f.lat + n / 111320, lon = f.lon + e / (111320 * Math.cos(f.lat * D2R));
+  st.flarm.set(id, { hex: id, idType: +p[5], call: FLARM_NAME[ty] || '', lat, lon, rel: v, altM: v != null && f.alt != null ? f.alt + v : null, gs: gs * 1.94384, trk, climb: p[10] === '' ? null : +p[10], kind: FLARM_KIND[ty] || 'small', alarm: +p[1] || 0, src: p[13] === '' || p[13] == null ? null : +p[13], t: now, seen: 0, local: true });
+  st.flarmAt = now; st.flarmN = (st.flarmN || 0) + 1;
+  st.flarm.forEach((a, k) => { if (now - a.t > 15000) st.flarm.delete(k); });
+  markDirty();
+}
+// FLARM traffic still fresh (≤ 12 s)
+function flarmList() { const now = Date.now(), out = []; st.flarm.forEach((a, k) => { if (now - a.t <= 12000) out.push(a); else if (now - a.t > 15000) st.flarm.delete(k); }); return out; }
 
 /* ================= GPS ================= */
 let gpsWatch = null;
