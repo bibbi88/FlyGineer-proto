@@ -96,8 +96,8 @@ function trafficKind(a) { const c = a.category || '', t = a.t || ''; if (c === '
 const trafficOn = (C) => C.traffic === true || C.traffic === 'true', trafficNet = (C) => trafficOn(C) && C.trafficSrc !== 'vario', trafficVario = (C) => trafficOn(C) && C.trafficSrc !== 'net';
 async function loadTraffic() {
   const f = st.fix; if (!f || document.hidden || st.replay || st.trafficBusy) return;
-  const ws = [...MAPS].map((I) => findW(I.id)).filter((W) => W && trafficNet(effCfg(W))); if (!ws.length) return;
-  const km = Math.max(...ws.map((W) => +effCfg(W).trafficR || 25)), nm = Math.min(250, Math.max(3, Math.ceil(km / 1.852)));
+  const ws = [...MAPS].map((I) => findW(I.id)).filter((W) => W && trafficNet(effCfg(W))), rk = typeof radarKm === 'function' ? radarKm() : 0; if (!ws.length && !rk) return;
+  const km = Math.max(rk, ...ws.map((W) => +effCfg(W).trafficR || 25)), nm = Math.min(250, Math.max(3, Math.ceil(km / 1.852)));
   st.trafficBusy = true;
   try {
     const r = await fetch(`https://opendata.adsb.fi/api/v3/lat/${f.lat.toFixed(4)}/lon/${f.lon.toFixed(4)}/dist/${nm}`); if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -110,7 +110,7 @@ async function loadTraffic() {
 setInterval(loadTraffic, 8000);
 // adsb.fi status for the connection popup: [text, ok]
 function trafficStatus() {
-  const on = [...MAPS].some((I) => { const W = findW(I.id); return W && trafficNet(effCfg(W)); });
+  const on = [...MAPS].some((I) => { const W = findW(I.id); return W && trafficNet(effCfg(W)); }) || (typeof radarKm === 'function' && radarKm() > 0);
   if (!on) return ['off · no map on this page shows internet traffic', undefined];
   if (st.replay) return ['paused during demo / replay', undefined];
   if (!st.fix) return ['waiting for a GPS position', false];

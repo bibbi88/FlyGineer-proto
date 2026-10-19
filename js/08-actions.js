@@ -67,7 +67,7 @@ function handleTap(W) {
 }
 const GROUP = { vario: 'vario', avg: 'vario', varioDial: 'vario', thermal: 'vario', gain: 'vario', ttime: 'vario', climb: 'vario', ta: 'vario',
   alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', fai: 'task', dist: 'task',
-  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', radiomsg: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', tclock: 'flight', conn: 'flight', rec: 'flight', temp: 'alt', baro: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
+  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', radiomsg: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', tclock: 'flight', conn: 'flight', rec: 'flight', radar: 'flight', temp: 'alt', baro: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
 function closeDetails() { clearInterval(detT); detT = null; detState = null; $('dlg').style.display = 'none'; }
 // XC flight widget: all three ways to score the flight at once, the FAI sectors switch and the mode
 function xcInfoHTML(W, held) {

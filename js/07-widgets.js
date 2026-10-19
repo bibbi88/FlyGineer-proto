@@ -31,6 +31,7 @@ const WT = {
   tclock: { n: 'Time', d: 'Local time (or UTC / flight time); tap: local, UTC, takeoff and flight time', w: 3, h: 2, o: [['show', 'Showing', [['local', 'Local time'], ['utc', 'UTC'], ['flight', 'Flight time']]], ['others', 'The other two below', [[false, 'Hide'], [true, 'Show']]], ['sec', 'Seconds', [[false, 'Hide'], [true, 'Show']]]] },
   time: { n: 'Clock', d: 'Local or UTC', w: 3, h: 2, o: [['zone', 'Time zone', [['local', 'Local'], ['utc', 'UTC']]], ['sec', 'Seconds', [[false, 'Hide'], [true, 'Show']]]] },
   temp: { n: 'Temperature', d: 'From the vario', w: 3, h: 2, o: [] },
+  radar: { n: 'Traffic radar', d: 'Air traffic around you (vario FLARM port and adsb.fi), coloured by threat and height', w: 6, h: 6, canvas: true, def: { range: 5, orient: 'track', band: 0, names: true }, o: [['range', 'Range', numOpt(0.5, 50, 0.5, 'km', [], { def: 5 })], ['orient', 'Up is', [['track', 'Track'], ['north', 'North']]], ['band', 'Height band ±', numOpt(0, 5000, 100, 'm', [], { zero: 'All heights', hint: '0 = all heights', def: 0 })], ['names', 'Callsigns', [[true, 'Show'], [false, 'Hide']]]] },
   rec: { n: 'Flight recorder', d: 'IGC recording: ● REC and the flight time; tap: logbook', w: 3, h: 2, o: [] },
   baro: { n: 'Pressure', d: 'Air pressure from the vario, hPa', w: 3, h: 2, o: [] },
   battery: { n: 'Battery', d: 'Vario and tablet', w: 3, h: 2, o: [] },
@@ -522,16 +523,16 @@ function openSheet(id) {
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
 const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'], 'button:mute': ['Mute vario button', 'Vario sound on/off, red while muted'] };
-const ADD_NEW = ['conn', 'tclock', 'baro', 'button:mute', 'radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
+const ADD_NEW = ['radar', 'rec', 'conn', 'tclock', 'baro', 'button:mute', 'radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
   ['Thermal', ['thchip', 'ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
   ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'tow', 'temp', 'baro']],
   ['Speed, wind & glide', ['gs', 'trk', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
-  ['Map & task', ['map', 'next', 'dist', 'fai', 'button:fai', 'button:copyTask']],
+  ['Map & task', ['map', 'radar', 'next', 'dist', 'fai', 'button:fai', 'button:copyTask']],
   ['Buttons', ['button:mute', 'button:pSwitch', 'button:fullscreen', 'button']],
   ['Weather', ['profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],
   ['Airspace & places', ['radiomsg', 'airwarn', 'airbtn', 'air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],
-  ['Flight & tablet', ['conn', 'tclock', 'flight', 'time', 'battery']]];
+  ['Flight & tablet', ['rec', 'conn', 'tclock', 'flight', 'time', 'battery']]];
 function openAdd() {
   const btn = (k, n, d, g) => `<button data-add="${k}" data-q="${esc((n + ' ' + d).toLowerCase())}">${ADD_NEW.includes(k) ? '<span class="newTag">New</span>' : ''}${n}<small>${d}</small></button>`, seen = new Set();
   const groups = ADD_GROUPS.map(([g, ks]) => [g, ks.filter((k) => WT[k.split(':')[0]])]);

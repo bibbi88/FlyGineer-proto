@@ -198,6 +198,7 @@ function baroFilter(z, t) {
 function parseLine(l) {
   if (l) { const L = st.baroLines || (st.baroLines = []); L.push(l); if (L.length > 12) L.shift(); }
   if (l.startsWith('$PFLAA')) { flarmLine(l); return; }
+  if (l.startsWith('$PFLAU')) { if (typeof flarmU === 'function') flarmU(l); return; }
   if (!l.startsWith('$LK8EX1')) return;
   const p = l.split('*')[0].split(','), t = Date.now();
   const pres = +p[1], altR = +p[2], vCm = +p[3], temp = +p[4], bat = +p[5], pa = isFinite(pres) && pres > 30000 && pres < 120000 ? pres : null;

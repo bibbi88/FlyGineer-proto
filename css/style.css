@@ -401,3 +401,10 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .plSaved .plSel{flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;gap:0;height:auto;min-height:52px;padding:4px 10px}
 .plSaved .plSel b{white-space:normal;line-height:1.15}
 .plSaved .plSel span{font-size:13px}
+
+/* traffic warning banner (13-traffic.js) */
+.trafBan { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 2300; display: none; align-items: center; gap: 12px; padding: 12px 22px; min-height: 56px; border-radius: 14px; background: #E07B00; color: #fff; font: 700 22px 'Barlow Condensed', sans-serif; box-shadow: 0 4px 18px rgba(0,0,0,.35); cursor: pointer; }
+.trafBan[data-lvl="3"] { background: #C62828; animation: trafBlink .5s step-end infinite alternate; }
+.trafBan[data-lvl="1"] { background: #B26A00; }
+.trafBan span { font-weight: 600; }
+@keyframes trafBlink { 50% { background: #7F0000; } }
