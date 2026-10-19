@@ -1029,7 +1029,7 @@ function webSectionWire() {
 }
 
 /* settings */
-const SECS = [['data', 'Vario & GPS'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['radio', 'Radio message'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Flight modes'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
+const SECS = [['data', 'Vario & GPS'], ['flights', 'Flights & logbook'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['radio', 'Radio message'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Flight modes'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
@@ -1136,6 +1136,7 @@ function setSecHTML() { // the HTML of section setSec
     <div class="muted">The file holds every widget on all four pages with its position, size and settings, including the thermal-mode settings. API keys and proxy addresses are never saved to it.</div></div>`;
   if (setSec === 'auto') h = autoSection();
   if (setSec === 'app') h = appSection();
+  if (setSec === 'flights') h = flightsSecHTML();
   return h;
 }
 function renderSettings() {
@@ -1157,6 +1158,7 @@ function renderSettings() {
   on('igcFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; try { startReplay(parseIGC(await fl.text()), fl.name.replace(/\.igc$/i, '')); } catch (err) { toast('Could not read the IGC file: ' + err.message); } });
   on('igcStop', 'onclick', () => { stopReplay(); renderSettings(); }); on('simBtn', 'onclick', () => { st.sim ? stopSim() : startSim(); renderSettings(); }); on('demoBtn', 'onclick', () => { isDemo() ? stopReplay() : startDemoFlight(); renderSettings(); });
   if (setSec === 'data' || q) baroWire(on);
+  if (setSec === 'flights' || q) flightsWire(on);
   if (q) setFilter(q);
   on('wingLD', 'onchange', (e) => { S.wingLD = +e.target.value; save(); st.lastPredFetch = 0; st.reach = null; });
   on('safety', 'onchange', (e) => { S.safety = +e.target.value; save(); st.reach = null; });

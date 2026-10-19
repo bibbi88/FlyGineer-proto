@@ -78,6 +78,7 @@ function onFix(f) {
   if (st.takeoffT && !st.takeoffPos) { st.takeoffPos = [f.lat, f.lon, f.alt ?? altNow()]; autoStart(); }
   const lg = st.log[st.log.length - 1]; if (lg && f.t - lg.t < 15000 && lg.spd == null) { lg.spd = f.spd; lg.lat = f.lat; lg.lon = f.lon; }
   analyse(f);
+  if (typeof recFix === 'function') recFix(f); // 12 flight recorder
 }
 function onBaro(b) { // {t, alt, vario, temp, batt}
   st.baro = b; st.varioSrc = st.sim ? 'demo' : 'bora';
