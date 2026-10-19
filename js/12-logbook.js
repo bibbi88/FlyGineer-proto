@@ -46,7 +46,7 @@ async function recSave() {
   try { await logPut(R); logListSet(flightMeta(R)); } catch (e) { if (!REC.saveErr) toast('Could not save the flight: ' + (e.message || e)); REC.saveErr = true; }
 }
 async function recStop(why) {
-  const R = REC.cur; if (!R) return; R.open = false; await recSave(); REC.cur = null; REC.wait = true; REC.moving = 0;
+  const R = REC.cur; if (!R) return; R.open = false; if (typeof flightThermals === 'function') { R.therms = flightThermals(R.pts); HOT = null; } await recSave(); REC.cur = null; REC.wait = true; REC.moving = 0;
   const s = R.stats || {}; toast((why === 'landed' ? 'Landed · ' : 'Flight saved · ') + fDur(s.dur) + ' · ' + fDist(s.far || 0) + ' from start', [['Logbook', () => openSettings('flights')]]);
   if (typeof renderSettings === 'function' && curPage === 'pSet') renderSettings(); markDirty();
 }

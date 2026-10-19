@@ -416,6 +416,8 @@ function sideDraw(cv, W, el) {
   });
   // where the current core should be further up
   if (top && top < amax && top > amin) { c.strokeStyle = css('--warn'); c.lineWidth = 2; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(L0 - 2, Y(top)); c.lineTo(Wd, Y(top)); c.stroke(); c.setLineDash([]); c.fillStyle = css('--warn'); c.textAlign = 'left'; c.fillText('thermal top ' + fAlt(top), L0 + 2, Y(top) - 4); }
+  // cloud base (17 cloudBaseNow: vario temperature + forecast dew point), cfg.cb
+  { const cb = W.cfg.cb !== false && W.cfg.cb !== 'false' && typeof cloudBaseNow === 'function' ? cloudBaseNow() : null; if (cb && cb.alt < amax && cb.alt > amin) { c.strokeStyle = '#1565C0'; c.lineWidth = 2; c.setLineDash([10, 5]); c.beginPath(); c.moveTo(L0 - 2, Y(cb.alt)); c.lineTo(Wd, Y(cb.alt)); c.stroke(); c.setLineDash([]); c.fillStyle = '#1565C0'; c.textAlign = 'right'; c.font = '700 12px Barlow'; c.fillText('☁ cloud base ' + fAlt(cb.alt), Wd - 4, Y(cb.alt) - 4); } }
   // track: thin line, dots coloured by climb, newest emphasised
   if (P.length > 1) { c.strokeStyle = 'rgba(80,90,100,.45)'; c.lineWidth = 1.2; c.beginPath(); P.forEach((p, i) => (i ? c.lineTo(X(p.s), Y(p.alt)) : c.moveTo(X(p.s), Y(p.alt)))); c.stroke(); }
   const step = Math.max(1, Math.ceil(P.length / 240));
