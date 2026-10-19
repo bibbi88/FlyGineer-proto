@@ -307,7 +307,7 @@ function mapDraw(cv, E, el, b) {
     up = smoothUp(I, rot, tgt, C.smooth || 'normal', rot === 'bearing' ? dist(f.lat, f.lon, wp.lat, wp.lon) : 1e9);
     const want = -up; if (m.setBearing && Math.abs(angDiff(mb, want)) > 0.2) m.setBearing(want); mb = m.getBearing ? m.getBearing() : 0;
     const ge = I.glider.getElement(), gg = ge && ge.querySelector('.glg'); if (gg) gg.setAttribute('transform', `rotate(${(f.trk || 0) + mb} 20 20)`);
-    trafficDraw(I, C, mb, f); windMark(I, C, f, mb); reachDraw(I, C); drawLandsInto(I, C); drawHotInto(I, C);
+    trafficDraw(I, C, mb, f); windMark(I, C, f, mb); reachDraw(I, C); drawLandsInto(I, C); drawHotInto(I, C); drawScoreInto(I, C);
     // live line from you to the next turnpoint
     if (wp && on(C.task) && on(C.towp) && !st.goalT) { const T = taskStyle(C, true), seg = [ll, [wp.lat, wp.lon]], k = [T.col, T.w, T.dash].join('|');
       if (I.twk !== k) { I.twk = k; I.toWp.setStyle({ color: T.col, weight: T.w, dashArray: T.dash, lineCap: T.cap === 'round' ? 'round' : 'butt' }); I.toWpH.setStyle({ color: T.halo, weight: T.w + 4, dashArray: T.dash, lineCap: T.cap }); }

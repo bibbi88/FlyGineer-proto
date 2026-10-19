@@ -46,7 +46,9 @@ async function recSave() {
   try { await logPut(R); logListSet(flightMeta(R)); } catch (e) { if (!REC.saveErr) toast('Could not save the flight: ' + (e.message || e)); REC.saveErr = true; }
 }
 async function recStop(why) {
-  const R = REC.cur; if (!R) return; R.open = false; if (typeof flightThermals === 'function') { R.therms = flightThermals(R.pts); HOT = null; } await recSave(); REC.cur = null; REC.wait = true; REC.moving = 0;
+  const R = REC.cur; if (!R) return; R.open = false; if (typeof flightThermals === 'function') { R.therms = flightThermals(R.pts); HOT = null; }
+  if (typeof trackScore === 'function') { const b = trackScore(R.pts.map((p) => [p[1], p[2]])).best; R.score = b ? { kind: b.kind, km: +b.km.toFixed(2), pts: +b.pts.toFixed(2) } : null; }
+  await recSave(); REC.cur = null; REC.wait = true; REC.moving = 0;
   const s = R.stats || {}; toast((why === 'landed' ? 'Landed · ' : 'Flight saved · ') + fDur(s.dur) + ' · ' + fDist(s.far || 0) + ' from start', [['Retrieve', () => openRetrieve()], ['Logbook', () => openSettings('flights')]]);
   if (typeof renderSettings === 'function' && curPage === 'pSet') renderSettings(); markDirty();
 }
@@ -106,7 +108,7 @@ function flightsSecHTML() {
   if (!REC.list.length) h += '<div class="muted">No flights recorded yet.</div>';
   else { const tot = REC.list.reduce((a, F) => a + ((F.stats && F.stats.dur) || 0), 0); h += `<div class="muted">${REC.list.length} flights · ${fDur(tot)} in the air</div>`; }
   REC.list.forEach((F) => { const x = F.stats || {};
-    h += `<div class="li" style="flex-wrap:wrap;gap:8px;min-height:56px"><div style="flex:1;min-width:220px"><b>${esc(flightTitle(F))}</b>${F.open ? ' <span style="color:var(--restr)">● recording</span>' : ''}<div class="muted" style="margin:0">${fDur(x.dur)} · farthest ${fDist(x.far || 0)} · track ${fDist(x.len || 0)} · max ${x.maxA != null ? fAlt(x.maxA) + ' ' + S.uAlt : '--'} · best climb ${x.climb ? x.climb.toFixed(1) : '--'} m/s</div></div>
+    h += `<div class="li" style="flex-wrap:wrap;gap:8px;min-height:56px"><div style="flex:1;min-width:220px"><b>${esc(flightTitle(F))}</b>${F.open ? ' <span style="color:var(--restr)">● recording</span>' : ''}<div class="muted" style="margin:0">${fDur(x.dur)} · farthest ${fDist(x.far || 0)} · track ${fDist(x.len || 0)} · max ${x.maxA != null ? fAlt(x.maxA) + ' ' + S.uAlt : '--'} · best climb ${x.climb ? x.climb.toFixed(1) : '--'} m/s${F.score ? ' · ' + F.score.pts.toFixed(1) + ' pts ' + (F.score.kind === 'fai' ? 'FAI' : F.score.kind === 'flat' ? 'flat △' : 'free') : ''}${F.gMax ? ' · max ' + F.gMax.toFixed(1) + ' G' : ''}</div></div>
       <span class="row"><button class="btn" data-lgplay="${F.id}" ${F.open ? 'disabled' : ''}>▶ Replay</button><button class="btn" data-lgdl="${F.id}">⬇ IGC</button><button class="btn warn" data-lgdel="${F.id}" ${F.open ? 'disabled' : ''}>✕</button></span></div>`; });
   return h + '</div>';
 }
