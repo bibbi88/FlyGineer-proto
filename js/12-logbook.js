@@ -109,7 +109,7 @@ function flightsSecHTML() {
   else { const tot = REC.list.reduce((a, F) => a + ((F.stats && F.stats.dur) || 0), 0); h += `<div class="muted">${REC.list.length} flights · ${fDur(tot)} in the air</div>`; }
   REC.list.forEach((F) => { const x = F.stats || {};
     h += `<div class="li" style="flex-wrap:wrap;gap:8px;min-height:56px"><div style="flex:1;min-width:220px"><b>${esc(flightTitle(F))}</b>${F.open ? ' <span style="color:var(--restr)">● recording</span>' : ''}<div class="muted" style="margin:0">${fDur(x.dur)} · farthest ${fDist(x.far || 0)} · track ${fDist(x.len || 0)} · max ${x.maxA != null ? fAlt(x.maxA) + ' ' + S.uAlt : '--'} · best climb ${x.climb ? x.climb.toFixed(1) : '--'} m/s${F.score ? ' · ' + F.score.pts.toFixed(1) + ' pts ' + (F.score.kind === 'fai' ? 'FAI' : F.score.kind === 'flat' ? 'flat △' : 'free') : ''}${F.gMax ? ' · max ' + F.gMax.toFixed(1) + ' G' : ''}</div></div>
-      <span class="row"><button class="btn" data-lgplay="${F.id}" ${F.open ? 'disabled' : ''}>▶ Replay</button><button class="btn" data-lgdl="${F.id}">⬇ IGC</button><button class="btn warn" data-lgdel="${F.id}" ${F.open ? 'disabled' : ''}>✕</button></span></div>`; });
+      <span class="row"><button class="btn primary" data-lgana="${F.id}">📈 Analyse</button><button class="btn" data-lgplay="${F.id}" ${F.open ? 'disabled' : ''}>▶ Replay</button><button class="btn" data-lgdl="${F.id}">⬇ IGC</button><button class="btn warn" data-lgdel="${F.id}" ${F.open ? 'disabled' : ''}>✕</button></span></div>`; });
   return h + '</div>';
 }
 function flightsWire(on) {
@@ -118,6 +118,7 @@ function flightsWire(on) {
   on('pilotName', 'onchange', (e) => { S.pilot = e.target.value.trim(); save(); if (REC.cur) REC.cur.pilot = S.pilot; });
   on('gliderName', 'onchange', (e) => { S.gliderName = e.target.value.trim(); save(); if (REC.cur) REC.cur.glider = S.gliderName; });
   document.querySelectorAll('[data-lgplay]').forEach((b) => (b.onclick = () => logReplay(b.dataset.lgplay)));
+  document.querySelectorAll('[data-lgana]').forEach((b) => (b.onclick = () => openAnalysis(b.dataset.lgana)));
   document.querySelectorAll('[data-lgdl]').forEach((b) => (b.onclick = () => logDownload(b.dataset.lgdl)));
   document.querySelectorAll('[data-lgdel]').forEach((b) => (b.onclick = () => logRemove(b.dataset.lgdel)));
 }

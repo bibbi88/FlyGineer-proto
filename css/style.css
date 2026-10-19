@@ -417,3 +417,18 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 
 /* competition task tags on the map (15-comp.js) */
 .cpTag{position:absolute;transform:translate(-50%,-120%);white-space:nowrap;padding:1px 6px;border-radius:6px;background:#111418;color:#fff;font:700 12px Barlow,sans-serif}
+
+/* flight analysis (23-analysis.js) */
+#anaPane{position:fixed;inset:0;z-index:2400;background:var(--bg,#F3F4F2);display:none;flex-direction:column}
+.anaHead{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--card)}
+.anaBody{flex:1;overflow-y:auto;padding:10px 14px}
+.anaStats{grid-template-columns:repeat(6,minmax(0,1fr));margin-bottom:10px}
+.anaRow{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.anaMap{flex:1 1 420px;min-height:340px;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.anaChartBox{flex:1 1 420px;display:flex;flex-direction:column;gap:4px}
+#anaChart{width:100%;height:320px;background:var(--card);border-radius:12px;border:1px solid var(--line);touch-action:none}
+.anaTbl{flex:1 1 380px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.anaTbl table{width:100%;border-collapse:collapse;font-size:15px}.anaTbl td,.anaTbl th{padding:8px 4px;text-align:left;border-top:1px solid var(--line)}
+.anaTbl tr[data-ana]{cursor:pointer}
+.anaT{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;background:#EA7A12;border:2px solid #fff;color:#fff;font:700 13px/20px Barlow,sans-serif;text-align:center;box-shadow:0 0 0 1px #111}
+@media (max-width:900px){.anaStats{grid-template-columns:repeat(3,minmax(0,1fr))}}
