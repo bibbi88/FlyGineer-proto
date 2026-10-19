@@ -46,7 +46,8 @@ function analyse(f) {
   if (!st.circling) { const a = avgVario(20, now); const gs = avgSpd(20, now); if (a != null && a < -0.2 && gs > 3) st.ld = gs / -a; }
   // task progress
   // turnpoint reached: move on to the next one and let the Next turnpoint widget say so for a while (st.wpHit); the last point is the goal (st.goalT)
-  if (st.task && st.task.pts[st.nextWp] && !st.goalT) { const wp = st.task.pts[st.nextWp]; if (dist(f.lat, f.lon, wp.lat, wp.lon) < (S.cylR || 400)) {
+  if (st.task && st.task.comp && typeof compProgress === 'function') compProgress(f);
+  else if (st.task && st.task.pts[st.nextWp] && !st.goalT) { const wp = st.task.pts[st.nextWp]; if (dist(f.lat, f.lon, wp.lat, wp.lon) < (+wp.r || S.cylR || 400)) {
     st.wpHit = { name: wp.name, t: nowT() };
     if (st.nextWp < st.task.pts.length - 1) { st.nextWp++; toast('Turnpoint ' + wp.name + ' reached · next ' + st.task.pts[st.nextWp].name); }
     else { st.goalT = nowT(); toast('Goal reached'); }

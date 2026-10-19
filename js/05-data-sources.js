@@ -229,8 +229,10 @@ function importFlyXC(text, silent) {
 // through (track inside the cylinder) count as reached and you carry on from the right one. Returns how many were reached.
 function taskResume() {
   st.wpHit = st.goalT = null; st.wpSkip = new Set(); const T = st.task; if (!T) { st.nextWp = 0; return 0; }
+  if (T) delete T._opt;
+  if (T.comp) { if (typeof compReset === 'function') compReset(); st.nextWp = typeof compKinds === 'function' ? compKinds().sss : 0; return 0; } // competition: the start has to be flown again
   const n = T.pts.length, R = S.cylR || 400; let i = n > 1 ? 1 : 0;
-  if (st.takeoffT && n > 1) for (const p of st.log) { if (p.lat == null) continue; const w = T.pts[i]; if (dist(p.lat, p.lon, w.lat, w.lon) < R) { if (i < n - 1) i++; else { st.goalT = p.t; break; } } }
+  if (st.takeoffT && n > 1) for (const p of st.log) { if (p.lat == null) continue; const w = T.pts[i]; if (dist(p.lat, p.lon, w.lat, w.lon) < (+w.r || R)) { if (i < n - 1) i++; else { st.goalT = p.t; break; } } }
   st.nextWp = i; return i - 1 + (st.goalT ? 1 : 0);
 }
 const resumeNote = (k) => (k > 0 ? ` · ${k} already reached` : '');

@@ -26,7 +26,7 @@ const DEF = {
   // acoustic vario: lift tone from vLift m/s, sink alarm below vSink, pitch vF0 + vFk per m/s, beep speed, waveform, near-lift buzzer, sound damping
   vLift: 0.2, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
   // voice messages (speech synthesis)
-  voice: false, voiceVol: 100, voiceRate: 1, voiceLang: 'auto', vcTherm: false, vcSum: true, vcTp: true, vcAir: true, vcAlt: 0, vcTow: true, vcTraffic: true, lands: [], landAir: true, trWarn: true, trTone: true, trLvl: 2, trNear: 2000,
+  voice: false, voiceVol: 100, voiceRate: 1, voiceLang: 'auto', vcTherm: false, vcSum: true, vcTp: true, vcAir: true, vcAlt: 0, vcTow: true, vcTraffic: true, lands: [], landAir: true, gateN: 1, gateGap: 15, trWarn: true, trTone: true, trLvl: 2, trNear: 2000,
   towDetect: true, towMin: 1, corner: 'auto', wake: true, autoImport: true, openaipKey: '', airCountries: ['fi'], airUpd: '', airMaxAlt: 2895, callsign: 'Paraglider', radioAlt: 'ft', radioLang: 'en', radioTpl: '', warnBar: true, warnDist: 2000, customUrl: '',
   widgets: ['vario', 'avg', 'alt', 'agl', 'gs', 'ld', 'next', 'thermal', 'flight', 'utc'],
   hidden: []

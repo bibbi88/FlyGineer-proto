@@ -4,11 +4,11 @@
      otherwise installed apps keep running the old copy. A new version waits until the
      user taps "Reload" in the update banner (never reloads by itself mid-flight).
    - Map tiles are kept as they are viewed (cache first), up to MAX_TILES, oldest out first. */
-const VERSION = '2026.10.19-6';
+const VERSION = '2026.10.19-7';
 const APP = 'app-' + VERSION, LIBS = 'libs-v1', TILES = 'tiles-v1', MAX_TILES = 15000;
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/style.css', 'data/demo-flight.js',
   'js/01-core.js', 'js/02-analysis.js', 'js/03-replay.js', 'js/04-map.js', 'js/05-data-sources.js',
-  'js/06-ui.js', 'js/07-widgets.js', 'js/08-actions.js', 'js/09-main.js', 'js/10-offline.js', 'js/11-planner.js', 'js/12-logbook.js', 'js/13-traffic.js', 'js/14-landing.js',
+  'js/06-ui.js', 'js/07-widgets.js', 'js/08-actions.js', 'js/09-main.js', 'js/10-offline.js', 'js/11-planner.js', 'js/12-logbook.js', 'js/13-traffic.js', 'js/14-landing.js', 'js/15-comp.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'];
 const LIB_URLS = ['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',

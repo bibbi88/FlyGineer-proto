@@ -414,3 +414,6 @@ body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
 .lfMk{white-space:nowrap}
 .lfSq{position:absolute;left:-11px;top:-11px;width:22px;height:22px;border:2px solid #fff;border-radius:4px;color:#fff;font:700 14px/18px Barlow,sans-serif;text-align:center;box-shadow:0 0 0 1px #111}
 .lfT{position:absolute;left:14px;top:-9px;font:600 13px Barlow,sans-serif;color:#111;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
+
+/* competition task tags on the map (15-comp.js) */
+.cpTag{position:absolute;transform:translate(-50%,-120%);white-space:nowrap;padding:1px 6px;border-radius:6px;background:#111418;color:#fff;font:700 12px Barlow,sans-serif}
