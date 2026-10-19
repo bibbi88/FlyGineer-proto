@@ -424,6 +424,7 @@ function connInfoHTML() {
   } else h += row('Status', st.sim ? 'demo vario' : st.replay ? 'IGC replay (' + esc(st.replay.name || '') + ')' : 'not connected', st.sim || st.replay ? undefined : false) + `<div class="row" style="margin:6px 0"><button class="btn primary" onclick="connectBora()">Connect over Bluetooth</button></div>`;
   h += '<h3 style="margin:10px 0 2px">GPS</h3>' + row('Position', f ? (gAge < 4 ? 'fix' : 'last fix ' + gAge.toFixed(0) + ' s ago') + (f.acc ? ' · ±' + Math.round(f.acc) + ' m' : '') : 'waiting for position', f ? gAge < 4 : false);
   if (st.replay || st.sim) h += row('Real GPS', st.gpsPos ? '±' + Math.round(st.gpsPos.acc || 0) + ' m, ' + Math.round((Date.now() - st.gpsPos.t) / 1000) + ' s ago' : 'none');
+  { const [tx, ok] = trafficStatus(); h += '<h3 style="margin:10px 0 2px">Air traffic</h3>' + row('adsb.fi', tx, ok); if (!st.bora && st.flarmAt) h += row('Traffic ($PFLAA)', flarmList().length + ' aircraft'); }
   h += '<h3 style="margin:10px 0 2px">Tablet</h3>' + row('Battery', st.deviceBat != null ? st.deviceBat + ' %' + (st.deviceChg ? ' · charging' : '') : 'not available', st.deviceBat == null || st.deviceBat >= 20 || st.deviceChg) + row('Internet', navigator.onLine ? 'online' : 'offline', navigator.onLine);
   return h + `<div class="row" style="margin-top:10px"><button class="btn" onclick="$('dlg').style.display='none';openSettings('data')">Vario & GPS settings</button></div>`;
 }
