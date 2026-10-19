@@ -127,6 +127,43 @@ async function updatePrediction() {
   st.pred = { now: solve(ldNow), wing: solve(S.wingLD), ldNow, heading: f.trk };
 }
 
+/* ================= glide reach area =================
+   Where you can still glide to with the wing's glide ratio (S.wingLD at trim speed S.wingSpd km/h) in the current wind, arriving S.safety m above
+   the terrain. One ray per 10°: ground speed along it = wind along + √(V² − wind across²); height runs out where alt − d·sink/gs < terrain + safety.
+   Terrain from Open-Meteo, cached per ~250 m cell (elevCache), so a re-run only fetches cells it has not seen. Only while a map has cfg.reach on. */
+const elevCache = new Map(), ELC = 0.0025, elKey = (la, lo) => Math.round(la / ELC) + ',' + Math.round(lo / ELC);
+async function elevCached(pts) {
+  const miss = []; pts.forEach((p) => { const k = elKey(p[0], p[1]); if (!elevCache.has(k) && !miss.some((m) => m.k === k)) miss.push({ k, p: [Math.round(p[0] / ELC) * ELC, Math.round(p[1] / ELC) * ELC] }); });
+  for (let i = 0; i < miss.length; i += 100) { const b = miss.slice(i, i + 100), el = await elevations(b.map((m) => m.p)); b.forEach((m, j) => elevCache.set(m.k, el[j])); }
+  if (elevCache.size > 40000) { const it = elevCache.keys(); for (let i = 0; i < 10000; i++) elevCache.delete(it.next().value); }
+  return pts.map((p) => elevCache.get(elKey(p[0], p[1])));
+}
+// ground speed (m/s) along bearing b with airspeed V and the current wind; 0 when you cannot make way that way
+function gsAlong(b, V) { const w = st.wind || { vx: 0, vy: 0 }, ux = Math.sin(b * D2R), uy = Math.cos(b * D2R), along = w.vx * ux + w.vy * uy, across = w.vx * uy - w.vy * ux; if (V * V <= across * across) return 0; return Math.max(0, along + Math.sqrt(V * V - across * across)); }
+function reachWanted() { return [...MAPS].some((I) => { const W = findW(I.id); const v = W && effCfg(W).reach; return v === true || v === 'true'; }); }
+async function updateReach(force) {
+  const f = st.fix, alt = altNow(); if (!f || alt == null || st.reachBusy || !reachWanted()) return;
+  const R = st.reach, now = Date.now();
+  if (!force && R && now - R.t < 20000 && dist(R.lat, R.lon, f.lat, f.lon) < 300 && Math.abs(R.alt - alt) < 30 && R.wk === windKey()) return;
+  st.reachBusy = true;
+  try {
+    const V = Math.max(5, sN('wingSpd', 37) / 3.6), sink = V / Math.max(2, S.wingLD), safe = +S.safety || 0, g0 = st.groundElev ?? 0, N = 36, K = 14, rays = [];
+    for (let i = 0; i < N; i++) { const b = i * 360 / N, gs = gsAlong(b, V), flat = gs > 0 ? Math.max(0, alt - g0 - safe) * gs / sink : 0, maxD = Math.min(80000, flat * 1.6 + 500); rays.push({ b, gs, maxD, pts: [] }); for (let k = 1; k <= K; k++) rays[i].pts.push(dest(f.lat, f.lon, b, maxD * k / K)); }
+    let el = null; try { el = await elevCached(rays.flatMap((r) => r.pts)); } catch (e) { el = null; }
+    if (!el && st.groundElev == null) { st.reach = null; return; } // no terrain at all: better nothing than a guess
+    const poly = rays.map((r, i) => {
+      if (r.gs <= 0) return [f.lat, f.lon];
+      let d = r.maxD, prevD = 0, prevM = alt - (st.groundElev ?? alt) - safe;
+      for (let k = 0; k < K; k++) { const dk = r.maxD * (k + 1) / K, gnd = el ? el[i * K + k] : g0, m = alt - dk * sink / r.gs - gnd - safe;
+        if (m < 0) { d = prevM > 0 ? prevD + (dk - prevD) * prevM / (prevM - m) : prevD; break; } prevD = dk; prevM = m; }
+      return dest(f.lat, f.lon, r.b, d);
+    });
+    st.reach = { t: now, lat: f.lat, lon: f.lon, alt, wk: windKey(), poly, terrain: !!el, V, sink };
+    markDirty();
+  } finally { st.reachBusy = false; }
+}
+const windKey = () => st.wind ? Math.round(st.wind.vx * 2) + ',' + Math.round(st.wind.vy * 2) : '0';
+
 /* ================= Bora over Bluetooth (Nordic UART, LK8EX1) ================= */
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e', NUS_TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 let bleBuf = '';

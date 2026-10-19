@@ -139,6 +139,17 @@ function trafficDraw(I, C, mb, f) {
   });
   tm.forEach((mk, k) => { if (!seen.has(k)) { g.removeLayer(mk); tm.delete(k); } });
 }
+// glide reach area (02 updateReach): filled outline of where you can still glide to, arriving S.safety above the terrain
+const REACH_COL = { green: '#1F8A4C', blue: '#1565C0', yellow: '#F2C200', orange: '#E07B00', magenta: '#C2185B', black: '#111', white: '#FFF' };
+function reachDraw(I, C) {
+  const want = (C.reach === true || C.reach === 'true') && st.reach && st.fix && st.reach.poly.length;
+  if (!want) { if (I.reachL) { I.reachL.remove(); I.reachH.remove(); } return; }
+  const col = REACH_COL[C.reachCol] || REACH_COL.green, o = (C.reachO === undefined ? 15 : +C.reachO) / 100, dash = C.reachStyle === 'solid' ? null : '10 6', k = col + o + dash;
+  if (!I.reachL) { I.reachH = L.polygon([], { color: '#fff', weight: 5, opacity: 0.7, fill: false, interactive: false }); I.reachL = L.polygon([], { weight: 2.5, interactive: false }); }
+  if (I.reachK !== k) { I.reachK = k; I.reachL.setStyle({ color: col, fillColor: col, fillOpacity: o, dashArray: dash }); }
+  if (I.reachP !== st.reach) { I.reachP = st.reach; I.reachH.setLatLngs(st.reach.poly); I.reachL.setLatLngs(st.reach.poly); }
+  if (!I.m.hasLayer(I.reachL)) { I.reachH.addTo(I.m); I.reachL.addTo(I.m); }
+}
 function mapLive(I, on) { if (I.live === on) return; I.live = on; const m = I.m; ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom', 'boxZoom', 'keyboard'].forEach((h) => { if (m[h]) on ? m[h].enable() : m[h].disable(); }); I.box.classList.toggle('live', on); }
 function mapMount(el, E) {
   const box = el.querySelector('.wbg'); box.style.display = 'block'; box.classList.add('live');
@@ -293,7 +304,7 @@ function mapDraw(cv, E, el, b) {
     up = smoothUp(I, rot, tgt, C.smooth || 'normal', rot === 'bearing' ? dist(f.lat, f.lon, wp.lat, wp.lon) : 1e9);
     const want = -up; if (m.setBearing && Math.abs(angDiff(mb, want)) > 0.2) m.setBearing(want); mb = m.getBearing ? m.getBearing() : 0;
     const ge = I.glider.getElement(), gg = ge && ge.querySelector('.glg'); if (gg) gg.setAttribute('transform', `rotate(${(f.trk || 0) + mb} 20 20)`);
-    trafficDraw(I, C, mb, f); windMark(I, C, f, mb);
+    trafficDraw(I, C, mb, f); windMark(I, C, f, mb); reachDraw(I, C);
     // live line from you to the next turnpoint
     if (wp && on(C.task) && on(C.towp) && !st.goalT) { const T = taskStyle(C, true), seg = [ll, [wp.lat, wp.lon]], k = [T.col, T.w, T.dash].join('|');
       if (I.twk !== k) { I.twk = k; I.toWp.setStyle({ color: T.col, weight: T.w, dashArray: T.dash, lineCap: T.cap === 'round' ? 'round' : 'butt' }); I.toWpH.setStyle({ color: T.halo, weight: T.w + 4, dashArray: T.dash, lineCap: T.cap }); }

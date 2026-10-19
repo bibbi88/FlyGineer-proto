@@ -1060,6 +1060,7 @@ function setSecHTML() { // the HTML of section setSec
     </div>`;
   if (setSec === 'units') h = `<div class="card sec"><h2>Units & glide</h2>${seg('uVario', [['m/s', 'm/s'], ['kt', 'kt'], ['fpm', 'ft/min']], 'Vario')}${seg('uAlt', [['m', 'm'], ['ft', 'ft']], 'Altitude')}${seg('uSpd', [['km/h', 'km/h'], ['m/s', 'm/s'], ['kt', 'kt']], 'Speed')}
     <div class="field"><label for="wingLD">Wing glide ratio (empty dot)</label><input type="number" id="wingLD" value="${S.wingLD}" step="0.1" min="3" max="20"></div>
+    <div class="field"><label for="wingSpd">Wing trim speed, km/h (glide reach area)</label><input type="number" id="wingSpd" value="${sN('wingSpd', 37)}" step="1" min="15" max="80"></div>
     <div class="field"><label for="safety">Arrival safety height (m)</label><input type="number" id="safety" value="${S.safety}" step="10"></div>
     ${seg('rotDefault', [['north', 'North up'], ['track', 'Track up'], ['bearing', 'Bearing up']], 'New map widgets start in')}${seg('taOrient', [['wind', 'Wind up'], ['winddown', 'Wind down'], ['north', 'North up']], 'Thermal assistant')}</div>`;
   if (setSec === 'radio') { const ex = { name: (st.places.find((p) => p.kind === 'town') || { name: 'Seinäjoki' }).name, lat: (st.fix ? st.fix.lat : 62.8) - 0.03, lon: (st.fix ? st.fix.lon : 22.8) - 0.04 };
@@ -1157,8 +1158,9 @@ function renderSettings() {
   on('igcStop', 'onclick', () => { stopReplay(); renderSettings(); }); on('simBtn', 'onclick', () => { st.sim ? stopSim() : startSim(); renderSettings(); }); on('demoBtn', 'onclick', () => { isDemo() ? stopReplay() : startDemoFlight(); renderSettings(); });
   if (setSec === 'data' || q) baroWire(on);
   if (q) setFilter(q);
-  on('wingLD', 'onchange', (e) => { S.wingLD = +e.target.value; save(); st.lastPredFetch = 0; });
-  on('safety', 'onchange', (e) => { S.safety = +e.target.value; save(); });
+  on('wingLD', 'onchange', (e) => { S.wingLD = +e.target.value; save(); st.lastPredFetch = 0; st.reach = null; });
+  on('safety', 'onchange', (e) => { S.safety = +e.target.value; save(); st.reach = null; });
+  on('wingSpd', 'onchange', (e) => { S.wingSpd = clamp(+e.target.value || 37, 15, 80); save(); st.reach = null; });
   on('oaKey', 'onchange', (e) => { S.openaipKey = e.target.value.trim(); save(); });
   on('oaLoad', 'onclick', async () => { S.openaipKey = $('oaKey').value.trim(); save(); await loadOpenAIP(); renderSettings(); });
   on('oaFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; const a = parseOpenAir(await fl.text()); S.airSrc = 'own'; save(); st.airspaces = a; localStorage.setItem('bora.air', JSON.stringify(a)); drawAirspaces(); toast(a.length + ' airspaces loaded from file'); renderSettings(); });
