@@ -14,7 +14,7 @@ async function logTx(mode, fn) { const db = await logOpen(); return new Promise(
 const logPut = (F) => logTx('readwrite', (s) => s.put(F)), logDel = (id) => logTx('readwrite', (s) => s.delete(id)), logGet = (id) => logTx('readonly', (s) => s.get(id));
 const logAll = () => logTx('readonly', (s) => s.getAll());
 const recOn = () => S.igcRec !== false;
-const flightMeta = (F) => ({ id: F.id, t0: F.t0, t1: F.t1, n: F.pts.length, open: F.open, stats: F.stats, name: F.name });
+const flightMeta = (F) => ({ id: F.id, t0: F.t0, t1: F.t1, n: F.pts.length, open: F.open, stats: F.stats, name: F.name, gMax: F.gMax, score: F.score });
 // pressure altitude for the IGC file: standard atmosphere (1013.25 hPa), not your QNH
 function stdAlt() { const B = st.baroLog, b = B && B[B.length - 1]; return b && b.pa && Date.now() - b.t < 3000 ? 44330.8 * (1 - Math.pow(b.pa / 101325, 0.190263)) : null; }
 function recFix(f) {
