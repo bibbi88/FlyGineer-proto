@@ -314,7 +314,9 @@ function mapDraw(cv, E, el, b) {
       I.toWpH.setLatLngs(seg).addTo(m); I.toWp.setLatLngs(seg).addTo(m); }
     else { I.toWp.remove(); I.toWpH.remove(); }
     const p = st.pred;
-    if (on(C.heading) && f.trk != null) { const len = p.now ? p.now[2] : p.wing ? p.wing[2] : 3000, end = p.now ? [p.now[0], p.now[1]] : dest(f.lat, f.lon, f.trk, len); I.headL.setLatLngs([ll, end]); I.headHalo.setLatLngs([ll, end]); if (!m.hasLayer(I.headL)) { I.headHalo.addTo(m); I.headL.addTo(m); } p.now ? I.predNow.setLatLng([p.now[0], p.now[1]]).addTo(m) : I.predNow.remove(); p.wing ? I.predWing.setLatLng([p.wing[0], p.wing[1]]).addTo(m) : I.predWing.remove(); }
+    if (on(C.heading) && f.trk != null) { // line and landing dots along your track now (the distances come from 02 updatePrediction, the direction is always the current one)
+      const len = p.now ? p.now[2] : p.wing ? p.wing[2] : 3000, end = dest(f.lat, f.lon, f.trk, len); I.headL.setLatLngs([ll, end]); I.headHalo.setLatLngs([ll, end]); if (!m.hasLayer(I.headL)) { I.headHalo.addTo(m); I.headL.addTo(m); }
+      p.now ? I.predNow.setLatLng(end).addTo(m) : I.predNow.remove(); p.wing ? I.predWing.setLatLng(dest(f.lat, f.lon, f.trk, p.wing[2])).addTo(m) : I.predWing.remove(); }
     else { I.headL.remove(); I.headHalo.remove(); I.predNow.remove(); I.predWing.remove(); }
     const sp = on(C.start) ? startPlace() : null; if (sp) I.start.setLatLng([sp.lat, sp.lon]).addTo(m); else I.start.remove();
     if (I.follow) {

@@ -7,6 +7,7 @@ function tick() {
   if (PAGEKEY[curPage]) renderWidgets();
   if (curPage === 'pMap') renderWarn();
   const now = Date.now();
+  if (now - (st.lastPredFetch || 0) > 3000) updatePrediction(); // returns at once unless you turned or moved enough
   if (now - lastSlow > 5000) {
     lastSlow = now; updateGround(); updatePrediction(); updateReach(); const ty = allTypes();
     if (ty.has('place') || ty.has('places') || ty.has('asmap') || ty.has('radiomsg') || Object.values(S.layouts).some((L0) => L0.some((W) => W.type === 'map' && (W.cfg.places === true || W.cfg.places === 'true')))) loadPlaces();

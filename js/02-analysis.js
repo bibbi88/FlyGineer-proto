@@ -117,15 +117,20 @@ async function updateGround() {
   try { st.groundElev = (await elevations([[f.lat, f.lon]]))[0]; } catch (e) { st.elevAt = null; }
 }
 async function updatePrediction() {
-  const f = st.fix, alt = altNow(); if (!f || alt == null || f.trk == null) return;
-  if (Date.now() - st.lastPredFetch < 12000) return; st.lastPredFetch = Date.now();
+  const f = st.fix, alt = altNow(); if (!f || alt == null || f.trk == null || st.predBusy) return;
+  // again after 12 s, or after 3 s when you have turned more than 15° or moved 300 m (terrain cells are cached, so turning back costs nothing)
+  const P = st.pred, age = Date.now() - st.lastPredFetch; if (age < 3000) return;
+  if (age < 12000 && P && P.heading != null && Math.abs(angDiff(P.heading, f.trk)) < 15 && P.lat != null && dist(P.lat, P.lon, f.lat, f.lon) < 300) return;
+  st.lastPredFetch = Date.now(); st.predBusy = true; try { await predCalc(f, alt); } finally { st.predBusy = false; }
+}
+async function predCalc(f, alt) {
   const ldNow = st.ld && st.ld < 30 ? st.ld : null;
   const agl = st.groundElev != null ? alt - st.groundElev : null; if (agl == null || agl < 20) { st.pred = { now: null, wing: null, ldNow }; return; }
   const maxD = Math.min(60000, agl * Math.max(S.wingLD, ldNow || 0) * 1.6 + 2000), step = Math.max(250, maxD / 90);
   const pts = []; for (let d = step; d <= maxD; d += step) pts.push(dest(f.lat, f.lon, f.trk, d));
-  let el; try { el = await elevations(pts); } catch (e) { el = null; }
+  let el; try { el = await elevCached(pts); } catch (e) { el = null; }
   const solve = (ld) => { if (!ld) return null; if (!el) return dest(f.lat, f.lon, f.trk, agl * ld).concat(agl * ld); for (let i = 0; i < pts.length; i++) { const d = step * (i + 1); if (alt - d / ld <= el[i]) return pts[i].concat(d); } return null; };
-  st.pred = { now: solve(ldNow), wing: solve(S.wingLD), ldNow, heading: f.trk };
+  st.pred = { now: solve(ldNow), wing: solve(S.wingLD), ldNow, heading: f.trk, lat: f.lat, lon: f.lon }; markDirty();
 }
 
 /* ================= glide reach area =================
