@@ -161,7 +161,7 @@ function mapMount(el, E) {
   I.trackHalo = L.polyline([], { color: '#FFFFFF', weight: 8, opacity: 0.7, lineCap: 'round', interactive: false });
   I.trackL = L.polyline([], { color: css('--climb'), weight: 3, interactive: false });
   I.trackG = L.layerGroup().addTo(m);
-  ['task', 'fai', 'air', 'notam', 'places', 'traffic'].forEach((k) => (I.g[k] = L.layerGroup().addTo(m)));
+  ['task', 'fai', 'air', 'notam', 'places', 'lands', 'traffic'].forEach((k) => (I.g[k] = L.layerGroup().addTo(m)));
   I.faiLive = L.polyline([], { color: '#16A34A', weight: 2.5, dashArray: '6 8', interactive: false });
   I.toWpH = L.polyline([], { color: '#111418', weight: 8, opacity: 0.6, lineCap: 'round', interactive: false }); I.toWp = L.polyline([], { color: TASK_COL.yellow, weight: 4, dashArray: '10 8', lineCap: 'round', interactive: false });
   I.headHalo = L.polyline([], { color: '#FFFFFF', weight: 9, opacity: 0.85, lineCap: 'round', interactive: false });
@@ -231,7 +231,8 @@ function ptrUpdate(I) {
   const k = [c.lat.toFixed(5), c.lng.toFixed(5), f ? f.lat.toFixed(4) + ',' + f.lon.toFixed(4) : '', st.airVer || 0, S.uAlt].join('|'); if (p._k === k) return; p._k = k;
   const d = f ? dist(f.lat, f.lon, c.lat, c.lng) : null, b = f ? Math.round(brg(f.lat, f.lon, c.lat, c.lng)) % 360 : null;
   const air = a.length ? a.slice(0, 3).map((x) => `<div class="mPtrA" style="border-color:${airColor(x)}"><b>${esc(x.name)}</b> ${fmtLim(x.lo)} – ${fmtLim(x.hi)}</div>`).join('') + (a.length > 3 ? `<div class="muted">+${a.length - 3} more</div>` : '') : '<div class="muted">No airspace here</div>';
-  p.lastChild.innerHTML = (f ? `<div class="mPtrD"><b>${fDist(d)}</b> · <b>${String(b).padStart(3, '0')}°</b> ${COMPASS16[Math.round(b / 22.5) % 16]} from you</div>` : '<div class="muted">No position yet</div>') + air;
+  p.lastChild.onclick = (e) => { if (!e.target.closest('[data-lfadd]')) return; e.stopPropagation(); const c2 = I.m.getCenter(), n = prompt('Name of the landing field', 'Field ' + (landOwn().length + 1)); if (n === null) return; landAdd(n.trim(), c2.lat, c2.lng); toast('Landing field added', [['Undo', () => { S.lands = landOwn().slice(0, -1); save(); markDirty(); }]]); };
+  p.lastChild.innerHTML = (f ? `<div class="mPtrD"><b>${fDist(d)}</b> · <b>${String(b).padStart(3, '0')}°</b> ${COMPASS16[Math.round(b / 22.5) % 16]} from you</div>` : '<div class="muted">No position yet</div>') + air + '<button class="btn mPtrB" data-lfadd>+ Landing field here</button>';
 }
 const COMPASS16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
 
@@ -304,7 +305,7 @@ function mapDraw(cv, E, el, b) {
     up = smoothUp(I, rot, tgt, C.smooth || 'normal', rot === 'bearing' ? dist(f.lat, f.lon, wp.lat, wp.lon) : 1e9);
     const want = -up; if (m.setBearing && Math.abs(angDiff(mb, want)) > 0.2) m.setBearing(want); mb = m.getBearing ? m.getBearing() : 0;
     const ge = I.glider.getElement(), gg = ge && ge.querySelector('.glg'); if (gg) gg.setAttribute('transform', `rotate(${(f.trk || 0) + mb} 20 20)`);
-    trafficDraw(I, C, mb, f); windMark(I, C, f, mb); reachDraw(I, C);
+    trafficDraw(I, C, mb, f); windMark(I, C, f, mb); reachDraw(I, C); drawLandsInto(I, C);
     // live line from you to the next turnpoint
     if (wp && on(C.task) && on(C.towp) && !st.goalT) { const T = taskStyle(C, true), seg = [ll, [wp.lat, wp.lon]], k = [T.col, T.w, T.dash].join('|');
       if (I.twk !== k) { I.twk = k; I.toWp.setStyle({ color: T.col, weight: T.w, dashArray: T.dash, lineCap: T.cap === 'round' ? 'round' : 'butt' }); I.toWpH.setStyle({ color: T.halo, weight: T.w + 4, dashArray: T.dash, lineCap: T.cap }); }

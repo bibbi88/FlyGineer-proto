@@ -1032,7 +1032,7 @@ function webSectionWire() {
 }
 
 /* settings */
-const SECS = [['data', 'Vario & GPS'], ['flights', 'Flights & logbook'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['air', 'Airspace data'], ['radio', 'Radio message'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Flight modes'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
+const SECS = [['data', 'Vario & GPS'], ['flights', 'Flights & logbook'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['lands', 'Landing fields'], ['air', 'Airspace data'], ['radio', 'Radio message'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['modes', 'Flight modes'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
@@ -1146,6 +1146,7 @@ function setSecHTML() { // the HTML of section setSec
   if (setSec === 'auto') h = autoSection();
   if (setSec === 'app') h = appSection();
   if (setSec === 'flights') h = flightsSecHTML();
+  if (setSec === 'lands') h = landsSecHTML();
   return h;
 }
 function renderSettings() {
@@ -1168,6 +1169,7 @@ function renderSettings() {
   on('igcStop', 'onclick', () => { stopReplay(); renderSettings(); }); on('simBtn', 'onclick', () => { st.sim ? stopSim() : startSim(); renderSettings(); }); on('demoBtn', 'onclick', () => { isDemo() ? stopReplay() : startDemoFlight(); renderSettings(); });
   if (setSec === 'data' || q) baroWire(on);
   if (setSec === 'flights' || q) flightsWire(on);
+  if (setSec === 'lands' || q) landsWire(on);
   on('trTest', 'onclick', () => trafficTone(3));
   if (q) setFilter(q);
   on('wingLD', 'onchange', (e) => { S.wingLD = +e.target.value; save(); st.lastPredFetch = 0; st.reach = null; });
