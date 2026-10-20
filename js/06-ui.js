@@ -1228,7 +1228,7 @@ function renderSettings() {
   on('voiceTest', 'onclick', () => { say(vt().test + '. ' + vt().alt(sayAlt(altNow() ?? 1000), ''), true); });
   document.querySelectorAll('[data-vtest]').forEach((b) => (b.onclick = () => beep.testRate(+b.dataset.vtest, 3)));
   const wSp = (o) => { Object.assign(S, o); save(); wStyle(); document.querySelectorAll('.wg').forEach((e) => { e._sk = null; e._last = null; }); renderSettings(); };
-  on('wSpReset', 'onclick', () => wSp({ wGap: 4, wPadX: 2, wPadY: 1, wLab: 12, wRad: 10 })); on('wSpRoomy', 'onclick', () => wSp({ wGap: 4, wPadX: 8, wPadY: 4, wLab: 12, wRad: 10 })); on('wSpTight', 'onclick', () => wSp({ wGap: 1, wPadX: 3, wPadY: 1, wLab: 10, wRad: 4 }));
+  on('wSpReset', 'onclick', () => wSp({ wGap: 4, wPadX: 2, wPadY: 1, wLab: 12, wRad: 4 })); on('wSpRoomy', 'onclick', () => wSp({ wGap: 4, wPadX: 8, wPadY: 4, wLab: 12, wRad: 10 })); on('wSpTight', 'onclick', () => wSp({ wGap: 1, wPadX: 3, wPadY: 1, wLab: 10, wRad: 4 }));
   on('fsBtn', 'onclick', () => document.documentElement.requestFullscreen?.());
   on('sbHome', 'onclick', () => { delete S.sbXY; save(); placeSbar(); renderSettings(); });
 }
@@ -1273,7 +1273,7 @@ const MODE_KEYS = ['modeAuto', 'modeEnter', 'modeHold', 'modeClimbOn', 'modeClim
 setInterval(() => { const e = $('modeLive'); if (e && curPage === 'pSet') e.innerHTML = modeLiveHTML(); }, 1000);
 // widget spacing (Settings → Display → Widgets): gap between widgets, inner padding, title size, corner rounding; cfg.pad overrides the padding per widget
 function wPad(c) { const v = c.pad; if (v == null || v === 'page' || v === '') return null; const p = +v; return isFinite(p) ? [p, Math.round(p / 2)] : null; }
-function wStyle() { const r = document.documentElement.style; r.setProperty('--wpx', sN('wPadX', 2) + 'px'); r.setProperty('--wpy', sN('wPadY', 1) + 'px'); r.setProperty('--wlab', sN('wLab', 12) + 'px'); r.setProperty('--wrad', sN('wRad', 10) + 'px'); }
+function wStyle() { const r = document.documentElement.style; r.setProperty('--wpx', sN('wPadX', 2) + 'px'); r.setProperty('--wpy', sN('wPadY', 1) + 'px'); r.setProperty('--wlab', sN('wLab', 12) + 'px'); r.setProperty('--wrad', sN('wRad', 4) + 'px'); }
 /* Settings → Vario & GPS → Barometer: live readings, a chart of raw vs filtered altitude and the vario, the device's last lines,
    QNH calibration and the filter settings (02 baroFilter). Refreshed twice a second while shown (baroLive). */
 function baroStats() {
@@ -1382,7 +1382,8 @@ function showPage(id) {
 
 /* ================= events ================= */
 document.querySelectorAll('.tab').forEach((t) => (t.onclick = () => showPage(t.dataset.page)));
-$('navBtn').onclick = () => { if (S.navMode === 'pinned') { openSettings('display'); return; } setNav(!document.body.classList.contains('navOpen')); };
+$('navBtn').onclick = () => { if (wEdit) { navSheet(); return; } // while editing: its size and place
+  if (S.navMode === 'pinned') { openSettings('display'); return; } setNav(!document.body.classList.contains('navOpen')); };
 $('top').addEventListener('pointerdown', () => { if (document.body.classList.contains('navOpen')) setNav(true); });
 document.querySelector('main').addEventListener('pointerdown', () => { if (document.body.classList.contains('navOpen')) setNav(false); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setNav(false); $('dlg').style.display = 'none'; } });
@@ -1421,6 +1422,7 @@ function placeCorner() {
   else if (p === 'bl') set({ top: 'auto', bottom: '8px', left: '8px', right: 'auto' });
   else set({});
   document.body.dataset.corner = p;
+  requestAnimationFrame(() => { const r = c.getBoundingClientRect(); c.dataset.in = (r.top + r.height / 2 < innerHeight / 2 ? 'b' : 't') + (r.left + r.width / 2 > innerWidth / 2 ? 'l' : 'r'); }); // the one resize handle: the corner facing into the screen
 }
 /* the status bar (clock, batteries, G B T D): S.sbShow, beside the menu button (left of it when that sits in a top corner on the right, else at the top right)
    until dragged while editing (S.sbXY, fractions of the screen; "Back beside the menu button" in Settings → Display & sound) */
@@ -1439,6 +1441,20 @@ function floatDrag(c, drop) {
   const end = (e) => { if (!d || (e && e.pointerId !== d.id)) return; const m = d.moved; d = null; if (!m) return; const r = c.getBoundingClientRect(); drop({ x: r.left / innerWidth, y: r.top / innerHeight }); save(); bannerAvoid(c); c._noClick = Date.now(); };
   addEventListener('pointerup', end, true); addEventListener('pointercancel', end, true);
   c.addEventListener('click', (e) => { if (c._noClick && Date.now() - c._noClick < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
+}
+/* menu button settings while editing a page (tap it): width, height, corner, status bar, with big − / + buttons; changes show at once */
+function navSheetHTML() {
+  const st2 = (k, n, d) => `<div class="field"><span class="k">${n}</span><span class="row"><button class="pill step" data-nv="${k}" data-nd="-${d}">−</button><b class="num" style="min-width:72px;text-align:center;font-size:22px">${sN(k, k === 'navH' ? sN('navSz', 52) : 52)} px</b><button class="pill step" data-nv="${k}" data-nd="${d}">+</button></span></div>`;
+  return st2('navSz', 'Width', 4) + st2('navH', 'Height', 4) + `<div class="field"><span class="k">Corner</span><span class="row" style="flex-wrap:wrap">${[['tl', '↖ Top left'], ['tr', 'Top right ↗'], ['bl', '↙ Bottom left'], ['br', 'Bottom right ↘']].map(([k, n]) => `<button class="pill" data-np="${k}" aria-pressed="${(S.cornerPos || 'tr') === k}">${n}</button>`).join('')}</span></div>`
+    + `<div class="field"><span class="k">Status bar</span><span class="row"><button class="pill" data-nsb="1" aria-pressed="${S.sbShow !== false}">Show</button><button class="pill" data-nsb="0" aria-pressed="${S.sbShow === false}">Hide</button>${S.sbXY ? '<button class="btn" data-nsh="1">Back beside the button</button>' : ''}</span></div>`
+    + '<div class="muted">Or drag the button to move it, and its blue corner to resize it.</div>';
+}
+function navSheet() {
+  openInfo('Menu button', navSheetHTML); const b = $('hBody'); if (!b || b._nv) return; b._nv = true;
+  b.addEventListener('click', (e) => { if (!$('dlgBody').contains(b)) return; const t = e.target.closest('[data-nv],[data-np],[data-nsb],[data-nsh]'); if (!t) return;
+    if (t.dataset.nv) { const k = t.dataset.nv, [lo, hi] = SNUM[k]; S[k] = clamp(sN(k, k === 'navH' ? sN('navSz', 52) : 52) + +t.dataset.nd, lo, hi); }
+    if (t.dataset.np) S.cornerPos = t.dataset.np; if (t.dataset.nsb) S.sbShow = t.dataset.nsb === '1'; if (t.dataset.nsh) delete S.sbXY;
+    save(); placeCorner(); placeSbar(); b.innerHTML = navSheetHTML(); });
 }
 floatDrag($('corner'), (xy) => { S.cornerPos = 'free'; S.cornerXY = xy; placeCorner(); placeSbar(); });
 floatDrag($('sbar'), (xy) => { S.sbXY = xy; placeSbar(); });

@@ -18,6 +18,7 @@ function tick() {
 function boot() {
   if (S.theme === 'dark') document.body.classList.add('dark');
   if (S.navMode === 'pinned') document.body.classList.add('pinned');
+  if (!S.radMig) { if (+S.wRad === 10) S.wRad = 4; S.radMig = true; save(); } // smaller default corner rounding (2026-10-20); an own value stays
   if (!S.sbMig) { if (S.corner === 'menu') S.sbShow = false; S.sbMig = true; save(); } // "menu only" before: the status bar stays hidden
   cornerMode(); wStyle(); placeCorner(); placeSbar();
   try { const c = JSON.parse(localStorage.getItem('bora.notams') || 'null'); if (c) { NOTAMS = c.list; st.notamAt = c.at; } } catch (e) { }

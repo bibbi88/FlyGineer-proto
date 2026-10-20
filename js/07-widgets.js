@@ -1,6 +1,23 @@
 'use strict';
 /* ================= XCTrack-style widget layout ================= */
 const GSC = 4, GC = 24 * GSC, GR = 16 * GSC; // fine grid: quarter-size steps
+const UG = 2; // the grid you see and size in (2026-10-20): 2 fine units = 48 × 32 cells, whole numbers only (sizes used to be GSC cells in 0.5 steps)
+/* widgets don't overlap by default: moving one stops edge to edge against its neighbours, resizing stops at them; pushing well past
+   shows it red and asks on release (then cfg.overlap = allowed for that widget). Maps and floating chips (Thermal mode, Airspace warning)
+   may always lie under / over others, and widgets that are never shown together (thermalling / stopped thermalling) don't count. */
+const OV_FREE = new Set(['map', 'thchip', 'airwarn']);
+function wClash(W, r, L) {
+  if (OV_FREE.has(W.type) || W.cfg.overlap) return null; const v = W.cfg.vis || 'always';
+  return L.find((o) => o !== W && !OV_FREE.has(o.type) && !((v === 'thermal' && o.cfg.vis === 'glide') || (v === 'glide' && o.cfg.vis === 'thermal')) && r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y) || null;
+}
+// the nearest free spot for a w × h widget near (cx, cy): border to border with the widgets in the way
+function wFreeSpot(W, cx, cy, w, h, L) {
+  const others = L.filter((o) => o !== W), X = new Set([cx]), Y = new Set([cy]);
+  others.forEach((o) => { X.add(o.x - w); X.add(o.x + o.w); Y.add(o.y - h); Y.add(o.y + o.h); });
+  let best = null, bd = 1e9;
+  for (const x of X) for (const y of Y) { if (x < 0 || y < 0 || x + w > GC || y + h > GR) continue; const d = Math.hypot(x - cx, y - cy); if (d < bd && !wClash(W, { x, y, w, h }, L)) { bd = d; best = { x, y, d }; } }
+  return best;
+}
 const U_V = [['', 'App setting'], ['m/s', 'm/s'], ['kt', 'kt'], ['fpm', 'ft/min']], U_A = [['', 'App setting'], ['m', 'm'], ['ft', 'ft']], U_S = [['', 'App setting'], ['km/h', 'km/h'], ['m/s', 'm/s'], ['kt', 'kt']];
 const withU = (key, u, fn) => { if (!u) return fn(); const o = S[key]; S[key] = u; try { return fn(); } finally { S[key] = o; } };
 const BTN = {
@@ -93,7 +110,7 @@ const TAP = TAPG.flatMap(([, l]) => l);
 const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['times', 'All times (local, UTC, takeoff, flight)'], ['coordinfo', 'Position (all formats)'], ['airlist', 'Airspace & radio'], ['radiopoi', 'Radio message & place']]], ['Action', [['pages', 'Page menu'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
 const HOLD = HOLDG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling'], ['tow', 'Towing and after release']];
-const COMMON = [['lock', 'Frozen while editing (can\'t be moved or resized; also the 🔒 button on the widget)', [[false, 'Movable'], [true, 'Frozen']]], ['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['ctlShow', 'On-widget buttons', [['auto', 'Hide on small widgets'], ['always', 'Always show'], ['tap', 'Show when tapped']]], ['pad', 'Padding', [['page', 'As set in Display'], [0, 'None'], [2, 'Tight'], [4, 'Small'], [8, 'Normal']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
+const COMMON = [['overlap', 'Overlapping other widgets', [[false, 'Edge to edge'], [true, 'Allowed']]], ['lock', 'Frozen while editing (can\'t be moved or resized; also the 🔒 button on the widget)', [[false, 'Movable'], [true, 'Frozen']]], ['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['ctlShow', 'On-widget buttons', [['auto', 'Hide on small widgets'], ['always', 'Always show'], ['tap', 'Show when tapped']]], ['pad', 'Padding', [['page', 'As set in Display'], [0, 'None'], [2, 'Tight'], [4, 'Small'], [8, 'Normal']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
 let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
 // default layouts = the owner's own setup (exported 2026-10-18), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
@@ -521,7 +538,7 @@ function openSheet(id) {
   if (!tm) body = `<div class="opt"><label class="lbl" for="wsType">Widget</label><select id="wsType">${typeOpts}</select></div>
     <div class="opt"><label class="lbl" for="wsLabel">Title</label><div class="row wsTitle"><input type="text" id="wsLabel" value="${esc(W.cfg.label || '')}" placeholder="${esc(T.n)}"><button class="pill" data-ok="showLabel" data-ov="true" aria-pressed="${W.cfg.showLabel !== false && W.cfg.showLabel !== 'false'}">Show</button><button class="pill" data-ok="showLabel" data-ov="false" aria-pressed="${!(W.cfg.showLabel !== false && W.cfg.showLabel !== 'false')}">Hide</button></div></div>
     ${optsH}
-    <div class="opt"><span class="lbl">Size · grid cells, drag the widget to move it</span>${[['w', 'Width'], ['h', 'Height']].map(([k, n]) => `<div class="row wsSize"><span class="wsK">${n}</span><button class="pill step" data-wsz="${k}-" aria-label="${n} less">−</button><input type="number" class="numin" inputmode="decimal" data-wsi="${k}" value="${+(W[k] / GSC).toFixed(2)}" step="0.5" aria-label="${n}, grid cells"><button class="pill step" data-wsz="${k}+" aria-label="${n} more">+</button></div>`).join('')}</div>
+    <div class="opt"><span class="lbl">Size · grid cells (whole numbers), drag the widget to move it</span>${[['w', 'Width'], ['h', 'Height']].map(([k, n]) => `<div class="row wsSize"><span class="wsK">${n}</span><button class="pill step" data-wsz="${k}-" aria-label="${n} less">−</button><input type="number" class="numin" inputmode="numeric" data-wsi="${k}" value="${Math.round(W[k] / UG)}" step="1" aria-label="${n}, grid cells"><button class="pill step" data-wsz="${k}+" aria-label="${n} more">+</button></div>`).join('')}</div>
     <div class="row" style="flex-wrap:wrap;margin-top:6px"><button class="btn" id="wsDup">Duplicate</button><button class="btn" id="wsFront">Bring to front</button><button class="btn warn" id="wsDel">Delete</button></div>`;
   else body = `<div class="muted" style="line-height:1.4">Shown live on the page now. These settings replace the normal ones only while thermaling is detected; everything you leave alone stays as in Normal.</div>
     <div class="opt"><span class="lbl">Different settings when thermaling</span><div class="row"><button class="pill" data-tm="off" aria-pressed="${!hasT}">Off</button><button class="pill" data-tm="on" aria-pressed="${hasT}">On</button></div></div>${hasT ? optsH + '<div class="row"><button class="btn" data-tm="clear">Clear thermal changes</button></div>' : ''}`;
@@ -538,7 +555,7 @@ function openSheet(id) {
   q('[data-tm]', (b) => (b.onclick = () => { const a = b.dataset.tm; if (a === 'on' && !W.cfgT) W.cfgT = {}; if (a === 'off') delete W.cfgT; if (a === 'clear') W.cfgT = {}; saveLayout(); openSheet(id); }));
   if ($('wsType')) $('wsType').onchange = (e) => { W.type = e.target.value; saveLayout(); openSheet(W.id); };
   if ($('wsLabel')) $('wsLabel').oninput = (e) => { W.cfg.label = e.target.value; saveLayout(); };
-  if ($('wsDup')) $('wsDup').onclick = () => { const n = JSON.parse(JSON.stringify(W)); n.id = newW(W.type).id; n.x = Math.min(GC - n.w, n.x + GSC); n.y = Math.min(GR - n.h, n.y + GSC); S.layout.push(n); saveLayout(); openSheet(n.id); toast('Widget duplicated · drag the copy where you want it'); };
+  if ($('wsDup')) $('wsDup').onclick = () => { const n = JSON.parse(JSON.stringify(W)); n.id = newW(W.type).id; n.x = Math.min(GC - n.w, n.x + GSC); n.y = Math.min(GR - n.h, n.y + GSC); { const f = wFreeSpot(n, n.x, n.y, n.w, n.h, S.layout); if (f) { n.x = f.x; n.y = f.y; } } S.layout.push(n); saveLayout(); openSheet(n.id); toast('Widget duplicated · drag the copy where you want it'); };
   if ($('wsFront')) $('wsFront').onclick = () => { S.layout = S.layout.filter((x) => x !== W).concat(W); saveLayout(); };
   if ($('wsDel')) $('wsDel').onclick = () => { S.layout = S.layout.filter((x) => x !== W); closeSheet(); saveLayout(); toast('Widget deleted', [['Undo', () => { S.layout.push(W); saveLayout(); }]]); };
   const spec = (k) => (T.o.find((x) => x[0] === k) || [])[2];
@@ -550,7 +567,7 @@ function openSheet(id) {
   q('[data-txt]', (e) => (e.oninput = () => { D[e.dataset.txt] = e.value.slice(0, 120); saveLayout(); }));
   q('[data-ok]', (b) => (b.onclick = () => { const raw = b.dataset.ov; D[b.dataset.ok] = raw === 'true' ? true : raw === 'false' ? false : raw !== '' && !isNaN(+raw) ? +raw : raw; saveLayout(); openSheet(W.id); }));
   q('[data-wsz]', (b) => (b.onclick = () => { const k = b.dataset.wsz; if (k === 'w+') W.w = Math.min(GC - W.x, W.w + 2); if (k === 'w-') W.w = Math.max(6, W.w - 2); if (k === 'h+') W.h = Math.min(GR - W.y, W.h + 2); if (k === 'h-') W.h = Math.max(4, W.h - 2); saveLayout(); openSheet(W.id); }));
-  q('[data-wsi]', (i) => (i.onchange = () => { const k = i.dataset.wsi, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) { const n = Math.round(v * GSC / 2) * 2; if (k === 'w') W.w = clamp(n, 6, GC - W.x); else W.h = clamp(n, 4, GR - W.y); } saveLayout(); openSheet(W.id); }));
+  q('[data-wsi]', (i) => (i.onchange = () => { const k = i.dataset.wsi, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) { const n = Math.round(v) * UG; if (k === 'w') W.w = clamp(n, 6, GC - W.x); else W.h = clamp(n, 4, GR - W.y); } saveLayout(); openSheet(W.id); }));
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
 const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'], 'button:mute': ['Mute vario button', 'Vario sound on/off, red while muted'] };
@@ -578,7 +595,7 @@ function openAdd() {
     $('addNone').style.display = any ? 'none' : 'block'; };
   $('addQ').oninput = filt; $('addQx').onclick = () => { $('addQ').value = ''; filt(); };
   $('dlg').style.display = 'flex'; $('dlgClose').onclick = () => ($('dlg').style.display = 'none');
-  $('dlgBody').querySelectorAll('[data-add]').forEach((b) => (b.onclick = () => { const [t, pre] = b.dataset.add.split(':'), T = WT[t]; const W = newW(t, Math.round((GC - T.w * GSC) / 2), Math.round((GR - T.h * GSC) / 2)); if (pre) W.cfg.action = pre; S.layout.push(W); saveLayout(); $('dlg').style.display = 'none'; openSheet(W.id); }));
+  $('dlgBody').querySelectorAll('[data-add]').forEach((b) => (b.onclick = () => { const [t, pre] = b.dataset.add.split(':'), T = WT[t]; const W = newW(t, Math.round((GC - T.w * GSC) / 4) * 2, Math.round((GR - T.h * GSC) / 4) * 2); { const f = wFreeSpot(W, W.x, W.y, W.w, W.h, S.layout); if (f) { W.x = f.x; W.y = f.y; } } if (pre) W.cfg.action = pre; S.layout.push(W); saveLayout(); $('dlg').style.display = 'none'; openSheet(W.id); }));
 }
 /* pointer handling on every page layer: long-press to edit, drag to move, corners to resize, pinch/wheel zoom on the thermal assistant */
 (function wPointer() {
@@ -606,16 +623,25 @@ function openAdd() {
       if (lp && !lp.held && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) { clearTimeout(lp.t); lp = null; }
       if (!drag) return; const r = layer.getBoundingClientRect(); const dx = (e.clientX - drag.sx) / r.width * GC, dy = (e.clientY - drag.sy) / r.height * GR;
       if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 8) drag.moved = true; if (!drag.moved || drag.mode === 'frozen') return; // frozen: a slip never moves it
-      const W = drag.W;
-      if (drag.mode === 'move') { W.x = clamp(Math.round(drag.ox + dx), 0, GC - W.w); W.y = clamp(Math.round(drag.oy + dy), 0, GR - W.h); }
-      else {
-        const MW = 6, MH = 4, c = drag.c;
-        if (c.includes('r')) W.w = clamp(Math.round(drag.ow + dx), MW, GC - drag.ox);
-        else { const nx = clamp(Math.round(drag.ox + dx), 0, drag.ox + drag.ow - MW); W.w = drag.ow + (drag.ox - nx); W.x = nx; }
-        if (c.includes('b')) W.h = clamp(Math.round(drag.oh + dy), MH, GR - drag.oy);
-        else { const ny = clamp(Math.round(drag.oy + dy), 0, drag.oy + drag.oh - MH); W.h = drag.oh + (drag.oy - ny); W.y = ny; }
+      const W = drag.W, g = (v) => Math.round(v / UG) * UG, L0 = S.layout; drag.clash = false;
+      if (drag.mode === 'move') { // snapped to the grid; into a neighbour: edge to edge beside it, unless pushed well in
+        const cx = clamp(g(drag.ox + dx), 0, GC - W.w), cy = clamp(g(drag.oy + dy), 0, GR - W.h);
+        if (!wClash(W, { x: cx, y: cy, w: W.w, h: W.h }, L0)) { W.x = cx; W.y = cy; }
+        else { const f = wFreeSpot(W, cx, cy, W.w, W.h, L0); if (f && f.d <= Math.max(6, Math.min(W.w, W.h) * 0.6)) { W.x = f.x; W.y = f.y; } else { W.x = cx; W.y = cy; drag.clash = true; } }
+      } else {
+        const MW = 6, MH = 4, c = drag.c, rect = (ex, ey) => { const r = { x: drag.ox, y: drag.oy, w: drag.ow, h: drag.oh };
+          if (c.includes('r')) r.w = clamp(g(drag.ox + drag.ow + ex) - drag.ox, MW, GC - drag.ox); else { const nx = clamp(g(drag.ox + ex), 0, drag.ox + drag.ow - MW); r.w = drag.ow + (drag.ox - nx); r.x = nx; }
+          if (c.includes('b')) r.h = clamp(g(drag.oy + drag.oh + ey) - drag.oy, MH, GR - drag.oy); else { const ny = clamp(g(drag.oy + ey), 0, drag.oy + drag.oh - MH); r.h = drag.oh + (drag.oy - ny); r.y = ny; }
+          return r; };
+        let r = rect(dx, dy);
+        if (wClash(W, r, L0) && !wClash(W, { x: drag.ox, y: drag.oy, w: drag.ow, h: drag.oh }, L0)) { // stop at the neighbour's edge (one cell at a time back towards where it started)
+          let best = null; const nx = Math.ceil(Math.abs(dx) / UG), ny = Math.ceil(Math.abs(dy) / UG);
+          for (let s = 0; s <= nx + ny && !best; s++) for (let i = 0; i <= Math.min(s, nx) && !best; i++) { const j = s - i; if (j > ny) continue; const r2 = rect(dx - Math.sign(dx) * i * UG, dy - Math.sign(dy) * j * UG); if (!wClash(W, r2, L0)) best = { r: r2, s }; }
+          if (best && best.s * UG <= 8) r = best.r; else drag.clash = true; // pushed more than 4 cells past it: overlap, asked on release
+        }
+        Object.assign(W, r);
       }
-      renderWidgets(); bannerAvoid(drag.el);
+      drag.el.classList.toggle('clash', drag.clash); renderWidgets(); bannerAvoid(drag.el);
     });
     const up = (e) => {
       ptrs.delete(e.pointerId);
@@ -627,7 +653,16 @@ function openAdd() {
         if (l1.act) widgetAct(l1.W, l1.act); else handleTap(l1.W); return; }
       if (!drag) return; const d = drag; drag = null;
       if (d.lk && !d.moved) { { d.W.cfg.lock = !d.W.cfg.lock; if (!d.W.cfg.lock) delete d.W.cfg.lock; saveLayout(); toast(d.W.cfg.lock ? (WT[d.W.type].n + ' frozen: it stays put while you edit') : WT[d.W.type].n + ' can be moved again'); } return; }
-      if (!d.moved) openSheet(d.W.id); else if (d.mode !== 'frozen') saveLayout();
+      if (d.el) d.el.classList.remove('clash');
+      if (!d.moved) openSheet(d.W.id);
+      else if (d.mode !== 'frozen') {
+        if (d.clash && wClash(d.W, d.W, S.layout)) { // pushed onto another widget on purpose: ask
+          const o = wClash(d.W, d.W, S.layout);
+          if (confirm(`Let “${WT[d.W.type].n}” overlap “${WT[o.type].n}”?\n\nOK = allow it for this widget (can be switched off in its settings). Cancel = put it back.`)) d.W.cfg.overlap = true;
+          else Object.assign(d.W, { x: d.ox, y: d.oy, w: d.ow, h: d.oh });
+        }
+        saveLayout();
+      }
     };
     layer.addEventListener('pointerup', up);
     // a popup shown while holding covers the widget, so the release lands on it: end the hold wherever the finger lifts

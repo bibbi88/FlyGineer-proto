@@ -136,6 +136,7 @@ body.wedit .wg[data-vis="thermal"]::after,body.wedit .wg[data-vis="glide"]::afte
 body.wedit .wg[data-vis="thermal"]::after{content:"THERMALLING" attr(data-vd)}
 body.wedit .wg[data-vis="glide"]::after{content:"STOPPED THERMALLING" attr(data-vd);background:var(--sink)}
 body.wedit .wg.sel{outline:3px solid var(--sink)}
+body.wedit .wg.clash{outline:3px solid var(--restr,#C62828);background:color-mix(in srgb,#C62828 18%,var(--card)) !important} /* pushed onto another widget: asked on release */
 body.wedit .wg .wh{display:block}
 /* frozen widgets (cfg.lock): not moved or resized while editing (a tap still opens the settings); 🔒 chip at the bottom to switch */
 .wg .wlk{display:none;position:absolute;left:50%;bottom:4px;transform:translateX(-50%);z-index:1;opacity:.75;min-width:44px;height:34px;padding:0 8px;border-radius:10px;border:2px solid var(--sink);background:var(--card);color:var(--sink);font:700 13px var(--txt);align-items:center;justify-content:center;gap:4px;touch-action:none}
@@ -454,12 +455,12 @@ pre.raw{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;line-he
 .pieI.hot{background:var(--sink);border-color:var(--sink);color:#fff;transform:translate(-50%,-50%) scale(1.12)}
 
 /* menu button resize handles while editing (06): small blue corners just outside the button, size shown while dragging */
-#corner .nh::before{content:'';position:absolute;inset:-6px}
-#corner .nh{display:none;position:absolute;width:18px;height:18px;background:var(--sink);z-index:3;touch-action:none}
-body.wedit #corner .nh{display:block}
-#corner .nh.tl{left:-5px;top:-5px;border-radius:7px 0 9px 0;cursor:nwse-resize}
-#corner .nh.tr{right:-5px;top:-5px;border-radius:0 7px 0 9px;cursor:nesw-resize}
-#corner .nh.bl{left:-5px;bottom:-5px;border-radius:0 9px 0 7px;cursor:nesw-resize}
-#corner .nh.br{right:-5px;bottom:-5px;border-radius:9px 0 7px 0;cursor:nwse-resize}
+#corner .nh{display:none;position:absolute;width:30px;height:30px;background:var(--sink);z-index:3;touch-action:none;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+#corner .nh::after{content:'';position:absolute;width:10px;height:10px;border:0 solid #fff}
+body.wedit #corner[data-in="bl"] .nh.bl,body.wedit #corner[data-in="br"] .nh.br,body.wedit #corner[data-in="tl"] .nh.tl,body.wedit #corner[data-in="tr"] .nh.tr{display:block}
+#corner .nh.tl{left:-12px;top:-12px;border-radius:10px 0 14px 0;cursor:nwse-resize}#corner .nh.tl::after{left:7px;top:7px;border-left-width:3px;border-top-width:3px}
+#corner .nh.tr{right:-12px;top:-12px;border-radius:0 10px 0 14px;cursor:nesw-resize}#corner .nh.tr::after{right:7px;top:7px;border-right-width:3px;border-top-width:3px}
+#corner .nh.bl{left:-12px;bottom:-12px;border-radius:0 14px 0 10px;cursor:nesw-resize}#corner .nh.bl::after{left:7px;bottom:7px;border-left-width:3px;border-bottom-width:3px}
+#corner .nh.br{right:-12px;bottom:-12px;border-radius:14px 0 10px 0;cursor:nwse-resize}#corner .nh.br::after{right:7px;bottom:7px;border-right-width:3px;border-bottom-width:3px}
 #navSzTag{display:none;position:absolute;left:50%;top:calc(100% + 18px);transform:translateX(-50%);padding:3px 9px;border-radius:8px;background:var(--sink);color:#fff;font:700 13px var(--txt);white-space:nowrap}
 #corner.sizing #navSzTag{display:block}
