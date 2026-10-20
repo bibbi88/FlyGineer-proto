@@ -40,7 +40,7 @@ const WT = {
   tday: { n: 'Thermal day', d: 'Forecast at your position: thermal top, cloud base and rough strength per hour (Open-Meteo); tap: table', w: 12, h: 6, canvas: true, def: { hours: 12 }, o: [['hours', 'Hours shown', numOpt(6, 36, 1, 'h', [], { def: 12 })]] },
   cbfly: { n: 'Cloud base now', d: 'From the vario temperature at your height and the forecast dew point (else the forecast)', w: 4, h: 2, o: [['units', 'Height units', U_A]] },
   gmeter: { n: 'G-meter', d: 'G-force from the tablet motion sensor, peak of the flight; tap: reset the peak', w: 3, h: 2, o: [] },
-  pgpie: { n: 'Page selector', d: 'Press and the pages appear in a ring: slide to one and let go. A tap keeps the ring up a few seconds to tap a page', w: 4, h: 3, o: [['pset', 'Pages in the ring', [['all', 'All tabs + Settings'], ['widget', 'Widget pages only']]], ['keep', 'After a tap, stays up for', numOpt(1, 30, 1, 's', [2, 4, 8], { def: 4 })], ['isz', 'Page button size', numOpt(64, 160, 4, 'px', [80, 96, 120], { def: 96 })]] },
+  pgpie: { n: 'Page selector', d: 'Tap: Map ↔ Thermal. Hold or slide: the pages appear in a ring, slide to one and let go', w: 4, h: 3, o: [['tapDo', 'A tap', [['switch', 'Switches Map ↔ Thermal'], ['ring', 'Shows the pages a few seconds']]], ['pset', 'Pages in the ring', [['all', 'All tabs + Settings'], ['widget', 'Widget pages only']]], ['keep', 'After a tap, stays up for', numOpt(1, 30, 1, 's', [2, 4, 8], { def: 4 })], ['isz', 'Page button size', numOpt(64, 160, 4, 'px', [80, 96, 120], { def: 96 })]] },
   coord: { n: 'GPS coordinates', d: 'Your position: latitude and longitude (degrees and minutes, seconds, decimal) or UTM; tap: all formats with Copy', w: 6, h: 3, o: [['fmt', 'Format', [['dm', 'Degrees, decimal minutes'], ['dms', 'Degrees, minutes, seconds'], ['dd', 'Decimal degrees'], ['utm', 'UTM']]], ['sub', 'Accuracy and GPS altitude below', [[true, 'Show'], [false, 'Hide']]]] },
   sun: { n: 'Sunset', d: 'Time to sunset and to civil dusk (last light); orange / red when it gets close', w: 4, h: 2, o: [] },
   xcscore: { n: 'XC score', d: 'Your flight scored like XContest: free distance, flat or FAI triangle, points; tap: all three', w: 5, h: 3, o: [] },
@@ -591,7 +591,7 @@ function openAdd() {
       if (!wEdit) {
         if (ptrs.size >= 2) { if (lp) { clearTimeout(lp.t); lp = null; } if (ptrs.size === 2 && W.type === 'ta') { const [p, q] = [...ptrs.values()]; if (p.id === q.id) pinch = { W, d0: Math.hypot(p.x - q.x, p.y - q.y) || 1, z0: +effCfg(W).zoom || 1 }; } return; }
         if (pinch) return;
-        if (W.type === 'pgpie' && !e.target.closest('[data-act]')) { pieOpen(W, e); return; } // page selector: the ring takes the press (28-pie.js)
+        if (W.type === 'pgpie' && !e.target.closest('[data-act]')) { pieArm(W, e); return; } // page selector: tap = Map ↔ Thermal, hold / slide = the ring (28-pie.js)
         // hold = the widget's "When held" behaviour (info shown while held, or an action); editing is in the menu
         const ae = e.target.closest('[data-act]'), ha = ae ? 'none' : effCfg(W).hold || defHold(W), me = { x: e.clientX, y: e.clientY, W, act: ae ? ae.dataset.act : null, ha };
         me.t = setTimeout(() => { if (lp !== me) return; me.held = true; me.shown = runHold(W, ha); }, 400); lp = me;

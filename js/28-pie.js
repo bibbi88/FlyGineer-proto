@@ -2,7 +2,7 @@
 /* ================= page selector (pie menu) =================
    Widget `pgpie`: press it and the pages appear in a ring around it; slide to one and let go = that page. A tap (let go without leaving the middle)
    keeps the ring up for cfg.keep s (4) so you can tap a page; a tap outside closes it. The ring is centred where you press; near an edge or in a corner it becomes a fan over the open side (pieLayout). Pages = the visible page tabs (cfg.pset 'all', default, also
-   Settings) or only widget pages ('widget'). The 07 pointer handler hands the press over (pieOpen) instead of its tap / hold handling. */
+   Settings) or only widget pages ('widget'). A tap switches Map ↔ Thermal (cfg.tapDo, see pieArm). The 07 pointer handler hands the press over (pieArm) instead of its tap / hold handling. */
 const PIE = { el: null, W: null, items: [], cx: 0, cy: 0, hot: -1, mode: null, t: null, id: null };
 function piePages(C) {
   const tabs = [...document.querySelectorAll('#tabs .tab')].filter((b) => b.style.display !== 'none').map((b) => [b.dataset.page, b.textContent.trim()]);
@@ -10,8 +10,8 @@ function piePages(C) {
   return L0.filter(([p], i) => L0.findIndex((x) => x[0] === p) === i);
 }
 function pieWData(W) {
-  const t = document.querySelector(`.tab[data-page="${curPage}"]`);
-  return { l: 'Pages', v: (t ? t.textContent.trim() : curPage === 'pSet' ? 'Settings' : '--'), s: 'hold & slide · or tap', center: true };
+  const t = document.querySelector(`.tab[data-page="${curPage}"]`), sw = (effCfg(W).tapDo || 'switch') === 'switch';
+  return { l: 'Pages', v: (t ? t.textContent.trim() : curPage === 'pSet' ? 'Settings' : '--'), s: sw ? 'tap: ' + (pageKey() === 'thermal' ? 'Map' : 'Thermal') + ' · hold: pages' : 'hold & slide · or tap', center: true };
 }
 // where the ring fits: centred on your finger; near an edge or in a corner the pages spread over the widest open arc (a fan away from the
 // corner), with the radius grown (and the buttons shrunk down to 64 px) until they fit side by side
@@ -46,8 +46,20 @@ function piePick(x, y) { // the item in the direction you slid, once you are out
 }
 function pieGo(i) { const it = PIE.items[i]; pieClose(); if (it) { goPage(it.id); st.tapGuard = Date.now(); } }
 function pieClose() { clearTimeout(PIE.t); if (PIE.el) PIE.el.remove(); PIE.el = null; PIE.mode = null; }
-addEventListener('pointermove', (e) => { if (PIE.mode !== 'press' || e.pointerId !== PIE.id) return; pieHot(piePick(e.clientX, e.clientY)); }, true);
+/* the press: a tap (let go within 300 ms without sliding) = Map ↔ Thermal (cfg.tapDo 'switch', default) or the ring kept up ('ring');
+   holding 300 ms or sliding more than 12 px opens the ring, centred where you pressed */
+function pieArm(W, e) {
+  pieClose(); const a = { W, id: e.pointerId, x: e.clientX, y: e.clientY }; a.t = setTimeout(() => { if (PIE.arm === a) pieFromArm(); }, 300); PIE.arm = a;
+}
+function pieFromArm() { const a = PIE.arm; PIE.arm = null; clearTimeout(a.t); pieOpen(a.W, { pointerId: a.id, clientX: a.x, clientY: a.y }); }
+function pieSwitch() { goPage(pageKey() === 'thermal' ? 'pMap' : 'pThermal'); st.tapGuard = Date.now(); } // same as the Map / Thermal button
+addEventListener('pointermove', (e) => {
+  if (PIE.arm && e.pointerId === PIE.arm.id && Math.hypot(e.clientX - PIE.arm.x, e.clientY - PIE.arm.y) > 12) pieFromArm();
+  if (PIE.mode !== 'press' || e.pointerId !== PIE.id) return; pieHot(piePick(e.clientX, e.clientY)); }, true);
 const pieUp = (e) => {
+  if (PIE.arm && e.pointerId === PIE.arm.id) { const a = PIE.arm; clearTimeout(a.t); PIE.arm = null; if (e.type !== 'pointerup') return;
+    if ((effCfg(a.W).tapDo || 'switch') === 'switch') return pieSwitch();
+    pieOpen(a.W, { pointerId: a.id, clientX: a.x, clientY: a.y }); }
   if (PIE.mode !== 'press' || e.pointerId !== PIE.id) return; const i = piePick(e.clientX, e.clientY);
   if (i >= 0 && e.type === 'pointerup') return pieGo(i);
   if (e.type === 'pointercancel') return pieClose();
