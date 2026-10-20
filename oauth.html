@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Signing in</title>
+<style>body{font:18px system-ui,sans-serif;background:#F4F5F2;color:#111418;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style></head>
+<body><div id="m">Signing in…</div>
+<script>
+// Sign-in return page for cloud sync (js/26-sync.js): hands the provider's answer (code or token in the address) back to the app window and closes.
+(function () {
+  var msg = { flygineerOauth: location.href };
+  try { if (window.opener && !window.opener.closed) { window.opener.postMessage(msg, location.origin); setTimeout(function () { window.close(); }, 300); return; } } catch (e) {}
+  // no opener (the popup became a tab): keep the answer for the app and go back to it
+  try { localStorage.setItem('bora.oauthRet', JSON.stringify({ href: location.href, t: Date.now() })); } catch (e) {}
+  document.getElementById('m').textContent = 'Signed in. Going back to the app…';
+  location.replace('./');
+})();
+</script></body></html>

@@ -8,7 +8,7 @@
    the first one later on the track; within its radius (S.rbR, 800 m) it is spoken once (voice messages on). Widget `rbnext`, map option `rb`. */
 const RB = { list: [], cur: null, idx: 0, said: new Set() };
 function rbLoad() { try { RB.list = JSON.parse(localStorage.getItem('bora.rbs') || '[]'); } catch (e) { RB.list = []; } RB.cur = RB.list.find((b) => b.id === S.rbActive) || null; RB.idx = 0; RB.said = new Set(); }
-function rbSave() { try { localStorage.setItem('bora.rbs', JSON.stringify(RB.list.slice(0, 8))); } catch (e) { toast('Route books: storage full (' + e.message + ')'); } st.rbVer = (st.rbVer || 0) + 1; markDirty(); }
+function rbSave() { if (typeof syncQueue === 'function' && S.syncRb !== false && syncProv()) [RB.cur, RB.list[0]].forEach((B) => B && syncQueue({ type: 'rb', id: B.id })); try { localStorage.setItem('bora.rbs', JSON.stringify(RB.list.slice(0, 8))); } catch (e) { toast('Route books: storage full (' + e.message + ')'); } st.rbVer = (st.rbVer || 0) + 1; markDirty(); }
 function rbSetActive(id) { S.rbActive = id; save(); RB.cur = RB.list.find((b) => b.id === id) || null; RB.idx = 0; RB.said = new Set(); st.rbVer = (st.rbVer || 0) + 1; markDirty(); }
 function parseGPX(txt) {
   const x = new DOMParser().parseFromString(txt, 'text/xml'), pts = [];

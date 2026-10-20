@@ -48,7 +48,7 @@ async function recSave() {
 async function recStop(why) {
   const R = REC.cur; if (!R) return; R.open = false; if (typeof flightThermals === 'function') { R.therms = flightThermals(R.pts); HOT = null; }
   if (typeof trackScore === 'function') { const b = trackScore(R.pts.map((p) => [p[1], p[2]])).best; R.score = b ? { kind: b.kind, km: +b.km.toFixed(2), pts: +b.pts.toFixed(2) } : null; }
-  await recSave(); REC.cur = null; REC.wait = true; REC.moving = 0;
+  await recSave(); if (typeof syncQueue === 'function' && S.syncFlights !== false && syncProv()) syncQueue({ type: 'flight', id: R.id }); REC.cur = null; REC.wait = true; REC.moving = 0;
   const s = R.stats || {}; toast((why === 'landed' ? 'Landed · ' : 'Flight saved · ') + fDur(s.dur) + ' · ' + fDist(s.far || 0) + ' from start', [['Retrieve', () => openRetrieve()], ['Logbook', () => openSettings('flights')]]);
   if (typeof renderSettings === 'function' && curPage === 'pSet') renderSettings(); markDirty();
 }

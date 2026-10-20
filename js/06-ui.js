@@ -1034,7 +1034,7 @@ function webSectionWire() {
 }
 
 /* settings */
-const SECS = [['data', 'Vario & GPS'], ['flights', 'Flights & logbook'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['lands', 'Landing fields'], ['rb', 'Route book'], ['air', 'Airspace data'], ['radio', 'Radio message'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['keys', 'Remote buttons'], ['modes', 'Flight modes'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['app', 'App & offline maps']];
+const SECS = [['data', 'Vario & GPS'], ['flights', 'Flights & logbook'], ['widgets', 'Pages & widgets'], ['units', 'Units & glide'], ['lands', 'Landing fields'], ['rb', 'Route book'], ['air', 'Airspace data'], ['radio', 'Radio message'], ['task', 'Task'], ['web', 'Web pages'], ['display', 'Display & sound'], ['keys', 'Remote buttons'], ['modes', 'Flight modes'], ['auto', 'Automatic actions'], ['backup', 'Export & import'], ['sync', 'Cloud sync'], ['app', 'App & offline maps']];
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
@@ -1161,6 +1161,7 @@ function setSecHTML() { // the HTML of section setSec
   if (setSec === 'app') h = appSection();
   if (setSec === 'flights') h = flightsSecHTML();
   if (setSec === 'lands') h = landsSecHTML();
+  if (setSec === 'sync') h = syncSecHTML();
   if (setSec === 'rb') h = rbSecHTML();
   if (setSec === 'keys') h = keysSecHTML();
   return h;
@@ -1186,6 +1187,7 @@ function renderSettings() {
   if (setSec === 'data' || q) baroWire(on);
   if (setSec === 'flights' || q) flightsWire(on);
   if (setSec === 'lands' || q) landsWire(on);
+  if (setSec === 'sync' || q) syncWire(on);
   if (setSec === 'rb' || q) rbWire(on);
   if (setSec === 'keys' || q) keysWire(on);
   if (setSec === 'task' || q) compWire(on);
