@@ -40,6 +40,7 @@ const WT = {
   tday: { n: 'Thermal day', d: 'Forecast at your position: thermal top, cloud base and rough strength per hour (Open-Meteo); tap: table', w: 12, h: 6, canvas: true, def: { hours: 12 }, o: [['hours', 'Hours shown', numOpt(6, 36, 1, 'h', [], { def: 12 })]] },
   cbfly: { n: 'Cloud base now', d: 'From the vario temperature at your height and the forecast dew point (else the forecast)', w: 4, h: 2, o: [['units', 'Height units', U_A]] },
   gmeter: { n: 'G-meter', d: 'G-force from the tablet motion sensor, peak of the flight; tap: reset the peak', w: 3, h: 2, o: [] },
+  pgpie: { n: 'Page selector', d: 'Press and the pages appear in a ring: slide to one and let go. A tap keeps the ring up a few seconds to tap a page', w: 4, h: 3, o: [['pset', 'Pages in the ring', [['all', 'All tabs + Settings'], ['widget', 'Widget pages only']]], ['keep', 'After a tap, stays up for', numOpt(1, 30, 1, 's', [2, 4, 8], { def: 4 })], ['isz', 'Page button size', numOpt(64, 160, 4, 'px', [80, 96, 120], { def: 96 })]] },
   coord: { n: 'GPS coordinates', d: 'Your position: latitude and longitude (degrees and minutes, seconds, decimal) or UTM; tap: all formats with Copy', w: 6, h: 3, o: [['fmt', 'Format', [['dm', 'Degrees, decimal minutes'], ['dms', 'Degrees, minutes, seconds'], ['dd', 'Decimal degrees'], ['utm', 'UTM']]], ['sub', 'Accuracy and GPS altitude below', [[true, 'Show'], [false, 'Hide']]]] },
   sun: { n: 'Sunset', d: 'Time to sunset and to civil dusk (last light); orange / red when it gets close', w: 4, h: 2, o: [] },
   xcscore: { n: 'XC score', d: 'Your flight scored like XContest: free distance, flat or FAI triangle, points; tap: all three', w: 5, h: 3, o: [] },
@@ -304,6 +305,7 @@ function wData(W, bx) { bx = bx || { w: 300, h: 150 };
     case 'gmeter': return gWData(W);
     case 'sun': return sunWData(W);
     case 'coord': return coordWData(W, bx);
+    case 'pgpie': return pieWData(W);
     case 'cbfly': { const cb = cloudBaseNow(), a = altNow(); return { l: 'Cloud base' + (cb ? ' · ' + cb.src : ''), u: AU, v: cb ? A(cb.alt) : '--', s: cb && a != null ? (cb.alt > a ? A(cb.alt - a) + ' ' + AU + ' above you' : 'at or below you') : st.fix ? 'loading forecast…' : 'waiting for GPS' }; }
     case 'stf': return stfWData(W);
     case 'fglide': return fglideWData(W);
@@ -552,13 +554,13 @@ function openSheet(id) {
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
 const ADD_BTN = { 'button:pSwitch': ['Map / Thermal button', 'Switch page, hold for all pages'], 'button:fullscreen': ['Full screen button', 'Toggle full screen'], 'button:fai': ['FAI triangle button', 'FAI sectors on the map on/off'], 'button:copyTask': ['Copy task button', 'Copies the current task as a FlyXC link'], 'button:mute': ['Mute vario button', 'Vario sound on/off, red while muted'] };
-const ADD_NEW = ['coord', 'rbnext', 'hdg', 'wstation', 'xcscore', 'gmeter', 'sun', 'tday', 'cbfly', 'fglide', 'stf', 'sgate', 'tdist', 'land', 'radar', 'rec', 'conn', 'tclock', 'baro', 'button:mute', 'radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
+const ADD_NEW = ['pgpie', 'coord', 'rbnext', 'hdg', 'wstation', 'xcscore', 'gmeter', 'sun', 'tday', 'cbfly', 'fglide', 'stf', 'sgate', 'tdist', 'land', 'radar', 'rec', 'conn', 'tclock', 'baro', 'button:mute', 'radiomsg', 'thchip', 'airwarn', 'airbtn', 'tow', 'button:copyTask', 'theat', 'fai', 'button:fai', 'thead', 'tlayer', 't3d'];
 const ADD_GROUPS = [
   ['Thermal', ['thchip', 'ta', 'theat', 'tlayer', 't3d', 'tside', 'tcross', 'thead', 'core', 'turn', 'climb', 'thermal', 'gain', 'ttime']],
   ['Vario & height', ['vario', 'varioDial', 'avg', 'alt', 'agl', 'tow', 'temp', 'baro']],
   ['Speed, wind & glide', ['land', 'fglide', 'stf', 'gs', 'trk', 'hdg', 'compass', 'wind', 'windDir', 'ld', 'reqld', 'glide']],
   ['Map & task', ['map', 'rbnext', 'xcscore', 'radar', 'next', 'sgate', 'tdist', 'dist', 'fai', 'button:fai', 'button:copyTask']],
-  ['Buttons', ['button:mute', 'button:pSwitch', 'button:fullscreen', 'button']],
+  ['Buttons', ['pgpie', 'button:mute', 'button:pSwitch', 'button:fullscreen', 'button']],
   ['Weather', ['wstation', 'tday', 'cbfly', 'profile', 'cloud', 'cbase', 'ttop', 'outlook', 'groundT', 'trigger']],
   ['Airspace & places', ['radiomsg', 'airwarn', 'airbtn', 'air', 'asside', 'asmap', 'aslist', 'notams', 'radio', 'place', 'places']],
   ['Flight & tablet', ['coord', 'gmeter', 'sun', 'rec', 'conn', 'tclock', 'flight', 'time', 'battery']]];
@@ -589,6 +591,7 @@ function openAdd() {
       if (!wEdit) {
         if (ptrs.size >= 2) { if (lp) { clearTimeout(lp.t); lp = null; } if (ptrs.size === 2 && W.type === 'ta') { const [p, q] = [...ptrs.values()]; if (p.id === q.id) pinch = { W, d0: Math.hypot(p.x - q.x, p.y - q.y) || 1, z0: +effCfg(W).zoom || 1 }; } return; }
         if (pinch) return;
+        if (W.type === 'pgpie' && !e.target.closest('[data-act]')) { pieOpen(W, e); return; } // page selector: the ring takes the press (28-pie.js)
         // hold = the widget's "When held" behaviour (info shown while held, or an action); editing is in the menu
         const ae = e.target.closest('[data-act]'), ha = ae ? 'none' : effCfg(W).hold || defHold(W), me = { x: e.clientX, y: e.clientY, W, act: ae ? ae.dataset.act : null, ha };
         me.t = setTimeout(() => { if (lp !== me) return; me.held = true; me.shown = runHold(W, ha); }, 400); lp = me;
