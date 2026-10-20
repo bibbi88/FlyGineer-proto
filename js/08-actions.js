@@ -1,8 +1,8 @@
 'use strict';
 /* ================= widget tap actions & detail popups ================= */
 // default "When held": the page button opens the page menu, height widgets show heights in feet, maps and buttons nothing, other widgets their details
-function defHold(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'thoff' : W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'tclock' ? 'times' : W.type === 'map' ? 'none' : 'details'; }
-function defTap(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'chip' : W.type === 'time' ? 'time' : W.type === 'tclock' ? 'times' : W.type === 'conn' ? 'conninfo' : W.type === 'rec' ? 'logbook' : W.type === 'land' ? 'landlist' : W.type === 'stf' ? 'mc' : W.type === 'tday' ? 'dayinfo' : W.type === 'gmeter' ? 'greset' : W.type === 'xcscore' ? 'scoreinfo' : W.type === 'rbnext' ? 'rblist' : W.type === 'wstation' ? 'stations' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
+function defHold(W) { return W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'thoff' : W.type === 'button' ? (/^p[A-Z]/.test(effCfg(W).action || '') || effCfg(W).action === 'pSwitch' ? 'pages' : 'none') : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'tclock' ? 'times' : W.type === 'coord' ? 'coordinfo' : W.type === 'map' ? 'none' : 'details'; }
+function defTap(W) { return W.type === 'coord' ? 'coordinfo' : W.type === 'airbtn' || W.type === 'airwarn' ? 'airlist' : W.type === 'thchip' ? 'chip' : W.type === 'time' ? 'time' : W.type === 'tclock' ? 'times' : W.type === 'conn' ? 'conninfo' : W.type === 'rec' ? 'logbook' : W.type === 'land' ? 'landlist' : W.type === 'stf' ? 'mc' : W.type === 'tday' ? 'dayinfo' : W.type === 'gmeter' ? 'greset' : W.type === 'xcscore' ? 'scoreinfo' : W.type === 'rbnext' ? 'rblist' : W.type === 'wstation' ? 'stations' : W.type === 'alt' || W.type === 'agl' ? 'heights' : W.type === 'map' || W.type === 'button' ? 'none' : 'details'; }
 let detT = null, detState = null;
 function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); } catch (e) { toast('Full screen not available here'); } }
 document.addEventListener('fullscreenchange', () => { document.querySelectorAll('.wLayer .wg').forEach((e) => (e._last = null)); renderWidgets(); });
@@ -61,6 +61,7 @@ function handleTap(W) {
   if (a === 'units') { if (!['alt', 'agl', 'tow', 'gain'].includes(W.type)) return openDetails(W); return switchUnits(W); }
   if (a === 'vmode') { if (W.type !== 'vario') return; const o = ['number', 'bar', 'dial'], D = cfgW(W); D.mode = o[(o.indexOf(effCfg(W).mode || 'number') + 1) % 3]; saveLayout(); return; }
   if (a === 'times') return openInfo('Time', timesHTML);
+  if (a === 'coordinfo') return openInfo('My position', coordInfoHTML);
   if (a === 'logbook') return openSettings('flights');
   if (a === 'mc') return mcStep();
   if (a === 'greset') return gReset();
@@ -80,7 +81,7 @@ function handleTap(W) {
 }
 const GROUP = { vario: 'vario', avg: 'vario', varioDial: 'vario', thermal: 'vario', gain: 'vario', ttime: 'vario', climb: 'vario', ta: 'vario',
   alt: 'alt', agl: 'alt', cloud: 'alt', gs: 'spd', trk: 'spd', hdg: 'spd', ld: 'glide', glide: 'glide', reqld: 'task', next: 'task', fai: 'task', dist: 'task',
-  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', radiomsg: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', tclock: 'flight', conn: 'flight', rec: 'flight', radar: 'flight', land: 'glide', sgate: 'task', tdist: 'task', stf: 'glide', fglide: 'task', tday: 'alt', cbfly: 'alt', gmeter: 'flight', sun: 'flight', xcscore: 'task', rbnext: 'task', wstation: 'wind', temp: 'alt', baro: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
+  wind: 'wind', flight: 'flight', place: 'place', air: 'air', airbtn: 'air', radiomsg: 'air', airwarn: 'air', thchip: 'vario', time: 'flight', tclock: 'flight', conn: 'flight', rec: 'flight', radar: 'flight', land: 'glide', sgate: 'task', tdist: 'task', stf: 'glide', fglide: 'task', tday: 'alt', cbfly: 'alt', gmeter: 'flight', sun: 'flight', coord: 'flight', xcscore: 'task', rbnext: 'task', wstation: 'wind', temp: 'alt', baro: 'alt', battery: 'flight', tside: 'vario', tcross: 'vario', thead: 'vario', t3d: 'vario', tlayer: 'vario', theat: 'vario', turn: 'vario', button: 'flight', core: 'vario', compass: 'spd', windDir: 'wind', profile: 'alt', groundT: 'alt', cbase: 'alt', ttop: 'alt', outlook: 'alt', trigger: 'alt', asside: 'air', asmap: 'air', aslist: 'air', places: 'place', radio: 'air', notams: 'air' };
 function closeDetails() { clearInterval(detT); detT = null; detState = null; $('dlg').style.display = 'none'; }
 // XC flight widget: all three ways to score the flight at once, the FAI sectors switch and the mode
 function xcInfoHTML(W, held) {
@@ -531,6 +532,7 @@ function runHold(W, a) {
   if (a === 'radiopoi') { const p = radioRef(effCfg(W).ref); if (!p) return null; holdPop(true, () => poiInfoHTML(p, 'me')); return 'pop'; }
   if (a === 'time') { holdPop(true, timeHTML); return 'pop'; }
   if (a === 'times') { holdPop(true, timesHTML); return 'pop'; }
+  if (a === 'coordinfo') { holdPop(true, coordInfoHTML); return 'pop'; }
   if (a === 'details') { if (W.type === 'button') return null; if (W.type === 'fai') { holdPop(true, () => '<b style="font-size:22px">XC flight</b>' + xcInfoHTML(W, true)); return 'pop'; } openDetails(W); return 'dlg'; }
   if (a === 'pages') { pageMenu(); return null; }
   if (a === 'chip') { chipTap(); return null; }
