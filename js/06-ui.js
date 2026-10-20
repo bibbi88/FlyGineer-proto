@@ -1433,7 +1433,7 @@ function placeSbar() {
 // drag the menu button or the status bar while editing a page (> 8 px; a plain tap still works, the release after a drag is not a tap)
 function floatDrag(c, drop) {
   let d = null;
-  c.addEventListener('pointerdown', (e) => { if (!document.body.classList.contains('wedit')) return; const r = c.getBoundingClientRect(); d = { sx: e.clientX, sy: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false, id: e.pointerId }; }, true);
+  c.addEventListener('pointerdown', (e) => { if (!document.body.classList.contains('wedit') || e.target.closest('.nh')) return; const r = c.getBoundingClientRect(); d = { sx: e.clientX, sy: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false, id: e.pointerId }; }, true);
   addEventListener('pointermove', (e) => { if (!d || e.pointerId !== d.id) return; if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 8) return; if (!d.moved) { d.moved = true; try { c.setPointerCapture(d.id); } catch (x) { } }
     const r = c.getBoundingClientRect(); Object.assign(c.style, { left: clamp(e.clientX - d.dx, 0, innerWidth - r.width) + 'px', top: clamp(e.clientY - d.dy, 0, innerHeight - r.height) + 'px', right: 'auto', bottom: 'auto' }); e.preventDefault(); }, true);
   const end = (e) => { if (!d || (e && e.pointerId !== d.id)) return; const m = d.moved; d = null; if (!m) return; const r = c.getBoundingClientRect(); drop({ x: r.left / innerWidth, y: r.top / innerHeight }); save(); bannerAvoid(c); c._noClick = Date.now(); };
@@ -1442,6 +1442,15 @@ function floatDrag(c, drop) {
 }
 floatDrag($('corner'), (xy) => { S.cornerPos = 'free'; S.cornerXY = xy; placeCorner(); placeSbar(); });
 floatDrag($('sbar'), (xy) => { S.sbXY = xy; placeSbar(); });
+// resize the menu button while editing: blue corner handles like a widget's (S.navSz, 36–120 px), the size shown while you drag
+{ let d = null; const c = $('corner'), tag = $('navSzTag');
+  c.querySelectorAll('.nh').forEach((h) => h.addEventListener('pointerdown', (e) => { if (!document.body.classList.contains('wedit')) return; e.preventDefault(); e.stopPropagation(); try { h.setPointerCapture(e.pointerId); } catch (x) { }
+    d = { id: e.pointerId, sx: e.clientX, sy: e.clientY, s0: sN('navSz', 52), cx: h.dataset.c.includes('r') ? 1 : -1, cy: h.dataset.c.includes('b') ? 1 : -1 }; c.classList.add('sizing'); }, true));
+  addEventListener('pointermove', (e) => { if (!d || e.pointerId !== d.id) return; e.preventDefault();
+    const dx = (e.clientX - d.sx) * d.cx, dy = (e.clientY - d.sy) * d.cy, v = clamp(Math.round((d.s0 + (Math.abs(dx) > Math.abs(dy) ? dx : dy)) / 2) * 2, 36, 120);
+    S.navSz = v; document.documentElement.style.setProperty('--nav', v + 'px'); tag.textContent = v + ' px'; placeSbar(); }, true);
+  const end = (e) => { if (!d || e.pointerId !== d.id) return; d = null; c.classList.remove('sizing'); save(); placeCorner(); placeSbar(); bannerAvoid(c); c._noClick = Date.now(); if (curPage === 'pSet') renderSettings(); };
+  addEventListener('pointerup', end, true); addEventListener('pointercancel', end, true); }
 addEventListener('resize', placeSbar);
 addEventListener('resize', placeCorner);
 // the Next turnpoint widget's link field: a pasted FlyXC link with a route is imported right away, Enter imports too
