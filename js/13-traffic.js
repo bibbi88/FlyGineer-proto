@@ -62,7 +62,7 @@ setInterval(trafficWarnTick, 1000);
 function radarDraw(cv, W, el) {
   const [c, Wd, H] = fitCanvas(cv); c.clearRect(0, 0, Wd, H); const C = W.cfg, f = st.fix, cx = Wd / 2, cy = H / 2, R = Math.max(30, Math.min(Wd, H) / 2 - 8), small = Math.min(Wd, H) < 200;
   const km = clamp(+C.range || 5, 0.5, 50), north = C.orient === 'north', band = C.band === undefined ? 0 : +C.band;
-  if (el) { const cr = el.querySelector('.wctl.r'), cl = el.querySelector('.wctl.l'), hr = `<button class="wcb" data-act="rin" aria-label="Closer">+</button><button class="wcb" data-act="rout" aria-label="Farther">−</button>`, hl = `<button class="wcb" data-act="rorient" aria-label="Orientation">${north ? 'N↑' : 'T↑'}</button>`;
+  if (el) { const cr = el.querySelector('.wctl.r'), cl = el.querySelector('.wctl.l'), hr = `<button class="wcb" data-act="rin" aria-label="Closer">+</button><button class="wcb" data-act="rout" aria-label="Farther">−</button>`, hl = `<button class="wcb" data-act="rorient" aria-label="Orientation">${north ? 'N↑' : 'B↑'}</button>`;
     if (cr && cr._h !== hr) { cr.innerHTML = hr; cr._h = hr; } if (cl && cl._h !== hl) { cl.innerHTML = hl; cl._h = hl; } }
   const up = north || !f || f.trk == null ? 0 : f.trk, sc = R / (km * 1000);
   c.strokeStyle = css('--line'); c.lineWidth = 1; [1 / 3, 2 / 3, 1].forEach((k) => { c.beginPath(); c.arc(cx, cy, R * k, 0, 7); c.stroke(); });

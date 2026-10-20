@@ -12,7 +12,10 @@ const LAYERS = {
 const KK7 = { skyways: ['skyways_all_all', 13, 'Skyways'], thermals: ['thermals_all_all', 12, 'Hotspots'] };
 const kk7Layer = (k, op) => L.tileLayer(`https://thermal.kk7.ch/tiles/${KK7[k][0]}/{z}/{x}/{y}.png?src=${encodeURIComponent(location.hostname || 'flygineer')}`, { tms: true, maxNativeZoom: KK7[k][1], maxZoom: 19, opacity: op, zIndex: 5, attribution: 'Thermals © <a href="https://thermal.kk7.ch" target="_blank" rel="noopener">kk7.ch</a> (CC BY-NC-SA)' });
 /* ================= map widgets (any number of maps, each with its own settings) ================= */
-const ROT = { north: 'North up', track: 'Track up', bearing: 'Bearing up' };
+// map orientation: 'track' = bearing up (the way you travel over the ground, GPS), 'heading' = where the nose points (bearing corrected for the wind),
+// 'bearing' = towards the next turnpoint, 'auto' = north up while circling or in thermal mode (and 5 s after), else bearing up. Stored keys stay as they were.
+const ROT = { north: 'North up', track: 'Bearing up', heading: 'Heading up', bearing: 'Turnpoint up', auto: 'Auto (north when circling)' }, ROT_BADGE = { north: 'N', track: 'B', heading: 'H', bearing: 'TP', auto: 'A' };
+const rotCycle = () => { const c = Array.isArray(S.rotCycle) ? S.rotCycle.filter((k) => ROT[k]) : []; return c.length ? c : ['north', 'track', 'bearing', 'auto']; };
 const MAPS = new Set();
 const HCOL = '#E0157F';
 const findW = (id) => { for (const k of Object.keys(S.layouts)) { const w = S.layouts[k].find((x) => x.id === id); if (w) return w; } return null; };
@@ -255,7 +258,7 @@ const LAYER_ICON = '<svg width="24" height="24" viewBox="0 0 26 26" aria-hidden=
 function mapCtl(I, lk, rot, mb) {
   const name = LAYERS[lk].name, r5 = Math.round(mb / 5) * 5;
   const menu = I.menu ? `<div class="mmenu" role="listbox">${Object.entries(LAYERS).map(([k, l]) => `<button class="mi" role="option" data-act="mlayer:${k}" aria-selected="${k === lk}"><span class="sw" style="background:${l.sw[0]};border-color:${l.sw[1]}"></span>${l.name}</button>`).join('')}</div>` : '';
-  const left = `<div class="row"><button class="wcb big wide" data-act="mmenu" aria-haspopup="listbox" aria-expanded="${I.menu}" aria-label="Map style: ${name}">${LAYER_ICON}<span style="margin-left:8px;font-size:15px">${name}</span></button><button class="wcb big" data-act="mrot" aria-label="Orientation: ${ROT[rot]}. Tap to change"><svg width="32" height="32" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2"/><g transform="rotate(${r5} 18 18)"><path d="M18 4l5 14H13z" fill="#B42318"/><path d="M18 32l5-14H13z" fill="currentColor" opacity=".45"/></g></svg><b class="rbadge">${{ north: 'N', track: 'T', bearing: 'B' }[rot]}</b></button></div>${menu}`;
+  const left = `<div class="row"><button class="wcb big wide" data-act="mmenu" aria-haspopup="listbox" aria-expanded="${I.menu}" aria-label="Map style: ${name}">${LAYER_ICON}<span style="margin-left:8px;font-size:15px">${name}</span></button><button class="wcb big" data-act="mrot" aria-label="Orientation: ${ROT[rot]}. Tap to change"><svg width="32" height="32" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2"/><g transform="rotate(${r5} 18 18)"><path d="M18 4l5 14H13z" fill="#B42318"/><path d="M18 32l5-14H13z" fill="currentColor" opacity=".45"/></g></svg><b class="rbadge">${ROT_BADGE[rot] || 'N'}</b></button></div>${menu}`;
   const right = `<button class="wcb big" data-act="mzin" aria-label="Zoom in">+</button><button class="wcb big" data-act="mzout" aria-label="Zoom out">−</button><button class="wcb big" data-act="mfollow" aria-pressed="${I.follow}" aria-label="Follow my position"><svg width="24" height="24" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="11" cy="11" r="2" fill="currentColor"/><path d="M11 1v4M11 17v4M1 11h4M17 11h4" stroke="currentColor" stroke-width="2"/></svg></button>`;
   return [left, right];
 }
@@ -297,13 +300,15 @@ function mapDraw(cv, E, el, b) {
         } else { I.trackHalo.remove(); I.trackL.setLatLngs(co).addTo(m); }
       }
     } }
-  let rot = C.rot || 'north', up = 0, mb = m.getBearing ? m.getBearing() : 0;
+  let rot = ROT[C.rot] ? C.rot : 'north', up = 0, mb = m.getBearing ? m.getBearing() : 0; const mode = rot;
   if (f) {
     const ll = [f.lat, f.lon]; I.glider.setLatLng(ll);
     const gk = +C.gsize || 1; if (I.gk !== gk) { I.gk = gk; I.glider.setIcon(gliderIcon(gk)); }
     const wp = st.task && st.task.pts[st.nextWp];
+    if (rot === 'auto') { const now = Date.now(); if (st.circling || st.thermMode) I.autoN = now; rot = now - (I.autoN || 0) < 5000 ? 'north' : 'track'; }
+    let hdg = null; if (rot === 'heading') { const A = typeof airNow === 'function' ? airNow() : null; hdg = A && A.tas > 2 && st.wind ? A.hd : f.trk; if (hdg == null) rot = 'north'; }
     if (rot === 'bearing' && !wp) rot = 'north'; if (rot === 'track' && f.trk == null) rot = 'north';
-    const tgt = rot === 'track' ? f.trk : rot === 'bearing' ? brg(f.lat, f.lon, wp.lat, wp.lon) : 0;
+    const tgt = rot === 'track' ? f.trk : rot === 'heading' ? hdg : rot === 'bearing' ? brg(f.lat, f.lon, wp.lat, wp.lon) : 0;
     up = smoothUp(I, rot, tgt, C.smooth || 'normal', rot === 'bearing' ? dist(f.lat, f.lon, wp.lat, wp.lon) : 1e9);
     const want = -up; if (m.setBearing && Math.abs(angDiff(mb, want)) > 0.2) m.setBearing(want); mb = m.getBearing ? m.getBearing() : 0;
     const ge = I.glider.getElement(), gg = ge && ge.querySelector('.glg'); if (gg) gg.setAttribute('transform', `rotate(${(f.trk || 0) + mb} 20 20)`);
@@ -326,7 +331,7 @@ function mapDraw(cv, E, el, b) {
       const cur = m.getCenter(); if (Math.abs(cur.lat - c[0]) > 1e-7 || Math.abs(cur.lng - c[1]) > 1e-7) m.setView(c, m.getZoom(), { animate: false });
     }
   }
-  const ctl = on(C.ctl) ? mapCtl(I, lk, rot, mb) : ['', ''], cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
+  const ctl = on(C.ctl) ? mapCtl(I, lk, mode === 'auto' ? 'auto' : rot, mb) : ['', ''], cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
   if (cl._h !== ctl[0]) { cl.innerHTML = ctl[0]; cl._h = ctl[0]; } if (cr._h !== ctl[1]) { cr.innerHTML = ctl[1]; cr._h = ctl[1]; }
   const bs = clamp(+C.btnSz || 56, 36, 120) + 'px'; if (el._bs !== bs) { el._bs = bs; el.style.setProperty('--mb', bs); } // on-map button size
   ptrUpdate(I); edgeUpdate(I, C);
