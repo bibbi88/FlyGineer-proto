@@ -182,7 +182,13 @@ function plOpenTask() {
 }
 // saved routes (localStorage 'bora.routes', newest first, max 60; in the settings export as routes)
 function plRoutes() { try { const a = JSON.parse(localStorage.getItem('bora.routes') || '[]'); return Array.isArray(a) ? a.filter((r) => r && Array.isArray(r.pts) && r.pts.length > 1) : []; } catch (e) { return []; } }
-function plRoutesSave(a) { try { localStorage.setItem('bora.routes', JSON.stringify(a)); } catch (e) { toast('Could not save the route: ' + e.message); } }
+function plRoutesSave(a, quiet) { try { localStorage.setItem('bora.routes', JSON.stringify(a)); } catch (e) { toast('Could not save the route: ' + e.message); return; } if (!quiet && typeof syncOn === 'function' && syncOn() && S.syncRoutes !== false) syncQueue({ type: 'routes', id: 'all' }); } // 26: changed routes to the cloud Routes folder
+// points from elsewhere (cloud files, 26) into the planner; the previous draft stays in its undo history
+function plOpenPts(pts, name) {
+  plLoad(); PL.hist.push(JSON.stringify(PL.pts)); PL.pts = pts.map((p) => [+(+p[0]).toFixed(6), +(+p[1]).toFixed(6)]); PL.sel = -1; plSave();
+  goPage('pPlan'); setTimeout(() => { if (!PL.m) return; plDraw(); try { PL.m.fitBounds(L.latLngBounds(PL.pts).pad(0.3)); } catch (e) { } }, 120);
+  toast(`${name ? '“' + name + '” ' : ''}in the planner · ${pts.length} points · Use as my task to fly it`);
+}
 function plAutoName(A) { const d = new Date(); return `${PL_KIND[A.kind] && A.kind !== 'none' ? PL_KIND[A.kind] : 'Route'} ${fDist(A.kind === 'fai' || A.kind === 'flat' ? A.per : A.len)} · ${d.getDate()}.${d.getMonth() + 1}.`; }
 function plUseTask() {
   const P = PL.pts, n = P.length; if (n < 2) return; const A = plAnalyse(P), d = new Date(), old = st.task;

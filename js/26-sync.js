@@ -7,12 +7,15 @@
      add yourself); tokens last an hour and cannot be renewed in the background from a web page: the queue then waits for a tap on "Reconnect".
    - Dropbox: OAuth with PKCE and a refresh token (App folder app: everything stays in Apps/<your app>).
    - pCloud: OAuth token flow (tokens do not expire), API host from the sign-in answer (EU or US).
-   Folder layout: FlyGineer/Flights, Route books, Settings, Inbox (Dropbox: the app folder is the FlyGineer folder).
+   Folder layout: FlyGineer/Flights, Route books, Settings, Inbox, Routes (Dropbox: the app folder is the FlyGineer folder).
    Uploads go through a queue (localStorage bora.syncQ): flights after landing (S.syncFlights), route books when changed (S.syncRb), a settings backup
    once a day (S.syncSet); retried every minute while online. Inbox (S.syncInbox): new files are imported: .routebook.json, .igc/.gpx (as route books),
-   .xctsk (task), .cup (landing fields), settings .json (asks first). Done files are remembered in bora.syncSeen. */
+   .xctsk (task), .cup (landing fields), GPX routes/waypoints and KML (planner saved routes), .txt/.url with a FlyXC link (task), settings .json
+   (asks first). Done files are remembered in bora.syncSeen. Routes folder: the planner's saved routes as <name>.route.json both ways (S.syncRoutes;
+   uploaded ones remembered in bora.routesUp {id: t}; GPX/KML put there become saved routes; deleting a route here does not delete the file).
+   Settings → Cloud sync → Cloud files lists every folder with an Open button (nothing is imported until tapped). */
 const SYNC = { busy: false, err: '', last: 0, gis: null, inboxAt: 0 };
-const SYNC_DIRS = { flight: 'Flights', rb: 'Route books', settings: 'Settings', inbox: 'Inbox' };
+const SYNC_DIRS = { flight: 'Flights', rb: 'Route books', settings: 'Settings', inbox: 'Inbox', routes: 'Routes' };
 const SYNC_NAME = { gdrive: 'Google Drive', dropbox: 'Dropbox', pcloud: 'pCloud' };
 const syncRedirect = () => new URL('oauth.html', location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '')).href;
 const ls = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -104,6 +107,7 @@ async function syncItem(p, it) {
   if (it.type === 'flight') { const F = REC.cur && REC.cur.id === it.id ? null : await logGet(it.id); if (!F) return 'skip'; await P[p].put(SYNC_DIRS.flight, igcName(F), igcText(F)); return 'ok'; }
   if (it.type === 'rb') { const B = RB.list.find((b) => b.id === it.id); if (!B) return 'skip'; await P[p].put(SYNC_DIRS.rb, safeName(B.name) + '.routebook.json', JSON.stringify(B)); return 'ok'; }
   if (it.type === 'settings') { const d = new Date(); await P[p].put(SYNC_DIRS.settings, `bora-settings-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`, JSON.stringify(buildExport('all'), null, 1)); S.syncSetAt = Date.now(); save(); return 'ok'; }
+  if (it.type === 'routes') { const up = ls('bora.routesUp', {}); for (const r of plRoutes()) { if (up[r.id] === r.t) continue; await P[p].put(SYNC_DIRS.routes, safeName(r.name) + '.route.json', JSON.stringify({ app: 'flygineer-route', ...r })); up[r.id] = r.t; lsSet('bora.routesUp', up); } return 'ok'; }
   return 'skip';
 }
 async function syncRun() {
@@ -118,14 +122,19 @@ async function syncInbox(force) {
   let n = 0;
   try {
     const seen = ls('bora.syncSeen', {}), files = await P[p].list(SYNC_DIRS.inbox);
-    for (const e of files) { const k = p + '|' + e.name; if (seen[k] === e.mod) continue; const txt = await P[p].get(e); const r = syncImport(e.name, txt); seen[k] = e.mod; lsSet('bora.syncSeen', seen); if (r) { n++; toast('From ' + SYNC_NAME[p] + ': ' + r); } }
+    for (const e of files) { const k = p + '|' + e.name; if (seen[k] === e.mod) continue; const txt = await P[p].get(e); const r = syncImport(e.name, txt); seen[k] = e.mod; lsSet('bora.syncSeen', seen); if (r) { n++; const [m, a] = Array.isArray(r) ? r : [r]; toast('From ' + SYNC_NAME[p] + ': ' + m, a); } }
+    if (S.syncRoutes !== false) { let got = 0; for (const e of await P[p].list(SYNC_DIRS.routes)) { const k = p + '|R|' + e.name; if (seen[k] === e.mod) continue; const txt = await P[p].get(e); if (routeIn(e.name, txt)) got++; seen[k] = e.mod; lsSet('bora.syncSeen', seen); }
+      if (got) { n += got; toast(`From ${SYNC_NAME[p]}: ${got} planner route${got > 1 ? 's' : ''}`); if (curPage === 'pPlan') plDraw(); } }
     SYNC.err = '';
   } catch (e) { SYNC.err = e.message || String(e); SYNC.reauth = !!e.reauth; } finally { SYNC.inBusy = false; }
   return n;
 }
 function syncImport(name, txt) {
-  const nm = name.toLowerCase(), base = name.replace(/\.(routebook\.json|json|igc|gpx|xctsk|cup)$/i, '');
+  const nm = name.toLowerCase(), base = name.replace(/\.(routebook\.json|route\.json|json|igc|gpx|kml|xctsk|cup|txt|url)$/i, '');
   try {
+    const R = routeParse(name, txt);
+    if (R) { const r = routeAdd(R.name, R.pts); return ['route “' + r.name + '” in the planner\'s saved routes', [['Open', () => plOpenPts(r.pts, r.name)]]]; }
+    if (/\.(txt|url)$/.test(nm)) { if (/flyxc\.app\/?\S*[?&]p=/i.test(txt)) { importFlyXC(txt, false); return null; } return null; }
     if (/\.routebook\.json$/.test(nm) || (/\.json$/.test(nm) && /"notes"\s*:/.test(txt) && /"pts"\s*:/.test(txt))) { const B = JSON.parse(txt); if (!Array.isArray(B.pts)) return null; B.id = 'rb' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); RB.list.unshift(B); rbSave(); return 'route book ' + (B.name || base); }
     if (/\.(igc|gpx)$/.test(nm)) { const B = rbFromTrack(txt, base); RB.list.unshift(B); rbSave(); return 'route book from ' + name + ' (' + B.notes.length + ' notes)'; }
     if (/\.xctsk$/.test(nm)) { setCompTask(parseXctsk(txt), base); return 'task ' + base; }
@@ -138,10 +147,63 @@ function syncImport(name, txt) {
 setInterval(() => {
   const p = syncOn(); if (!p) return;
   if (S.syncSet !== false && Date.now() - (S.syncSetAt || 0) > 86400000 && !syncQ().some((x) => x.type === 'settings')) syncQueue({ type: 'settings', id: 'all' });
+  if (S.syncRoutes !== false && !syncQ().some((x) => x.type === 'routes')) { const up = ls('bora.routesUp', {}); if (plRoutes().some((r) => up[r.id] !== r.t)) syncQueue({ type: 'routes', id: 'all' }); }
   syncRun(); syncInbox(false);
 }, 60000);
 window.addEventListener('online', () => setTimeout(syncRun, 3000));
 setTimeout(() => { syncRun(); syncInbox(true); }, 8000);
+/* ---- routes: GPX routes/waypoints (no times), KML, .route.json → {name, pts [[lat, lon]…]} ---- */
+function routeParse(name, txt) {
+  const nm = name.toLowerCase(), base = name.replace(/\.(route\.json|json|gpx|kml)$/i, ''), thin = (P) => { if (P.length <= 30) return P; const o = []; for (let i = 0; i < 30; i++) o.push(P[Math.round(i * (P.length - 1) / 29)]); return o; };
+  const ok = (P) => { P = P.filter((q) => isFinite(q[0]) && isFinite(q[1]) && Math.abs(q[0]) <= 90 && Math.abs(q[1]) <= 180); return P.length >= 2 ? thin(P) : null; };
+  if (/\.json$/.test(nm) && !/\.routebook\.json$/.test(nm) && /"pts"\s*:/.test(txt) && !/"notes"\s*:/.test(txt)) { const o = JSON.parse(txt); const P = Array.isArray(o.pts) && ok(o.pts.map((q) => [+q[0], +q[1]])); return P ? { name: String(o.name || base), pts: P, id: o.id, t: +o.t || 0, kind: o.kind, len: o.len } : null; }
+  if (!/\.(gpx|kml)$/.test(nm)) return null;
+  const x = new DOMParser().parseFromString(txt, 'text/xml'), tags = (n, el = x) => [...el.getElementsByTagNameNS('*', n)], ll = (e) => [+e.getAttribute('lat'), +e.getAttribute('lon')];
+  const title = (tags('name')[0] || {}).textContent; const nmOf = () => (title && title.trim() ? title.trim() : base).slice(0, 40);
+  if (/\.gpx$/.test(nm)) {
+    const trk = tags('trkpt'); if (trk.filter((p) => tags('time', p).length).length >= 10) return null; // a tracklog: route book (25 rbFromTrack)
+    const P = ok(tags('rtept').map(ll)) || ok(tags('wpt').map(ll)) || ok(trk.map(ll)); return P ? { name: nmOf(), pts: P } : null;
+  }
+  const cs = (el) => el.textContent.trim().split(/\s+/).map((c) => c.split(',')).map((c) => [+c[1], +c[0]]);
+  const line = tags('LineString')[0], pts = tags('Point').map((p) => tags('coordinates', p)[0]).filter(Boolean).map((c) => cs(c)[0]);
+  const P = (line && tags('coordinates', line)[0] && ok(cs(tags('coordinates', line)[0]))) || ok(pts); return P ? { name: nmOf(), pts: P } : null;
+}
+function routeLen(P) { let l = 0; for (let i = 1; i < P.length; i++) l += dist(P[i - 1][0], P[i - 1][1], P[i][0], P[i][1]); return l; }
+// into the planner's saved routes (same name = replaced); a cloud copy is marked as uploaded so it is not sent back
+function routeAdd(name, pts, o = {}) {
+  const L0 = plRoutes(), r = { id: o.id || 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), name: String(name).slice(0, 40), pts: pts.map((q) => [+q[0], +q[1]]), kind: o.kind || 'open', len: +o.len || routeLen(pts), t: o.t || Date.now() };
+  const ex = L0.findIndex((x) => x.id === r.id || x.name === r.name); if (ex >= 0) L0.splice(ex, 1); L0.unshift(r);
+  const up = ls('bora.routesUp', {}); if (o.fromCloud) { up[r.id] = r.t; lsSet('bora.routesUp', up); } plRoutesSave(L0.slice(0, 60), !!o.fromCloud); return r;
+}
+// a file from the cloud Routes folder: newer than the copy here (same id or name) → replaced, else left alone
+function routeIn(name, txt) {
+  let R = null; try { R = routeParse(name, txt); } catch (e) { } if (!R) return false;
+  const have = plRoutes().find((x) => (R.id && x.id === R.id) || x.name === R.name);
+  if (have && (R.t ? (have.t || 0) >= R.t : JSON.stringify(have.pts) === JSON.stringify(R.pts.map((q) => [+q[0], +q[1]])))) return false;
+  routeAdd(R.name, R.pts, { id: R.id || (have && have.id), t: R.t || Date.now(), kind: R.kind, len: R.len, fromCloud: true }); return true;
+}
+/* ---- Cloud files: every FlyGineer folder with an Open button ---- */
+async function syncFilesLoad() {
+  const p = syncOn(); if (!p) return; SYNC.files = 'loading'; renderSettings();
+  try { const out = []; for (const [k, d] of Object.entries(SYNC_DIRS)) out.push({ k, d, files: (await P[p].list(d)).sort((a, b) => (a.name < b.name ? 1 : -1)).slice(0, 40) }); SYNC.files = out; SYNC.err = ''; }
+  catch (e) { SYNC.files = null; SYNC.err = e.message || String(e); SYNC.reauth = !!e.reauth; }
+  renderSettings();
+}
+async function syncOpen(k, e) {
+  const p = syncOn(); if (!p) return; let txt; try { txt = await P[p].get(e); } catch (err) { toast('Could not open ' + e.name + ': ' + (err.message || err)); return; }
+  const nm = e.name.toLowerCase();
+  try {
+    if (k === 'flight' && /\.igc$/.test(nm)) { startReplay(parseIGC(txt), e.name.replace(/\.igc$/i, '')); showPage('pMap'); return; }
+    const R = routeParse(e.name, txt); if (R) { if (k === 'routes') routeIn(e.name, txt); plOpenPts(R.pts, R.name); return; }
+    if (/\.(txt|url)$/.test(nm)) { importFlyXC(txt, false); return; }
+    if (/\.json$/.test(nm) && !/\.routebook\.json$/.test(nm) && !(/"notes"\s*:/.test(txt) && /"pts"\s*:/.test(txt))) { openImport(txt, e.name); return; }
+  } catch (err) { toast('Could not open ' + e.name + ': ' + err.message); return; }
+  const r = syncImport(e.name, txt); if (r) { const [m, a] = Array.isArray(r) ? r : [r]; toast('Opened: ' + m, a); } else if (!/\.(json|xctsk|txt|url)$/.test(nm)) toast('FlyGineer cannot open ' + e.name);
+}
+function syncFilesHTML() {
+  const F = SYNC.files; if (F === 'loading') return '<div class="muted">Loading the folders…</div>'; if (!Array.isArray(F)) return '';
+  return F.map((g, gi) => `<div class="setGroupT" style="margin-top:8px">${esc(g.d)} <span class="muted">(${g.files.length})</span></div>${g.files.map((e, fi) => `<div class="plRow"><span class="grow" style="overflow-wrap:anywhere">${esc(e.name)}</span><button class="btn" data-sfo="${gi}|${fi}">${g.k === 'flight' && /\.igc$/i.test(e.name) ? '▶ Replay' : 'Open'}</button></div>`).join('') || '<div class="muted">empty</div>'}`).join('');
+}
 /* ---- Settings → Cloud sync ---- */
 const SYNC_HELP = {
   gdrive: ['Google Cloud Console → new project → APIs & Services: enable the Google Drive API → OAuth consent screen: External, Testing, add your Google account as a test user → Credentials: OAuth client ID, type Web application, Authorised JavaScript origins:', 'Copy the Client ID here.', 'https://console.cloud.google.com/apis/credentials'],
@@ -150,7 +212,7 @@ const SYNC_HELP = {
 };
 function syncSecHTML() {
   const p = syncProv(), conn = p && syncTok()[p], Q = syncQ(), H = p && SYNC_HELP[p], origin = location.origin;
-  let h = `<div class="card sec"><h2>Cloud sync</h2><div class="muted">Your flights, route books and a settings backup go to a FlyGineer folder in your own cloud storage, and files you put into its <b>Inbox</b> folder (route books, IGC/GPX tracklogs, XCTrack .xctsk tasks, SeeYou .cup fields, settings) come into the app. Each service needs a free app registration in your own account (once, about 10 minutes).</div>
+  let h = `<div class="card sec"><h2>Cloud sync</h2><div class="muted">Your flights, route books and a settings backup go to a FlyGineer folder in your own cloud storage, and files you put into its <b>Inbox</b> folder (route books, IGC/GPX tracklogs, GPX/KML routes, FlyXC links in a .txt file, XCTrack .xctsk tasks, SeeYou .cup fields, settings) come into the app. Each service needs a free app registration in your own account (once, about 10 minutes).</div>
     <div class="field"><span class="k">Sync with</span><span class="row" style="flex-wrap:wrap">${[['off', 'Off'], ['gdrive', 'Google Drive'], ['dropbox', 'Dropbox'], ['pcloud', 'pCloud']].map(([k, n]) => `<button class="pill" data-set="syncProv" data-val="${k}" aria-pressed="${(S.syncProv || 'off') === k}">${n}</button>`).join('')}</span></div>`;
   if (!p) return h + '</div>';
   h += `<div class="muted" style="line-height:1.5"><b>Set up ${SYNC_NAME[p]}:</b> ${H[0]} <code>${esc(p === 'gdrive' ? origin : syncRedirect())}</code>${p === 'gdrive' ? '' : ''} ${H[1]} <a href="${H[2]}" target="_blank" rel="noopener">Open the console</a></div>
@@ -158,16 +220,20 @@ function syncSecHTML() {
     <div class="field"><span class="k">Status</span><b style="${SYNC.err ? 'color:var(--restr)' : ''}">${conn ? (SYNC.err ? esc(SYNC.err) : 'connected' + (SYNC.last ? ' · last sync ' + new Date(SYNC.last).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')) : 'not connected'}</b>
       <span class="row">${conn ? `${SYNC.reauth ? '<button class="btn primary" id="syncConn">Reconnect</button>' : ''}<button class="btn" id="syncNow">Sync now</button><button class="btn warn" id="syncOff">Disconnect</button>` : '<button class="btn primary" id="syncConn">Connect</button>'}</span></div>
     ${p === 'gdrive' ? '<div class="muted">Google sign-ins last an hour and a web page cannot renew them in the background: uploads then wait in the queue until you tap Reconnect (a later app version can stay signed in).</div>' : ''}
-    ${seg('syncFlights', [[true, 'On'], [false, 'Off']], 'Upload each flight (IGC) after landing')}${seg('syncRb', [[true, 'On'], [false, 'Off']], 'Upload route books when they change')}${seg('syncSet', [[true, 'Daily'], [false, 'Off']], 'Settings backup')}${seg('syncInbox', [[true, 'On'], [false, 'Off']], 'Bring in files from the Inbox folder')}
-    <div class="field"><span class="k">Waiting to upload</span><b>${Q.length ? Q.map((x) => x.type === 'flight' ? 'flight' : x.type === 'rb' ? 'route book' : 'settings').join(', ') : 'nothing'}</b>${conn ? `<span class="row"><button class="btn" id="syncAllF">Upload all logbook flights</button><button class="btn" id="syncIn">Check the Inbox</button></span>` : ''}</div></div>`;
+    ${seg('syncFlights', [[true, 'On'], [false, 'Off']], 'Upload each flight (IGC) after landing')}${seg('syncRb', [[true, 'On'], [false, 'Off']], 'Upload route books when they change')}${seg('syncSet', [[true, 'Daily'], [false, 'Off']], 'Settings backup')}${seg('syncInbox', [[true, 'On'], [false, 'Off']], 'Bring in files from the Inbox folder')}${seg('syncRoutes', [[true, 'On'], [false, 'Off']], 'Planner routes both ways (Routes folder)')}
+    <div class="field"><span class="k">Waiting to upload</span><b>${Q.length ? Q.map((x) => x.type === 'flight' ? 'flight' : x.type === 'rb' ? 'route book' : x.type === 'routes' ? 'planner routes' : 'settings').join(', ') : 'nothing'}</b>${conn ? `<span class="row"><button class="btn" id="syncAllF">Upload all logbook flights</button><button class="btn" id="syncIn">Check the Inbox</button></span>` : ''}</div></div>`;
+  if (conn) h += `<div class="card sec"><h2>Cloud files</h2><div class="muted">Everything in your FlyGineer folders. Nothing comes in until you tap Open: tracklogs replay, routes (GPX, KML, saved routes) open in the planner, tasks and landing fields are added, settings ask first.</div>
+    <div class="field"><span class="row"><button class="btn" id="syncFiles">${Array.isArray(SYNC.files) ? '⟳ Refresh' : 'Show cloud files'}</button></span></div>${syncFilesHTML()}</div>`;
   return h;
 }
 function syncWire(on) {
   const p = syncProv(); if (!p) return;
   on('syncId', 'onchange', (e) => { S.syncId = { ...(S.syncId || {}), [p]: e.target.value.trim() }; save(); });
   on('syncConn', 'onclick', async () => { try { await syncConnect(p); } catch (e) { SYNC.err = e.message || String(e); toast(SYNC_NAME[p] + ': ' + SYNC.err); } renderSettings(); });
-  on('syncOff', 'onclick', () => { syncTokSet(p, null); SYNC.err = ''; SYNC.dirs = null; renderSettings(); toast(SYNC_NAME[p] + ' disconnected'); });
+  on('syncOff', 'onclick', () => { syncTokSet(p, null); SYNC.err = ''; SYNC.dirs = null; SYNC.files = null; renderSettings(); toast(SYNC_NAME[p] + ' disconnected'); });
   on('syncNow', 'onclick', async () => { await syncRun(); const n = await syncInbox(true); renderSettings(); toast(SYNC.err ? SYNC.err : 'Synced' + (n ? ' · ' + n + ' files in' : '')); });
   on('syncIn', 'onclick', async () => { const n = await syncInbox(true); renderSettings(); toast(SYNC.err ? SYNC.err : n ? n + ' files brought in' : 'Nothing new in the Inbox'); });
+  on('syncFiles', 'onclick', () => syncFilesLoad());
+  document.querySelectorAll('[data-sfo]').forEach((b) => (b.onclick = () => { const [gi, fi] = b.dataset.sfo.split('|').map(Number), g = Array.isArray(SYNC.files) && SYNC.files[gi]; if (g && g.files[fi]) syncOpen(g.k, g.files[fi]); }));
   on('syncAllF', 'onclick', () => { REC.list.filter((F) => !F.open).forEach((F) => syncQueue({ type: 'flight', id: F.id })); renderSettings(); });
 }
