@@ -11,7 +11,8 @@ function piePages(C) {
 }
 function pieWData(W) {
   const t = document.querySelector(`.tab[data-page="${curPage}"]`), sw = (effCfg(W).tapDo || 'switch') === 'switch';
-  return { l: 'Pages', v: (t ? t.textContent.trim() : curPage === 'pSet' ? 'Settings' : '--'), s: sw ? 'tap: ' + (pageKey() === 'thermal' ? 'Map' : 'Thermal') + ' · hold: pages' : 'hold & slide · or tap', center: true };
+  if (sw) return { l: 'Pages', v: pageKey() === 'thermal' ? 'MAP' : 'THERMAL', s: 'hold: all pages', center: true }; // like the Map / Thermal button: where a tap takes you
+  return { l: 'Pages', v: (t ? t.textContent.trim() : curPage === 'pSet' ? 'Settings' : '--'), s: 'hold & slide · or tap', center: true };
 }
 // where the ring fits: centred on your finger; near an edge or in a corner the pages spread over the widest open arc (a fan away from the
 // corner), with the radius grown (and the buttons shrunk down to 64 px) until they fit side by side
@@ -58,11 +59,11 @@ addEventListener('pointermove', (e) => {
   if (PIE.mode !== 'press' || e.pointerId !== PIE.id) return; pieHot(piePick(e.clientX, e.clientY)); }, true);
 const pieUp = (e) => {
   if (PIE.arm && e.pointerId === PIE.arm.id) { const a = PIE.arm; clearTimeout(a.t); PIE.arm = null; if (e.type !== 'pointerup') return;
-    if ((effCfg(a.W).tapDo || 'switch') === 'switch') return pieSwitch();
+    if ((effCfg(a.W).tapDo || 'switch') === 'switch') return pieSwitch(); // a cancelled press before the ring is up does nothing
     pieOpen(a.W, { pointerId: a.id, clientX: a.x, clientY: a.y }); }
   if (PIE.mode !== 'press' || e.pointerId !== PIE.id) return; const i = piePick(e.clientX, e.clientY);
   if (i >= 0 && e.type === 'pointerup') return pieGo(i);
-  if (e.type === 'pointercancel') return pieClose();
+  // let go without picking, or the touch taken by the system (Android's edge swipe near a screen edge / corner sends pointercancel): the ring stays up to tap a page
   PIE.mode = 'tap'; pieHot(-1); PIE.t = setTimeout(pieClose, clamp(+effCfg(PIE.W).keep || 4, 1, 30) * 1000); // a tap: stays up a few seconds
 };
 addEventListener('pointerup', pieUp, true); addEventListener('pointercancel', pieUp, true);
