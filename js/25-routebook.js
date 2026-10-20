@@ -36,10 +36,17 @@ function rbFromTrack(txt, name) {
 // track point at time t (nearest index)
 function rbAt(B, t) { const P = B.pts; let lo = 0, hi = P.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (P[m][0] < t) lo = m; else hi = m; } return Math.abs(P[lo][0] - t) <= Math.abs(P[hi][0] - t) ? lo : hi; }
 const vSec = (s) => { const m = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(String(s).trim()); return m ? (+(m[1] || 0)) * 3600 + +m[2] * 60 + +m[3] : null; };
-// pasted lines "12:34 text" → notes at takeoff + (video time − video time at takeoff)
+// video time → flight time: piecewise through the sync points B.anchors [[video s, flight ms]] (edited videos), else takeoff + (video − B.vTo)
+function rbVideoT(B, s) {
+  const A = (B.anchors || []).slice().sort((a, b) => a[0] - b[0]); if (A.length >= 2) { if (s <= A[0][0]) return A[0][1]; for (let i = 1; i < A.length; i++) if (s <= A[i][0]) { const [s0, t0] = A[i - 1], [s1, t1] = A[i]; return t0 + (t1 - t0) * (s - s0) / Math.max(1, s1 - s0); } return A[A.length - 1][1]; }
+  return B.vTo != null ? B.t0 + (s - B.vTo) * 1000 : null;
+}
+// pasted lines: "12:34 text" → a note where the pilot was at that video moment; "sync 10:56 = 15:42" → a sync point (video m:ss = flight time UTC hh:mm)
 function rbPaste(B, text) {
-  if (B.vTo == null) { toast('Set the video time at takeoff first'); return 0; } let n = 0;
-  text.split(/\r?\n/).forEach((l) => { const m = /^\s*\[?((?:\d+:)?\d{1,2}:\d{2})\]?\s*[-–:·]?\s*(.+)$/.exec(l); if (!m) return; const s = vSec(m[1]); if (s == null) return; const t = B.t0 + (s - B.vTo) * 1000, i = rbAt(B, t), p = B.pts[i];
+  let n = 0;
+  text.split(/\r?\n/).forEach((l) => { const sy = /^\s*sync\s+((?:\d+:)?\d{1,2}:\d{2})\s*=\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/i.exec(l); if (!sy) return; const d = new Date(B.t0); const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), +sy[2], +sy[3], +(sy[4] || 0)); (B.anchors = B.anchors || []).push([vSec(sy[1]), t]); });
+  if (rbVideoT(B, 0) == null) { toast('Set the video time at takeoff (or sync points) first'); return 0; }
+  text.split(/\r?\n/).forEach((l) => { if (/^\s*sync\s/i.test(l)) return; const m = /^\s*\[?((?:\d+:)?\d{1,2}:\d{2})\]?\s*[-–:·]?\s*(.+)$/.exec(l); if (!m) return; const s = vSec(m[1]); if (s == null) return; const t = rbVideoT(B, s), i = rbAt(B, t), p = B.pts[i];
     B.notes.push({ id: 'n' + Math.random().toString(36).slice(2, 9), kind: 'own', t: p[0], lat: p[1], lon: p[2], alt: p[3], text: m[2].trim().slice(0, 300), r: sN('rbR', 800), v: s }); n++; });
   B.notes.sort((a, b) => a.t - b.t); return n;
 }
@@ -48,7 +55,7 @@ function rbWhere() {
   const B = RB.cur, f = st.fix; if (!B || !f) return null; const P = B.pts; let best = -1, bd = Infinity;
   const scan = (a, b) => { for (let i = Math.max(0, a); i < Math.min(P.length, b); i++) { const d = dist(f.lat, f.lon, P[i][1], P[i][2]); if (d < bd) { bd = d; best = i; } } };
   scan(RB.idx - 60, RB.idx + 400); if (bd > 3000) scan(0, P.length); if (best < 0) return null; RB.idx = best;
-  const p = P[best], next = B.notes.find((n) => n.t > p[0] - 20000 && !(RB.said.has(n.id) && n.t < p[0])) || null, a = altNow();
+  const p = P[best], next = B.notes.find((n) => (n.kind !== 'auto' || S.rbAuto !== false) && n.t > p[0] - 20000 && !(RB.said.has(n.id) && n.t < p[0])) || null, a = altNow();
   return { i: best, off: bd, ref: p, dAlt: a != null && p[3] != null ? a - p[3] : null, next, nd: next ? dist(f.lat, f.lon, next.lat, next.lon) : null };
 }
 setInterval(() => {
@@ -73,7 +80,7 @@ function drawRbInto(I, C) {
   const w = st.fix ? rbWhere() : null, nx = w && w.next ? w.next.id : '', k = B.id + '|' + st.rbVer + '|' + nx; if (I.rbK === k) return; I.rbK = k; g.clearLayers();
   L.polyline(B.pts.map((p) => [p[1], p[2]]), { color: '#fff', weight: 5, opacity: 0.6, interactive: false }).addTo(g);
   L.polyline(B.pts.map((p) => [p[1], p[2]]), { color: '#E8590C', weight: 2.5, dashArray: '6 5', interactive: false }).addTo(g);
-  B.notes.forEach((n, i) => { const mk = L.marker([n.lat, n.lon], { icon: L.divIcon({ className: '', html: `<span class="rbFlag${n.id === nx ? ' next' : ''}">${i + 1}</span>`, iconSize: [0, 0] }), interactive: true, zIndexOffset: n.id === nx ? 600 : 350 }).addTo(g);
+  B.notes.forEach((n, i) => { if (n.kind === 'auto' && S.rbAuto === false) return; const mk = L.marker([n.lat, n.lon], { icon: L.divIcon({ className: '', html: `<span class="rbFlag${n.id === nx ? ' next' : ''}">${i + 1}</span>`, iconSize: [0, 0] }), interactive: true, zIndexOffset: n.id === nx ? 600 : 350 }).addTo(g);
     mk.on('click', (e) => { L.DomEvent.stopPropagation(e); st.tapGuard = Date.now(); openInfo('Note ' + (i + 1), () => `<div style="font-size:19px;line-height:1.35">${esc(n.text)}</div><div class="muted" style="margin-top:8px">Reference height here ${n.alt != null ? fAlt(n.alt) + ' ' + S.uAlt : '--'} · ${new Date(n.t).toISOString().slice(11, 16)} UTC on the reference flight${n.kind === 'own' ? ' · your note' : ''}</div>`); }); });
 }
 /* Settings → Route book */
@@ -82,11 +89,11 @@ function rbSecHTML() {
   let h = `<div class="card sec"><h2>Route book</h2><div class="muted">Fly someone else's flight with their advice: load their tracklog (IGC or GPX). The app finds their thermals and glides and turns them into notes along the route (where, how high, when they left). Add the video's advice as your own notes. In flight the Route advice widget shows the next note and your height against theirs, maps show the route and the notes, and each note is spoken once as you reach it (with voice messages on).</div>
     <div class="field"><label for="rbFile">Load a tracklog (IGC / GPX)</label><input type="file" id="rbFile" accept=".igc,.IGC,.gpx,.GPX,text/plain,application/gpx+xml" style="min-height:48px"></div>
     ${RB.list.length ? `<div class="field"><span class="k">Route books</span><span class="row" style="flex-wrap:wrap">${RB.list.map((b) => `<button class="pill" data-rbon="${b.id}" aria-pressed="${B && B.id === b.id}">${esc(b.name)}</button>`).join('')}<button class="pill" data-rbon="" aria-pressed="${!B}">None</button></span></div>` : ''}
-    ${numField('rbR', 'how close a note counts as reached')}${numField('rbMinGain', 'gain; smaller climbs are left out')}${seg('vcRb', [[true, 'On'], [false, 'Off']], 'Speak the notes (with voice messages on)')}</div>`;
+    ${seg('rbAuto', [[true, 'Show'], [false, 'Hide']], 'Automatic thermal and glide notes')}${numField('rbR', 'how close a note counts as reached')}${numField('rbMinGain', 'gain; smaller climbs are left out')}${seg('vcRb', [[true, 'On'], [false, 'Off']], 'Speak the notes (with voice messages on)')}</div>`;
   if (!B) return h;
   h += `<div class="card sec"><h2>${esc(B.name)}</h2><div class="muted">${B.pilot ? esc(B.pilot) + ' · ' : ''}${B.glider ? esc(B.glider) + ' · ' : ''}${new Date(B.t0).toLocaleDateString()} · ${B.pts.length} points · ${B.notes.length} notes</div>
     <div class="field"><label for="rbName">Name</label><input type="text" id="rbName" maxlength="40" value="${esc(B.name)}"></div>
-    <h2 style="margin-top:10px">Advice from the video</h2><div class="muted">Find the moment of takeoff in the video and type its video time. Then paste lines like <b>12:34 Leave the ridge at 1500 m, head for the village</b>: each becomes a note where the pilot was at that moment. If the video is cut or sped up, move a note along the route with the ◀ ▶ buttons.</div>
+    <h2 style="margin-top:10px">Advice from the video</h2><div class="muted">Find the moment of takeoff in the video and type its video time. Then paste lines like <b>12:34 Leave the ridge at 1500 m, head for the village</b>: each becomes a note where the pilot was at that moment. If the video is cut or sped up, add sync points: lines like <b>sync 10:56 = 15:42</b> (video time = flight time UTC) between which notes are spread, or move a note along the route with the ◀ ▶ buttons.${(B.anchors || []).length ? ` · ${B.anchors.length} sync points <button class="btn" id="rbClrSync">Clear sync points</button>` : ''}</div>
     <div class="field"><label for="rbVto">Video time at takeoff (m:ss)</label><input type="text" id="rbVto" inputmode="numeric" placeholder="e.g. 1:05" value="${fmtV(B.vTo)}" style="max-width:160px"></div>
     <div class="field" style="align-items:flex-start"><label for="rbPaste">Video notes</label><textarea id="rbPaste" rows="5" style="flex:1;min-width:220px;font-size:16px" placeholder="12:34 Leave at 1500 m towards the antenna&#10;18:02 Strong core on the sunny side"></textarea></div>
     <div class="field"><span class="k"></span><button class="btn primary" id="rbAdd">Add these notes</button></div>
@@ -104,6 +111,7 @@ function rbWire(on) {
   if (!B) return;
   on('rbName', 'onchange', (e) => { B.name = e.target.value.trim() || B.name; redo(); });
   on('rbVto', 'onchange', (e) => { const s = vSec(e.target.value); if (s == null && e.target.value.trim()) { toast('Use m:ss, e.g. 1:05'); return; } B.vTo = s; rbSave(); });
+  on('rbClrSync', 'onclick', () => { const old = B.anchors; B.anchors = []; redo(); toast('Sync points cleared', [['Undo', () => { B.anchors = old; redo(); }]]); });
   on('rbAdd', 'onclick', () => { const n = rbPaste(B, $('rbPaste').value); if (n) { redo(); toast(n + ' notes added'); } else if (B.vTo != null) toast('No lines like "12:34 text" found'); });
   document.querySelectorAll('[data-rbmv]').forEach((b) => (b.onclick = () => { const n = B.notes.find((x) => x.id === b.dataset.rbmv); if (!n) return; const p = B.pts[rbAt(B, n.t + +b.dataset.d * 1000)]; Object.assign(n, { t: p[0], lat: p[1], lon: p[2], alt: p[3] }); B.notes.sort((a, c) => a.t - c.t); redo(); }));
   document.querySelectorAll('[data-rbed]').forEach((b) => (b.onclick = () => { const n = B.notes.find((x) => x.id === b.dataset.rbed); if (!n) return; const t = prompt('Note', n.text); if (t != null && t.trim()) { n.text = t.trim().slice(0, 300); n.kind = 'own'; redo(); } }));
