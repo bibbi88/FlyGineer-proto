@@ -15,7 +15,8 @@ const kk7Layer = (k, op) => L.tileLayer(`https://thermal.kk7.ch/tiles/${KK7[k][0
 // map orientation: 'track' = bearing up (the way you travel over the ground, GPS), 'heading' = where the nose points (bearing corrected for the wind),
 // 'bearing' = towards the next turnpoint, 'auto' = north up while circling or in thermal mode (and 5 s after), else bearing up. Stored keys stay as they were.
 const ROT = { north: 'North up', track: 'Bearing up', heading: 'Heading up', bearing: 'Turnpoint up', auto: 'Auto (north when circling)' }, ROT_BADGE = { north: 'N', track: 'B', heading: 'H', bearing: 'TP', auto: 'A' };
-const rotCycle = () => { const c = Array.isArray(S.rotCycle) ? S.rotCycle.filter((k) => ROT[k]) : []; return c.length ? c : ['north', 'track', 'bearing', 'auto']; };
+// the orientations the map's button steps through: the widget's cfg.rotCycle (edit sheet), else an older global S.rotCycle, else the default four
+const rotCycle = (C) => { const c = (C && Array.isArray(C.rotCycle) ? C.rotCycle : Array.isArray(S.rotCycle) ? S.rotCycle : []).filter((k) => ROT[k]); return c.length ? c : ['north', 'track', 'bearing', 'auto']; };
 const MAPS = new Set();
 const HCOL = '#E0157F';
 const findW = (id) => { for (const k of Object.keys(S.layouts)) { const w = S.layouts[k].find((x) => x.id === id); if (w) return w; } return null; };
@@ -306,7 +307,7 @@ function mapDraw(cv, E, el, b) {
     const gk = +C.gsize || 1; if (I.gk !== gk) { I.gk = gk; I.glider.setIcon(gliderIcon(gk)); }
     const wp = st.task && st.task.pts[st.nextWp];
     if (rot === 'auto') { const now = Date.now(); if (st.circling || st.thermMode) I.autoN = now; rot = now - (I.autoN || 0) < 5000 ? 'north' : 'track'; }
-    let hdg = null; if (rot === 'heading') { const A = typeof airNow === 'function' ? airNow() : null; hdg = A && A.tas > 2 && st.wind ? A.hd : f.trk; if (hdg == null) rot = 'north'; }
+    let hdg = null; if (rot === 'heading') { const H = typeof hdgNow === 'function' ? hdgNow() : null; hdg = H ? H.hd : null; if (hdg == null) rot = 'north'; }
     if (rot === 'bearing' && !wp) rot = 'north'; if (rot === 'track' && f.trk == null) rot = 'north';
     const tgt = rot === 'track' ? f.trk : rot === 'heading' ? hdg : rot === 'bearing' ? brg(f.lat, f.lon, wp.lat, wp.lon) : 0;
     up = smoothUp(I, rot, tgt, C.smooth || 'normal', rot === 'bearing' ? dist(f.lat, f.lon, wp.lat, wp.lon) : 1e9);

@@ -78,3 +78,19 @@ function polarWire(on) {
   document.querySelectorAll('[data-pol]').forEach((e) => (e.onchange = () => { const P = (Array.isArray(S.polar) && S.polar.length >= 2 ? S.polar : POLAR_DEF).map((r) => r.slice()); const i = +e.dataset.pol, k = +e.dataset.pk, v = +e.value; if (!isFinite(v) || v <= 0) return; P[i][k] = v; S.polar = P; save(); st.reach = null; renderSettings(); }));
   on('polReset', 'onclick', () => { const old = S.polar; S.polar = POLAR_DEF.map((r) => r.slice()); save(); st.reach = null; renderSettings(); toast('Default polar', [['Undo', () => { S.polar = old; save(); renderSettings(); }]]); });
 }
+/* heading = where the nose points. S.hdgSrc 'wind' (default): the bearing corrected for the measured wind (airNow); 'compass': the tablet's compass
+   (deviceorientationabsolute, smoothed ~0.5 s): S.hdgMount 'upright' = the back of the tablet faces forward (screen towards you), 'flat' = screen up,
+   its top edge forward; S.hdgOff ° adds how the tablet sits. The compass falls back to the wind method when it gives no reading (2 s). */
+const CMP = { x: 0, y: 0, t: 0, hd: null };
+window.addEventListener('deviceorientationabsolute', (e) => {
+  if (e.alpha == null) return; const r = D2R, a = e.alpha * r, b = (e.beta || 0) * r, g = (e.gamma || 0) * r, cA = Math.cos(a), sA = Math.sin(a), cB = Math.cos(b), sB = Math.sin(b), cG = Math.cos(g), sG = Math.sin(g);
+  // device → earth (x east, y north, z up), W3C rotation Z(α)·X(β)·Y(γ): the forward vector is −z (upright) or +y (flat)
+  const flat = S.hdgMount === 'flat', E = flat ? -cB * sA : -(cG * sA * sB + cA * sG), N = flat ? cA * cB : -(sA * sG - cA * cG * sB); if (Math.hypot(E, N) < 0.2) return;
+  const h = wrap360(Math.atan2(E, N) * R2D + (+S.hdgOff || 0)), now = Date.now(), dt = CMP.t ? clamp((now - CMP.t) / 1000, 0, 1) : 1, k = 1 - Math.exp(-dt / 0.5);
+  CMP.x += (Math.sin(h * D2R) - CMP.x) * k; CMP.y += (Math.cos(h * D2R) - CMP.y) * k; CMP.t = now; CMP.hd = wrap360(Math.atan2(CMP.x, CMP.y) * R2D);
+});
+function hdgNow() {
+  if (S.hdgSrc === 'compass' && CMP.hd != null && Date.now() - CMP.t < 2000) return { hd: CMP.hd, src: 'compass' };
+  const A = airNow(); if (A && A.tas > 2 && st.wind) return { hd: A.hd, src: 'wind' };
+  return st.fix && st.fix.trk != null ? { hd: st.fix.trk, src: 'bearing' } : null;
+}
