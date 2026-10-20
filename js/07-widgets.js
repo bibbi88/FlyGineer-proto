@@ -92,7 +92,7 @@ const TAP = TAPG.flatMap(([, l]) => l);
 const HOLDG = [['Show while held', [['details', 'Details'], ['heights', 'Heights m/ft'], ['custom', 'Custom info'], ['time', 'Both times'], ['times', 'All times (local, UTC, takeoff, flight)'], ['coordinfo', 'Position (all formats)'], ['airlist', 'Airspace & radio'], ['radiopoi', 'Radio message & place']]], ['Action', [['pages', 'Page menu'], ['chip', 'Thermal mode: start / thermal page'], ['thoff', 'Leave thermal mode'], ['sound', 'Sound on/off'], ['fullscreen', 'Full screen'], ['units', 'Switch m / ft'], ['fai', 'FAI on/off'], ['edit', 'Edit widgets']]], ['Go to page', [['pMap', 'Map'], ['pThermal', 'Thermal'], ['pAtmos', 'Atmosphere'], ['pAir', 'Airspace'], ['pPlan', 'Planner']]], ['Nothing', [['none', 'Nothing']]]];
 const HOLD = HOLDG.flatMap(([, l]) => l);
 const VIS = [['always', 'Always'], ['thermal', 'Thermalling'], ['glide', 'Stopped thermalling'], ['tow', 'Towing and after release']];
-const COMMON = [['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['ctlShow', 'On-widget buttons', [['auto', 'Hide on small widgets'], ['always', 'Always show'], ['tap', 'Show when tapped']]], ['pad', 'Padding', [['page', 'As set in Display'], [0, 'None'], [2, 'Tight'], [4, 'Small'], [8, 'Normal']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
+const COMMON = [['lock', 'Frozen while editing (can\'t be moved or resized; also the 🔒 button on the widget)', [[false, 'Movable'], [true, 'Frozen']]], ['vis', 'Show when', VIS], ['towKeep', 'Keep showing after release', numOpt(0, 1800, 10, 's', [30, 60, 300], { zero: 'Hide at release', hint: '0 = hide at release', def: 60 })], ['visDelay', 'Delay before showing', numOpt(0, 300, 1, 's', [0, 3, 5, 10, 30], { zero: 'None', hint: '0 = immediately', def: 0 })], ['tap', 'When tapped', TAP], ['hold', 'When held', HOLD], ['infoItems', 'Custom info shows', 'INFO'], ['infoText', 'Custom info note', 'TEXT'], ['size', 'Text size', [['auto', 'Fit'], [0.7, 'S'], [0.85, 'M'], [1.15, 'L'], [1.35, 'XL']]], ['bg', 'Background', [[0, 'None'], [35, '35%'], [70, '70%'], [100, 'Solid']]], ['ctlShow', 'On-widget buttons', [['auto', 'Hide on small widgets'], ['always', 'Always show'], ['tap', 'Show when tapped']]], ['pad', 'Padding', [['page', 'As set in Display'], [0, 'None'], [2, 'Tight'], [4, 'Small'], [8, 'Normal']]], ['showLabel', 'Title', [[true, 'Show'], [false, 'Hide']]]];
 let wid = 1;
 function newW(type, x, y, w, h) { return { id: 'w' + Date.now().toString(36) + (wid++), type, x, y, w: w ?? WT[type].w * GSC, h: h ?? WT[type].h * GSC, cfg: Object.assign({ size: 'auto', bg: 70, showLabel: true }, (WT[type] && WT[type].def) || {}) }; }
 // default layouts = the owner's own setup (exported 2026-10-18), in fine grid units (GC × GR = 96 × 64): [type, x, y, w, h, cfg]
@@ -595,14 +595,14 @@ function openAdd() {
         return;
       }
       e.preventDefault(); el.setPointerCapture(e.pointerId);
-      drag = { W, el, mode: e.target.classList.contains('wh') ? 'size' : 'move', c: e.target.dataset.c || 'br', sx: e.clientX, sy: e.clientY, ox: W.x, oy: W.y, ow: W.w, oh: W.h, moved: false };
+      drag = { W, el, lk: !!e.target.closest('.wlk'), mode: W.cfg.lock ? 'frozen' : e.target.classList.contains('wh') ? 'size' : 'move', c: e.target.dataset.c || 'br', sx: e.clientX, sy: e.clientY, ox: W.x, oy: W.y, ow: W.w, oh: W.h, moved: false };
     });
     layer.addEventListener('pointermove', (e) => {
       const pp = ptrs.get(e.pointerId); if (pp) { pp.x = e.clientX; pp.y = e.clientY; }
       if (pinch && ptrs.size >= 2) { const [p, q] = [...ptrs.values()]; cfgW(pinch.W).zoom = clamp(pinch.z0 * Math.hypot(p.x - q.x, p.y - q.y) / pinch.d0, 0.25, 8); renderWidgets(); return; }
       if (lp && !lp.held && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) { clearTimeout(lp.t); lp = null; }
       if (!drag) return; const r = layer.getBoundingClientRect(); const dx = (e.clientX - drag.sx) / r.width * GC, dy = (e.clientY - drag.sy) / r.height * GR;
-      if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 8) drag.moved = true; if (!drag.moved) return;
+      if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 8) drag.moved = true; if (!drag.moved || drag.mode === 'frozen') return; // frozen: a slip never moves it
       const W = drag.W;
       if (drag.mode === 'move') { W.x = clamp(Math.round(drag.ox + dx), 0, GC - W.w); W.y = clamp(Math.round(drag.oy + dy), 0, GR - W.h); }
       else {
@@ -622,7 +622,9 @@ function openAdd() {
         if (hid && !l1.act) { we._ctlUntil = Date.now() + 6000; renderWidgets(); return; } // buttons hidden on a small widget: the first tap shows them
         if (we && l1.act && we._ctlUntil) we._ctlUntil = Date.now() + 6000; // pressing one keeps them a while longer
         if (l1.act) widgetAct(l1.W, l1.act); else handleTap(l1.W); return; }
-      if (!drag) return; const d = drag; drag = null; if (!d.moved) openSheet(d.W.id); else saveLayout();
+      if (!drag) return; const d = drag; drag = null;
+      if (d.lk && !d.moved) { { d.W.cfg.lock = !d.W.cfg.lock; if (!d.W.cfg.lock) delete d.W.cfg.lock; saveLayout(); toast(d.W.cfg.lock ? (WT[d.W.type].n + ' frozen: it stays put while you edit') : WT[d.W.type].n + ' can be moved again'); } return; }
+      if (!d.moved) openSheet(d.W.id); else if (d.mode !== 'frozen') saveLayout();
     };
     layer.addEventListener('pointerup', up);
     // a popup shown while holding covers the widget, so the release lands on it: end the hold wherever the finger lifts

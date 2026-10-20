@@ -783,7 +783,7 @@ function windDirBody(cv, W) {
 const DRAW = { varioDial: (cv, W) => dialDraw(cv, W), climb: (cv, W) => histDraw(cv, W), theat: heatMapDraw, ta: taDraw, tside: sideDraw, tcross: sideDraw, thead: sideDraw, vario: (cv, W, el) => varioDraw(cv, W, el), t3d: t3dDraw, tlayer: layerDraw, turn: turnDraw, profile: profDraw, asside: asSideDraw, asmap: asMapDraw, compass: compassDraw, windDir: windDirDraw, map: mapDraw };
 
 /* ----- widget element lifecycle ----- */
-const HANDLES = '<div class="wh tl" data-c="tl"></div><div class="wh tr" data-c="tr"></div><div class="wh bl" data-c="bl"></div><div class="wh br" data-c="br"></div>';
+const HANDLES = '<div class="wh tl" data-c="tl"></div><div class="wh tr" data-c="tr"></div><div class="wh bl" data-c="bl"></div><div class="wh br" data-c="br"></div><div class="wlk" data-lk="1" role="button" aria-label="Freeze or unfreeze this widget"></div>';
 function wBox(W, el, r) { r = r || el.getBoundingClientRect(); return { x: W.x / GC * r.width, y: W.y / GR * r.height, w: W.w / GC * r.width, h: W.h / GR * r.height }; }
 function layerEl() { return $(LAYERID[pageKey()]); }
 function disposeW(e) { if (cvRO) e.querySelectorAll('canvas').forEach((c) => cvRO.unobserve(c)); if (e._mi) { MAPS.delete(e._mi); try { e._mi.m.remove(); } catch (x) { } } if (e._tm) { try { e._tm.remove(); } catch (x) { } } if (e._am) { try { e._am.remove(); } catch (x) { } } }
@@ -811,7 +811,7 @@ function renderWidgets() {
     const b = wBox(W, layer, lr); curBox = b;
     const sk = [b.x, b.y, b.w, b.h, zi, +E.cfg.bg, ins, pd ? pd.join(',') : ''].join('|');
     if (el._sk !== sk) { el._sk = sk; el._bgc = null; Object.assign(el.style, el._st = { left: b.x + ins + 'px', top: b.y + ins + 'px', width: b.w - 2 * ins + 'px', height: b.h - 2 * ins + 'px', zIndex: 1 + zi, background: `color-mix(in srgb, var(--card) ${+E.cfg.bg}%, transparent)`, borderColor: +E.cfg.bg ? 'var(--line)' : 'transparent', padding: W.type === 'map' ? '' : pd ? pd[1] + 'px ' + pd[0] + 'px' : '' }); }
-    el.classList.toggle('sel', wEdit && wSel === W.id);
+    el.classList.toggle('sel', wEdit && wSel === W.id); el.classList.toggle('locked', !!W.cfg.lock);
     const showL = E.cfg.showLabel !== false && E.cfg.showLabel !== 'false' && (S.titles !== 'hide' || wEdit);
     if (isCv(W)) {
       el.classList.toggle('compact', W.type !== 'map' && (b.w < 180 || b.h < 180)); // small: simpler drawing
@@ -875,7 +875,7 @@ function updateBackOverlay(layer) {
   ov.style.bottom = '18px';
 }
 function saveLayout() { save(); renderWidgets(); }
-function enterEdit(selId) { wEdit = true; document.body.classList.add('wedit'); wSel = selId || null; $('wbName').textContent = pageTitle(pageKey()); setNav(false); renderWidgets(); bannerAvoid($('corner')); if (selId) openSheet(selId); } // the edit bar moves away from the menu buttons
+function enterEdit(selId) { wEdit = true; document.body.classList.add('wedit'); wSel = selId || null; $('wbName').textContent = pageTitle(pageKey()); setNav(false); renderWidgets(); bannerAvoid($('corner')); if (!$('sbar').classList.contains('off')) bannerAvoid($('sbar')); if (selId) openSheet(selId); } // the edit bar moves away from the menu buttons
 function exitEdit() { wEdit = false; wSel = null; document.body.classList.remove('wedit'); $('wSheet').classList.remove('on'); if (st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } sheetFor = null; saveLayout(); }
 
 /* ----- actions from buttons inside widgets ----- */
@@ -1038,7 +1038,7 @@ const SECS = [['data', 'Vario & GPS'], ['flights', 'Flights & logbook'], ['widge
 let setSec = 'data';
 function openSettings(sec) { if (sec) setSec = sec; showPage('pSet'); }
 function seg(key, opts, label) { return `<div class="field"><span class="k">${label}</span><span class="row" style="flex-wrap:wrap">${opts.map(([v, n]) => `<button class="pill" data-set="${key}" data-val="${v}" aria-pressed="${String(S[key]) === String(v)}">${n}</button>`).join('')}</span></div>`; }
-const SNUM = { rbMinGain: [20, 1000, 10, 'm', 'Thermals in new route books from'], rbR: [200, 5000, 100, 'm', 'A note is reached within'], hdgOff: [-180, 180, 1, '°', 'Compass correction'], gWarn: [1.5, 6, 0.1, 'G', 'Spiral warning at'], spSink: [-20, -3, 0.5, 'm/s', 'or sinking faster than (while turning)'], sunWarn: [5, 120, 5, 'min', 'Darkness warning before civil dusk'], saverAt: [5, 80, 5, '%', 'Battery saver below'], mc: [0, 5, 0.1, 'm/s', 'MacCready (expected climb)'], gateN: [1, 20, 1, '', 'Number of start gates'], gateGap: [1, 120, 1, 'min', 'Minutes between gates'], trNear: [300, 10000, 100, 'm', 'Traffic counts as near within'], warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], wGap: [0, 12, 1, 'px', 'Gap between widgets'], qnh: [900, 1100, 0.1, 'hPa', 'QNH'], baroTau: [0.2, 5, 0.1, 's', 'Vario response time'], baroNoise: [0.05, 2, 0.05, 'm', 'Sensor noise'], ctlSmall: [0, 800, 20, 'px', 'Hide on-widget buttons when narrower than'], wPadX: [0, 16, 1, 'px', 'Padding left and right'], wPadY: [0, 12, 1, 'px', 'Padding top and bottom'], wLab: [8, 18, 1, 'px', 'Title and info text size'], wRad: [0, 16, 1, 'px', 'Rounded corners'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeClimb: [-2, 3, 0.1, 'm/s', 'Average climb while circling at least'], toSpd: [5, 40, 0.5, 'km/h', 'Ground speed above'], toTime: [0, 30, 1, 's', 'For at least'], cirRate: [3, 20, 0.5, '°/s', 'Turning faster than'], cirWin: [3, 20, 1, 's', 'Turn rate measured over'], cirSpd: [0, 30, 0.5, 'km/h', 'Ground speed above'], thRec: [5, 300, 5, 's', 'Count as a thermal after'], thJoin: [0, 120, 5, 's', 'Same thermal when circling again within'], windAvg: [20, 600, 10, 's', 'Wind: average circles over'], towWin: [10, 600, 10, 's', 'Starts within'], towRelV: [-1, 2, 0.1, 'm/s', 'Released when climb is below'], towRelT: [1, 20, 1, 's', 'For'], xcOut: [0.5, 20, 0.5, 'km', 'Free distance until'], xcBack: [50, 95, 5, '%', 'Still going out while farther than'], xcTri: [5, 28, 1, '%', 'Triangle when the shortest leg is at least'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
+const SNUM = { navSz: [36, 120, 2, 'px', 'Menu button size'], rbMinGain: [20, 1000, 10, 'm', 'Thermals in new route books from'], rbR: [200, 5000, 100, 'm', 'A note is reached within'], hdgOff: [-180, 180, 1, '°', 'Compass correction'], gWarn: [1.5, 6, 0.1, 'G', 'Spiral warning at'], spSink: [-20, -3, 0.5, 'm/s', 'or sinking faster than (while turning)'], sunWarn: [5, 120, 5, 'min', 'Darkness warning before civil dusk'], saverAt: [5, 80, 5, '%', 'Battery saver below'], mc: [0, 5, 0.1, 'm/s', 'MacCready (expected climb)'], gateN: [1, 20, 1, '', 'Number of start gates'], gateGap: [1, 120, 1, 'min', 'Minutes between gates'], trNear: [300, 10000, 100, 'm', 'Traffic counts as near within'], warnDist: [200, 10000, 100, 'm', 'Warn about airspace closer than'], airMaxAlt: [0, 10000, 100, 'm', 'Hide airspace starting at or above'], volPct: [0, 100, 10, '%', 'Volume'], vLift: [-1, 3, 0.1, 'm/s', 'Climb tone from'], vSink: [-10, 0, 0.5, 'm/s', 'Sink alarm below'], vF0: [200, 1500, 20, 'Hz', 'Pitch at 0 m/s'], vFk: [0, 300, 10, 'Hz', 'Pitch rise per m/s'], vRate: [0.5, 2, 0.1, '×', 'Beep speed'], vDamp: [0, 5, 0.1, 's', 'Sound averaging'], voiceVol: [0, 100, 10, '%', 'Voice volume'], voiceRate: [0.5, 2, 0.1, '×', 'Speaking speed'], vcAlt: [0, 30, 1, 'min', 'Say altitude every'], wGap: [0, 12, 1, 'px', 'Gap between widgets'], qnh: [900, 1100, 0.1, 'hPa', 'QNH'], baroTau: [0.2, 5, 0.1, 's', 'Vario response time'], baroNoise: [0.05, 2, 0.05, 'm', 'Sensor noise'], ctlSmall: [0, 800, 20, 'px', 'Hide on-widget buttons when narrower than'], wPadX: [0, 16, 1, 'px', 'Padding left and right'], wPadY: [0, 12, 1, 'px', 'Padding top and bottom'], wLab: [8, 18, 1, 'px', 'Title and info text size'], wRad: [0, 16, 1, 'px', 'Rounded corners'], towMin: [0.3, 5, 0.1, 'm/s', 'Tow climb at least'], avgS: [1, 300, 1, 's', 'Default vario average'], modeEnter: [1, 60, 1, 's', 'After circling for'], modeClimb: [-2, 3, 0.1, 'm/s', 'Average climb while circling at least'], toSpd: [5, 40, 0.5, 'km/h', 'Ground speed above'], toTime: [0, 30, 1, 's', 'For at least'], cirRate: [3, 20, 0.5, '°/s', 'Turning faster than'], cirWin: [3, 20, 1, 's', 'Turn rate measured over'], cirSpd: [0, 30, 0.5, 'km/h', 'Ground speed above'], thRec: [5, 300, 5, 's', 'Count as a thermal after'], thJoin: [0, 120, 5, 's', 'Same thermal when circling again within'], windAvg: [20, 600, 10, 's', 'Wind: average circles over'], towWin: [10, 600, 10, 's', 'Starts within'], towRelV: [-1, 2, 0.1, 'm/s', 'Released when climb is below'], towRelT: [1, 20, 1, 's', 'For'], xcOut: [0.5, 20, 0.5, 'km', 'Free distance until'], xcBack: [50, 95, 5, '%', 'Still going out while farther than'], xcTri: [5, 28, 1, '%', 'Triangle when the shortest leg is at least'], modeHold: [3, 300, 1, 's', 'Back to gliding after'], rate: [0.1, 5, 0.1, 's', 'Update every'], rateT: [0, 5, 0.1, 's', 'Update every, when thermaling'] };
 const TA_ORIENT = { wind: 'Wind up', winddown: 'Wind down', north: 'North up', track: 'Bearing up', auto: 'Auto: wind up circling, bearing up on glide' };
 // the orientations a thermal view's button steps through: the widget's cfg.oCycle (edit sheet), else an older global S.taCycle, else all but auto
 const taCycle = (C) => { const c = (C && Array.isArray(C.oCycle) ? C.oCycle : Array.isArray(S.taCycle) ? S.taCycle : []).filter((k) => TA_ORIENT[k]); return c.length ? c : ['wind', 'winddown', 'north', 'track']; };
@@ -1124,7 +1124,7 @@ function setSecHTML() { // the HTML of section setSec
     <pre class="raw" id="bmCode" style="word-break:break-all">${esc(bookmarklet())}</pre>
     <div class="field"><span class="k"></span><button class="btn primary" id="bmCopy">Copy bookmark code</button></div>`;
   if (setSec === 'web') h = webSection();
-  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${seg('corner', [['auto', 'Auto'], ['full', 'Clock, status, menu'], ['menu', 'Menu only']], 'Top-right buttons')}${seg('cornerPos', [['tr', 'Top right'], ['tl', 'Top left'], ['br', 'Bottom right'], ['bl', 'Bottom left']].concat(S.cornerPos === 'free' ? [['free', 'Custom']] : []), 'Menu buttons position')}<div class="muted">Or drag them anywhere while editing a page (dashed outline). They can be moved but not removed.</div><div class="muted">Auto shows only the menu button on small screens (phones), so the buttons don't cover your widgets.</div>${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
+  if (setSec === 'display') h = `<div class="card sec"><h2>Display & sound</h2>${seg('theme', [['light', 'Day'], ['dark', 'Night']], 'Colours')}${seg('navMode', [['auto', 'Hide automatically'], ['pinned', 'Always show']], 'Page tabs')}${seg('titles', [['each', 'Per widget'], ['hide', 'Hide all']], 'Widget titles')}${numField('navSz')}${seg('cornerPos', [['tr', 'Top right'], ['tl', 'Top left'], ['br', 'Bottom right'], ['bl', 'Bottom left']].concat(S.cornerPos === 'free' ? [['free', 'Custom']] : []), 'Menu button position')}${seg('sbShow', [[true, 'Show'], [false, 'Hide']], 'Status bar (clock, batteries, G B T D)')}${S.sbXY ? '<div class="field"><span class="k">Status bar position</span><button class="btn" id="sbHome">Back beside the menu button</button></div>' : ''}<div class="muted">Drag the menu button or the status bar anywhere while editing a page (dashed outlines). The menu button can be moved but not removed.</div>${seg('wake', [[true, 'On'], [false, 'Off']], 'Keep screen on')}<div class="field"><span class="k">Full screen</span><button class="btn" id="fsBtn">Go full screen</button></div></div>
     <div class="card sec"><h2>Widget spacing</h2><div class="muted">Make widgets more compact: less space between and inside them leaves more room for the values (they grow to fill it).</div>${numField('wGap', '0 = edge to edge')}${numField('wPadX')}${numField('wPadY')}${numField('wLab')}${numField('wRad', '0 = square')}<div class="muted">One widget can have its own padding: edit it → Padding.</div>${numField('ctlSmall', '0 = never')}<div class="muted">Small maps and thermal views hide their buttons (zoom, ±, orientation …) so they don't cover the picture; tap the widget to show them for a few seconds. Lower than ¾ of this height counts as small too. Per widget: edit it → On-widget buttons.</div><div class="field"><span class="k">Defaults</span><button class="btn" id="wSpReset">Default (tight)</button><button class="btn" id="wSpRoomy">Roomy</button><button class="btn" id="wSpTight">Compact</button></div></div>
     <div class="card sec"><h2>Acoustic vario</h2>
     ${seg('sound', [[true, 'On'], [false, 'Off']], 'Vario sound')}${numField('volPct')}
@@ -1230,6 +1230,7 @@ function renderSettings() {
   const wSp = (o) => { Object.assign(S, o); save(); wStyle(); document.querySelectorAll('.wg').forEach((e) => { e._sk = null; e._last = null; }); renderSettings(); };
   on('wSpReset', 'onclick', () => wSp({ wGap: 4, wPadX: 2, wPadY: 1, wLab: 12, wRad: 10 })); on('wSpRoomy', 'onclick', () => wSp({ wGap: 4, wPadX: 8, wPadY: 4, wLab: 12, wRad: 10 })); on('wSpTight', 'onclick', () => wSp({ wGap: 1, wPadX: 3, wPadY: 1, wLab: 10, wRad: 4 }));
   on('fsBtn', 'onclick', () => document.documentElement.requestFullscreen?.());
+  on('sbHome', 'onclick', () => { delete S.sbXY; save(); placeSbar(); renderSettings(); });
 }
 // Settings → Flight modes: every automatic mode with its detection criteria, plus a live status card (modeLive, refreshed every second)
 function modeLiveHTML() {
@@ -1325,7 +1326,7 @@ function baroWire(on) {
   baroChart();
 }
 setInterval(() => { if (curPage !== 'pSet' || !$('baroLive')) return; const e = $('baroLive'); if (e) e.innerHTML = baroLiveHTML(); const l = $('baroLines'); if (l) l.textContent = (st.baroLines || []).join('\n') || 'nothing received yet'; baroChart(); }, 500);
-function cornerMode() { document.body.classList.toggle('cornerFull', S.corner === 'full'); document.body.classList.toggle('cornerMenu', S.corner === 'menu'); }
+function cornerMode() { document.body.classList.remove('cornerFull', 'cornerMenu'); } // S.corner (clock + status with the menu button) is gone: the status bar is its own strip (placeSbar)
 function applySet(key, raw) {
   const v = raw === 'true' ? true : raw === 'false' ? false : isNaN(+raw) ? raw : +raw;
   S[key] = v; save();
@@ -1338,8 +1339,8 @@ function applySet(key, raw) {
   if (key === 'volPct') { S.volume = v / 100; save(); }
   if (key === 'voice' && v) say(vt().test, true);
   if (key === 'wake') wake();
-  if (key === 'corner') cornerMode();
-  if (key === 'cornerPos') placeCorner();
+  if (key === 'cornerPos' || key === 'navSz') { placeCorner(); placeSbar(); }
+  if (key === 'sbShow') placeSbar();
   if (/^w(Gap|PadX|PadY|Lab|Rad)$/.test(key)) { wStyle(); document.querySelectorAll('.wg').forEach((e) => { e._sk = null; e._last = null; }); }
   if (key === 'titles') renderWidgets();
   if (key === 'rate' || key === 'rateT') loop();
@@ -1412,6 +1413,7 @@ addEventListener('resize', placeReplayBar);
    they get a dashed outline and can be dragged (a drag of > 8 px; a plain tap still works). */
 function placeCorner() {
   const c = $('corner'); if (!c) return; const p = S.cornerPos || 'tr', g = 'calc(env(safe-area-inset-top,0px) + 6px)';
+  document.documentElement.style.setProperty('--nav', sN('navSz', 52) + 'px');
   const set = (o) => Object.assign(c.style, { top: '', bottom: '', left: '', right: '' }, o);
   if (p === 'free' && S.cornerXY) { const r = c.getBoundingClientRect(); set({ left: clamp(S.cornerXY.x * innerWidth, 0, Math.max(0, innerWidth - r.width)) + 'px', top: clamp(S.cornerXY.y * innerHeight, 0, Math.max(0, innerHeight - r.height)) + 'px', right: 'auto' }); }
   else if (p === 'tl') set({ top: g, left: '8px', right: 'auto' });
@@ -1420,14 +1422,27 @@ function placeCorner() {
   else set({});
   document.body.dataset.corner = p;
 }
-{ let d = null; const c = $('corner');
+/* the status bar (clock, batteries, G B T D): S.sbShow, beside the menu button (left of it when that sits in a top corner on the right, else at the top right)
+   until dragged while editing (S.sbXY, fractions of the screen; "Back beside the menu button" in Settings → Display & sound) */
+function placeSbar() {
+  const b = $('sbar'); if (!b) return; b.classList.toggle('off', S.sbShow === false || S.sbShow === 'false'); const g = 'calc(env(safe-area-inset-top,0px) + 6px)';
+  const set = (o) => Object.assign(b.style, { top: g, bottom: '', left: '', right: '' }, o), r = b.getBoundingClientRect();
+  if (S.sbXY) return set({ left: clamp(S.sbXY.x * innerWidth, 0, Math.max(0, innerWidth - r.width)) + 'px', top: clamp(S.sbXY.y * innerHeight, 0, Math.max(0, innerHeight - r.height)) + 'px', right: 'auto' });
+  const p = S.cornerPos || 'tr', nav = sN('navSz', 52); set({ right: (p === 'tr' ? nav + 18 : 8) + 'px' });
+}
+// drag the menu button or the status bar while editing a page (> 8 px; a plain tap still works, the release after a drag is not a tap)
+function floatDrag(c, drop) {
+  let d = null;
   c.addEventListener('pointerdown', (e) => { if (!document.body.classList.contains('wedit')) return; const r = c.getBoundingClientRect(); d = { sx: e.clientX, sy: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false, id: e.pointerId }; }, true);
   addEventListener('pointermove', (e) => { if (!d || e.pointerId !== d.id) return; if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 8) return; if (!d.moved) { d.moved = true; try { c.setPointerCapture(d.id); } catch (x) { } }
     const r = c.getBoundingClientRect(); Object.assign(c.style, { left: clamp(e.clientX - d.dx, 0, innerWidth - r.width) + 'px', top: clamp(e.clientY - d.dy, 0, innerHeight - r.height) + 'px', right: 'auto', bottom: 'auto' }); e.preventDefault(); }, true);
-  const end = (e) => { if (!d || (e && e.pointerId !== d.id)) return; const m = d.moved; d = null; if (!m) return; const r = c.getBoundingClientRect(); S.cornerPos = 'free'; S.cornerXY = { x: r.left / innerWidth, y: r.top / innerHeight }; save(); placeCorner(); bannerAvoid(c); c._noClick = Date.now(); };
+  const end = (e) => { if (!d || (e && e.pointerId !== d.id)) return; const m = d.moved; d = null; if (!m) return; const r = c.getBoundingClientRect(); drop({ x: r.left / innerWidth, y: r.top / innerHeight }); save(); bannerAvoid(c); c._noClick = Date.now(); };
   addEventListener('pointerup', end, true); addEventListener('pointercancel', end, true);
-  c.addEventListener('click', (e) => { if (c._noClick && Date.now() - c._noClick < 400) { e.stopPropagation(); e.preventDefault(); } }, true); // the release after a drag is not a tap
+  c.addEventListener('click', (e) => { if (c._noClick && Date.now() - c._noClick < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
 }
+floatDrag($('corner'), (xy) => { S.cornerPos = 'free'; S.cornerXY = xy; placeCorner(); placeSbar(); });
+floatDrag($('sbar'), (xy) => { S.sbXY = xy; placeSbar(); });
+addEventListener('resize', placeSbar);
 addEventListener('resize', placeCorner);
 // the Next turnpoint widget's link field: a pasted FlyXC link with a route is imported right away, Enter imports too
 document.addEventListener('input', (e) => { const i = e.target.closest?.('.fxIn'); if (i && /flyxc\.app\/?\S*[?&]p=/i.test(i.value) && importFlyXC(i.value)) renderWidgets(); });

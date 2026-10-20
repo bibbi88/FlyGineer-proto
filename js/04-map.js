@@ -208,7 +208,7 @@ function edgeUpdate(I, C) {
   // a map button, the replay bar or the corner buttons cover the spot, so the tag sits at the edge of the map you can see
   const br = box.getBoundingClientRect(), z = +I.el.style.zIndex || 0, gap = 4, M = 6;
   const obs = [...(I.el.parentElement ? I.el.parentElement.children : [])].filter((e) => e !== I.el && e.classList.contains('wg') && (+e.style.zIndex || 0) > z && e.style.display !== 'none' && !e.classList.contains('void'))
-    .concat([...I.el.querySelectorAll('.wctl .wcb')], [$('replayBar'), $('corner')].filter(Boolean))
+    .concat([...I.el.querySelectorAll('.wctl .wcb')], [$('replayBar'), $('corner'), $('sbar')].filter((e) => e && !e.classList.contains('off')))
     .map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height).map((r) => ({ l: r.left - br.left - gap, t: r.top - br.top - gap, r: r.right - br.left + gap, b: r.bottom - br.top + gap }));
   const hit = (x, y, w, hh) => obs.some((o) => x - w / 2 < o.r && x + w / 2 > o.l && y - hh / 2 < o.b && y + hh / 2 > o.t);
   const pos = list.map(({ pt }, i) => {

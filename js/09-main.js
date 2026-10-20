@@ -18,7 +18,8 @@ function tick() {
 function boot() {
   if (S.theme === 'dark') document.body.classList.add('dark');
   if (S.navMode === 'pinned') document.body.classList.add('pinned');
-  cornerMode(); wStyle(); placeCorner();
+  if (!S.sbMig) { if (S.corner === 'menu') S.sbShow = false; S.sbMig = true; save(); } // "menu only" before: the status bar stays hidden
+  cornerMode(); wStyle(); placeCorner(); placeSbar();
   try { const c = JSON.parse(localStorage.getItem('bora.notams') || 'null'); if (c) { NOTAMS = c.list; st.notamAt = c.at; } } catch (e) { }
   try { st.airspaces = JSON.parse(localStorage.getItem('bora.air') || '[]'); } catch (e) { st.airspaces = []; }
   if (!S.airSrc) { S.airSrc = st.airspaces.length ? 'own' : 'xcsoar'; save(); } // airspace you loaded before stays yours

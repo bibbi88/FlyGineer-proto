@@ -31,8 +31,7 @@
   <button class="iconBtn" id="chkBtn" aria-label="Pre-flight check"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M4 11.5l4.5 4.5L18 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="mlbl">Pre-flight check</span></button>
   <button class="iconBtn" id="fullBtn" aria-label="Full screen" aria-pressed="false"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M2 8V2h6M14 2h6v6M20 14v6h-6M8 20H2v-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="mlbl" id="fullLbl">Full screen</span></button>
 </header>
-<div id="corner">
-  <button id="modeChip" type="button" aria-label="Thermal mode">THERMAL</button>
+<div id="sbar">
   <button id="timeBtn" aria-label="Show local time and UTC"><span class="num" id="tLocal">--:--</span><small id="tUtc">--:-- UTC</small></button>
   <button id="statusBtn" aria-label="Battery and sensors. Open settings">
     <span class="bat"><b id="batMain">--</b><small id="batSub">no vario</small></span>
@@ -43,6 +42,9 @@
       <span class="dot" id="dD">D<i></i></span>
     </span>
   </button>
+</div>
+<div id="corner">
+  <button id="modeChip" type="button" aria-label="Thermal mode">THERMAL</button>
   <button class="iconBtn" id="navBtn" aria-label="Show pages" aria-expanded="false" aria-controls="top"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><g id="navIco"><path d="M4 7h18M4 13h18M4 19h18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></g></svg></button>
 </div>
 

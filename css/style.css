@@ -40,18 +40,25 @@ body.pinned #corner{top:calc(env(safe-area-inset-top,0px) + 6px)}
 #tabs::-webkit-scrollbar{display:none}
 .tab{min-width:88px;height:52px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:16px;white-space:nowrap}
 .tab[aria-current="page"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-#timeBtn{height:52px;padding:0 8px;border:1px solid var(--line);border-radius:12px;background:var(--card);display:flex;flex-direction:column;align-items:flex-end;justify-content:center;line-height:1}
-#timeBtn .num{font-size:22px}
-#timeBtn small{font-size:11px;font-weight:600;color:var(--muted);margin-top:2px}
-#statusBtn{height:52px;padding:0 10px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;gap:10px}
-.bat{display:flex;flex-direction:column;gap:1px;align-items:flex-start}
-.bat b{font-size:15px}
-.bat small{font-size:11px;color:var(--muted)}
-.dots{display:flex;gap:5px}
-.dot{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;font-weight:700}
-.dot i{width:8px;height:8px;border-radius:4px;border:2px solid var(--muted);display:block}
-.dot.on i{background:var(--ink);border-color:var(--ink)}
-.dot.bad{color:var(--warn)} .dot.bad i{border-color:var(--warn)}
+/* status bar (clock + batteries + sensor dots): one compact strip of its own, apart from the menu button; movable while editing, can be hidden */
+#sbar{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);right:72px;z-index:2100;display:flex;align-items:stretch;height:30px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--card) 88%,transparent);overflow:hidden}
+#sbar.off{display:none}
+body.wedit #sbar{z-index:2160;outline:2px dashed var(--sink);outline-offset:3px;cursor:move;touch-action:none}
+#timeBtn,#statusBtn{border:0;background:none;padding:0 7px;display:flex;align-items:baseline;gap:5px;align-self:center;line-height:1;white-space:nowrap}
+#timeBtn{border-right:1px solid var(--line);align-self:stretch;align-items:center}
+#timeBtn .num{font-size:17px}
+#timeBtn small{font-size:10px;font-weight:600;color:var(--muted)}
+#statusBtn{align-self:stretch;align-items:center;gap:7px}
+.bat{display:flex;align-items:baseline;gap:4px}
+.bat b{font-size:13px}
+.bat small{font-size:10px;color:var(--muted)}
+.dots{display:flex;gap:3px}
+.dot{font-size:10px;font-weight:700;width:15px;height:15px;border-radius:4px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--muted);color:var(--muted);box-sizing:border-box}
+.dot i{display:none}
+.dot.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.dot.bad{color:var(--warn);border-color:var(--warn)}
+#navBtn{width:var(--nav,52px);height:var(--nav,52px)}
+#navBtn svg{width:calc(var(--nav,52px) * .5);height:calc(var(--nav,52px) * .5)}
 .iconBtn{width:52px;height:52px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .iconBtn[aria-current="page"]{background:var(--ink);color:var(--bg)}
 
@@ -129,6 +136,14 @@ body.wedit .wg[data-vis="thermal"]::after{content:"THERMALLING" attr(data-vd)}
 body.wedit .wg[data-vis="glide"]::after{content:"STOPPED THERMALLING" attr(data-vd);background:var(--sink)}
 body.wedit .wg.sel{outline:3px solid var(--sink)}
 body.wedit .wg .wh{display:block}
+/* frozen widgets (cfg.lock): not moved or resized while editing (a tap still opens the settings); 🔒 chip at the bottom to switch */
+.wg .wlk{display:none;position:absolute;left:50%;bottom:4px;transform:translateX(-50%);z-index:1;opacity:.75;min-width:44px;height:34px;padding:0 8px;border-radius:10px;border:2px solid var(--sink);background:var(--card);color:var(--sink);font:700 13px var(--txt);align-items:center;justify-content:center;gap:4px;touch-action:none}
+.wg .wlk::before{content:"🔓"}
+body.wedit .wg .wlk{display:flex}
+body.wedit .wg.locked{cursor:default;outline-style:solid;outline-color:color-mix(in srgb,var(--muted) 70%,transparent)}
+body.wedit .wg.locked .wh{display:none}
+body.wedit .wg.locked .wlk{background:var(--sink);color:#fff;opacity:1}
+.wg.locked .wlk::before{content:"🔒 Frozen"}
 body.wedit .wLayer{background-image:linear-gradient(to right,rgba(30,80,200,.10) 1px,transparent 1px),linear-gradient(to bottom,rgba(30,80,200,.10) 1px,transparent 1px);background-size:calc(100%/48) calc(100%/32)}
 #wBanner{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 8px);transform:translateX(-50%);z-index:2150;display:none;align-items:center;gap:8px;padding:6px 6px 6px 14px;border-radius:14px;background:#111418;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap}
 body.wedit #wBanner{display:flex}
@@ -328,14 +343,6 @@ canvas{display:block;width:100%;touch-action:none}
 #dlgBody .card{min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}
 pre.raw{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;line-height:1.5;white-space:pre-wrap;margin:0;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
 
-/* small screens (phones): only the menu button in the top-right corner, smaller, so widgets stay readable (Settings → Display: Top-right buttons) */
-body.cornerMenu #timeBtn,body.cornerMenu #statusBtn{display:none}
-@media (max-width:760px),(max-height:480px){
-  body:not(.cornerFull) #timeBtn,body:not(.cornerFull) #statusBtn{display:none}
-  body:not(.cornerFull) #corner{top:calc(env(safe-area-inset-top,0px) + 4px);right:4px}
-  body:not(.cornerFull) #navBtn{width:42px;height:42px;opacity:.85}
-  body:not(.cornerFull) #modeChip{height:40px;padding:0 8px;font-size:12px}
-}
 /* heights popup (tap) and hold popup */
 .hRow{display:grid;grid-template-columns:70px 1fr auto;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
 .hFt{font-size:56px;line-height:1}
