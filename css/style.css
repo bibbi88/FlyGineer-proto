@@ -464,3 +464,18 @@ body.wedit #corner[data-in="bl"] .nh.bl,body.wedit #corner[data-in="br"] .nh.br,
 #corner .nh.br{right:-12px;bottom:-12px;border-radius:14px 0 10px 0;cursor:nwse-resize}#corner .nh.br::after{right:7px;bottom:7px;border-right-width:3px;border-bottom-width:3px}
 #navSzTag{display:none;position:absolute;left:50%;top:calc(100% + 18px);transform:translateX(-50%);padding:3px 9px;border-radius:8px;background:var(--sink);color:#fff;font:700 13px var(--txt);white-space:nowrap}
 #corner.sizing #navSzTag{display:block}
+
+/* several widgets picked while editing (29-multi.js) */
+#wMultiBar{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:translateX(-50%);z-index:2150;display:none;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;max-width:calc(100vw - 24px);padding:6px 8px;border-radius:14px;background:#111418;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+#wMultiBar.on{display:flex}
+#wMultiBar.top{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 8px)}
+#wMultiBar #msInfo{font-size:13px;padding:0 6px;color:#C9CED6;flex-basis:100%;text-align:center}
+#wMultiBar button{height:48px;padding:0 12px;border-radius:12px;border:1px solid #4A5058;background:#111418;color:#fff;font-weight:600;font-size:14px}
+#wMultiBar button:disabled{opacity:.35}
+#wMultiBar button.primary{background:#fff;color:#111418;border-color:#fff}
+#wMulti[aria-pressed="true"]{background:#fff !important;color:#111418 !important}
+body.wedit.wmulti .wg .wh{display:none}
+body.wedit.wmulti .wg.msel{outline:3px solid #E07B00;background:color-mix(in srgb,#E07B00 14%,var(--card)) !important}
+body.wedit.wmulti .wg.manchor{outline:5px solid #E07B00;background:color-mix(in srgb,#E07B00 24%,var(--card)) !important}
+body.wedit.wmulti .wg.manchor::before{content:"1";position:absolute;left:4px;top:4px;z-index:8;width:22px;height:22px;border-radius:11px;background:#E07B00;color:#fff;font:700 13px/22px var(--txt);text-align:center}
+body.wedit.wmulti .wg:not(.locked) .wlk{display:none}

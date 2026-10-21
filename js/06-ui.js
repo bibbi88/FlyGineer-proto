@@ -812,6 +812,7 @@ function renderWidgets() {
     const sk = [b.x, b.y, b.w, b.h, zi, +E.cfg.bg, ins, pd ? pd.join(',') : ''].join('|');
     if (el._sk !== sk) { el._sk = sk; el._bgc = null; Object.assign(el.style, el._st = { left: b.x + ins + 'px', top: b.y + ins + 'px', width: b.w - 2 * ins + 'px', height: b.h - 2 * ins + 'px', zIndex: 1 + zi, background: `color-mix(in srgb, var(--card) ${+E.cfg.bg}%, transparent)`, borderColor: +E.cfg.bg ? 'var(--line)' : 'transparent', padding: W.type === 'map' ? '' : pd ? pd[1] + 'px ' + pd[0] + 'px' : '' }); }
     el.classList.toggle('sel', wEdit && wSel === W.id); el.classList.toggle('locked', !!W.cfg.lock);
+    { const mi = wEdit && typeof MS !== 'undefined' && MS.on ? MS.ids.indexOf(W.id) : -1; el.classList.toggle('msel', mi > 0); el.classList.toggle('manchor', mi === 0); } // 29: picked widgets
     const showL = E.cfg.showLabel !== false && E.cfg.showLabel !== 'false' && (S.titles !== 'hide' || wEdit);
     if (isCv(W)) {
       el.classList.toggle('compact', W.type !== 'map' && (b.w < 180 || b.h < 180)); // small: simpler drawing
@@ -876,7 +877,7 @@ function updateBackOverlay(layer) {
 }
 function saveLayout() { save(); renderWidgets(); }
 function enterEdit(selId) { wEdit = true; document.body.classList.add('wedit'); wSel = selId || null; $('wbName').textContent = pageTitle(pageKey()); setNav(false); renderWidgets(); bannerAvoid($('corner')); if (!$('sbar').classList.contains('off')) bannerAvoid($('sbar')); if (selId) openSheet(selId); } // the edit bar moves away from the menu buttons
-function exitEdit() { wEdit = false; wSel = null; document.body.classList.remove('wedit'); $('wSheet').classList.remove('on'); if (st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } sheetFor = null; saveLayout(); }
+function exitEdit() { if (typeof MS !== 'undefined' && MS.on) msToggle(false); wEdit = false; wSel = null; document.body.classList.remove('wedit'); $('wSheet').classList.remove('on'); if (st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } sheetFor = null; saveLayout(); }
 
 /* ----- actions from buttons inside widgets ----- */
 function openNotamById(id) { const n = NOTAMS.find((x) => x.id === id); if (!n) return; ntView = [{ n, d: ntWhere(n), s: ntState(n) }]; openNotam(0); }

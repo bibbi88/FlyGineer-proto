@@ -615,7 +615,8 @@ function openAdd() {
         return;
       }
       e.preventDefault(); el.setPointerCapture(e.pointerId);
-      drag = { W, el, lk: !!e.target.closest('.wlk'), mode: W.cfg.lock ? 'frozen' : e.target.classList.contains('wh') ? 'size' : 'move', c: e.target.dataset.c || 'br', sx: e.clientX, sy: e.clientY, ox: W.x, oy: W.y, ow: W.w, oh: W.h, moved: false };
+      const grp = MS.on && MS.ids.includes(W.id) && MS.ids.length > 1 && !e.target.classList.contains('wh') ? msSel().filter((o) => !o.cfg.lock).map((o) => ({ o, x: o.x, y: o.y })) : null; // 29: move the picked ones together
+      drag = { W, el, grp, lk: !!e.target.closest('.wlk'), mode: W.cfg.lock ? 'frozen' : e.target.classList.contains('wh') ? 'size' : 'move', c: e.target.dataset.c || 'br', sx: e.clientX, sy: e.clientY, ox: W.x, oy: W.y, ow: W.w, oh: W.h, moved: false };
     });
     layer.addEventListener('pointermove', (e) => {
       const pp = ptrs.get(e.pointerId); if (pp) { pp.x = e.clientX; pp.y = e.clientY; }
@@ -624,7 +625,8 @@ function openAdd() {
       if (!drag) return; const r = layer.getBoundingClientRect(); const dx = (e.clientX - drag.sx) / r.width * GC, dy = (e.clientY - drag.sy) / r.height * GR;
       if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 8) drag.moved = true; if (!drag.moved || drag.mode === 'frozen') return; // frozen: a slip never moves it
       const W = drag.W, g = (v) => Math.round(v / UG) * UG, L0 = S.layout; drag.clash = false;
-      if (drag.mode === 'move') { // snapped to the grid; into a neighbour: edge to edge beside it, unless pushed well in
+      if (drag.grp && drag.mode === 'move') { let mx = g(dx), my = g(dy); drag.grp.forEach((p) => { mx = clamp(mx, -p.x, GC - p.o.w - p.x); my = clamp(my, -p.y, GR - p.o.h - p.y); }); drag.grp.forEach((p) => { p.o.x = p.x + mx; p.o.y = p.y + my; }); }
+      else if (drag.mode === 'move') { // snapped to the grid; into a neighbour: edge to edge beside it, unless pushed well in
         const cx = clamp(g(drag.ox + dx), 0, GC - W.w), cy = clamp(g(drag.oy + dy), 0, GR - W.h);
         if (!wClash(W, { x: cx, y: cy, w: W.w, h: W.h }, L0)) { W.x = cx; W.y = cy; }
         else { const f = wFreeSpot(W, cx, cy, W.w, W.h, L0); if (f && f.d <= Math.max(6, Math.min(W.w, W.h) * 0.6)) { W.x = f.x; W.y = f.y; } else { W.x = cx; W.y = cy; drag.clash = true; } }
@@ -654,9 +656,9 @@ function openAdd() {
       if (!drag) return; const d = drag; drag = null;
       if (d.lk && !d.moved) { { d.W.cfg.lock = !d.W.cfg.lock; if (!d.W.cfg.lock) delete d.W.cfg.lock; saveLayout(); toast(d.W.cfg.lock ? (WT[d.W.type].n + ' frozen: it stays put while you edit') : WT[d.W.type].n + ' can be moved again'); } return; }
       if (d.el) d.el.classList.remove('clash');
-      if (!d.moved) openSheet(d.W.id);
+      if (!d.moved) { if (MS.on) msTap(d.W); else openSheet(d.W.id); }
       else if (d.mode !== 'frozen') {
-        if (d.clash && wClash(d.W, d.W, S.layout)) { // pushed onto another widget on purpose: ask
+        if (!d.grp && d.clash && wClash(d.W, d.W, S.layout)) { // pushed onto another widget on purpose: ask
           const o = wClash(d.W, d.W, S.layout);
           if (confirm(`Let “${WT[d.W.type].n}” overlap “${WT[o.type].n}”?\n\nOK = allow it for this widget (can be switched off in its settings). Cancel = put it back.`)) d.W.cfg.overlap = true;
           else Object.assign(d.W, { x: d.ox, y: d.oy, w: d.ow, h: d.oh });
