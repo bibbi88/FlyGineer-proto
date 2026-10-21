@@ -418,13 +418,38 @@ function sideDraw(cv, W, el) {
   if (top && top < amax && top > amin) { c.strokeStyle = css('--warn'); c.lineWidth = 2; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(L0 - 2, Y(top)); c.lineTo(Wd, Y(top)); c.stroke(); c.setLineDash([]); c.fillStyle = css('--warn'); c.textAlign = 'left'; c.fillText('thermal top ' + fAlt(top), L0 + 2, Y(top) - 4); }
   // cloud base (17 cloudBaseNow: vario temperature + forecast dew point), cfg.cb
   { const cb = W.cfg.cb !== false && W.cfg.cb !== 'false' && typeof cloudBaseNow === 'function' ? cloudBaseNow() : null; if (cb && cb.alt < amax && cb.alt > amin) { c.strokeStyle = '#1565C0'; c.lineWidth = 2; c.setLineDash([10, 5]); c.beginPath(); c.moveTo(L0 - 2, Y(cb.alt)); c.lineTo(Wd, Y(cb.alt)); c.stroke(); c.setLineDash([]); c.fillStyle = '#1565C0'; c.textAlign = 'right'; c.font = '700 12px Barlow'; c.fillText('☁ cloud base ' + fAlt(cb.alt), Wd - 4, Y(cb.alt) - 4); } }
-  // track: thin line, dots coloured by climb, newest emphasised
-  if (P.length > 1) { c.strokeStyle = 'rgba(80,90,100,.45)'; c.lineWidth = 1.2; c.beginPath(); P.forEach((p, i) => (i ? c.lineTo(X(p.s), Y(p.alt)) : c.moveTo(X(p.s), Y(p.alt)))); c.stroke(); }
+  // track: thin line, dots coloured by climb, newest emphasised. Side / front views (2026-10-21): near / far shading (cfg.nearfar, on) = how far
+  // each point is in front of or behind you along the way you look into the view: near points bigger and stronger and drawn last,
+  // far ones smaller and paler, so a circle reads as a loop; small arrows show which way the last minute went
+  const face = ax - 90, lx = Math.sin(face * D2R), ly = Math.cos(face * D2R), dep = (x, y) => x * lx + y * ly; // > 0 = farther into the screen
+  const nf = view !== 'head' && W.cfg.nearfar !== false && W.cfg.nearfar !== 'false', D = Math.max(r0 * 1.5, 60), kn = (p) => (nf ? clamp(-dep(p.x, p.y) / D, -1, 1) : 0); // 1 near, −1 far
+  if (P.length > 1) { c.strokeStyle = 'rgba(80,90,100,.45)'; c.lineWidth = 1.2; c.beginPath(); P.forEach((p, i) => (i ? c.lineTo(X(p.s), Y(p.alt)) : c.moveTo(X(p.s), Y(p.alt)))); c.stroke();
+    if (nf) { c.strokeStyle = 'rgba(40,46,54,.75)'; c.lineWidth = 2.4; c.lineCap = 'round'; c.beginPath(); for (let i = 1; i < P.length; i++) { const a = P[i - 1], b = P[i]; if (kn(a) > 0.15 && kn(b) > 0.15) { c.moveTo(X(a.s), Y(a.alt)); c.lineTo(X(b.s), Y(b.alt)); } } c.stroke(); } }
   const step = Math.max(1, Math.ceil(P.length / 240));
   const inCol = (t) => cols.some((q) => t >= q.t0 && t <= q.t1);
-  P.forEach((p, i) => { if (i % step && i !== P.length - 1) return; const isNew = now - p.t < 20000, ic = !isNew && inCol(p.t); c.beginPath(); c.arc(X(p.s), Y(p.alt), ic ? 2 : clamp(2.5 + Math.abs(p.v) * 1.1, 2.5, 7), 0, 7); c.fillStyle = rgba(heat(p.v), (ic ? 0.5 : 1) * fk(p.x, p.y)); c.fill(); if (isNew) { c.lineWidth = 1.5; c.strokeStyle = ink; c.stroke(); } });
+  const DOT = []; P.forEach((p, i) => { if (i % step && i !== P.length - 1) return; DOT.push(p); }); if (nf) DOT.sort((a, b) => kn(a) - kn(b)); // far first, near on top
+  DOT.forEach((p) => { const isNew = now - p.t < 20000, ic = !isNew && inCol(p.t), k = kn(p), sz = 1 + 0.4 * k, al = nf ? 0.45 + 0.55 * (k + 1) / 2 : 1; c.beginPath(); c.arc(X(p.s), Y(p.alt), (ic ? 2 : clamp(2.5 + Math.abs(p.v) * 1.1, 2.5, 7)) * sz, 0, 7); c.fillStyle = rgba(heat(p.v), (ic ? 0.5 : 1) * fk(p.x, p.y) * al); c.fill(); if (isNew) { c.lineWidth = 1.5; c.strokeStyle = ink; c.stroke(); } });
+  if (view !== 'head' && P.length > 3) { // which way you went: a small arrowhead every ~8 s over the last minute
+    let last = null; for (let i = P.length - 1; i > 0 && now - P[i].t < 60000; i--) { if (last && last - P[i].t < 8000) continue; const a = P[i - 1], b = P[i], dx = X(b.s) - X(a.s), dy = Y(b.alt) - Y(a.alt), m = Math.hypot(dx, dy); if (m < 0.5) continue; last = P[i].t;
+      const ux2 = dx / m, uy2 = dy / m, x0 = X(b.s), y0 = Y(b.alt), al = nf ? 0.35 + 0.45 * (kn(b) + 1) / 2 : 0.7; if (Math.hypot(x0 - X(0), y0 - Y(alt)) < 22) continue; c.globalAlpha = al; c.strokeStyle = ink; c.lineWidth = 1.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(x0 - ux2 * 7 - uy2 * 4, y0 - uy2 * 7 + ux2 * 4); c.lineTo(x0, y0); c.lineTo(x0 - ux2 * 7 + uy2 * 4, y0 - uy2 * 7 - ux2 * 4); c.stroke(); c.globalAlpha = 1; } }
   // you: a glider pointing the way you move along this axis
   const dir = f.trk != null ? Math.cos((f.trk - ax) * D2R) : 1, gx = X(0), gy = Y(alt), sgn = dir >= 0 ? 1 : -1;
+  // turn ring (cfg.orbit, on; side / front views while circling): your circle as if seen a little from above (far half up and dashed, near half
+  // solid), you on it, arrowheads the way you turn and "↻ right turn" / "↺ left turn". Clockwise seen from above stays clockwise here,
+  // because the view's right is 90° right of the way you look into it (face = ax − 90)
+  if (view !== 'head' && W.cfg.orbit !== false && W.cfg.orbit !== 'false' && st.circling && f.trk != null && st.turnRate) {
+    const right = st.turnRate > 0, tk = f.trk * D2R, rxv = Math.cos(tk), ryv = -Math.sin(tk), R = r0, sg = right ? 1 : -1;
+    const ox = -R * rxv * sg, oy = -R * ryv * sg, rs = proj(ox, oy), rd = dep(ox, oy); // you relative to the circle's centre
+    const inset = R * mpx < 22 || Wd < 165; // too small at this scale: a fixed-size turn indicator in the bottom-left corner instead, with you as a dot on it
+    const rx = inset ? clamp(Wd * 0.12, 18, 30) : R * mpx, pm = rx / R, ry = rx * 0.32, cx = inset ? L0 + rx + 8 : gx - rs * pm, cy = inset ? H - 34 - ry - 14 : gy + rd * pm * 0.32;
+    if (inset) { c.fillStyle = card; c.globalAlpha = 0.85; c.beginPath(); c.ellipse(cx, cy, rx + 8, ry + 8, 0, 0, 7); c.fill(); c.globalAlpha = 1; }
+    c.lineWidth = 2; c.strokeStyle = css('--sink'); c.globalAlpha = 0.9; c.setLineDash([4, 4]); c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, Math.PI, 2 * Math.PI); c.stroke(); c.setLineDash([]);
+    c.lineWidth = 3; c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, 0, Math.PI); c.stroke();
+    c.fillStyle = css('--sink'); [0, Math.PI / 2, Math.PI].forEach((t) => { const px = cx + rx * Math.cos(t), py = cy + ry * Math.sin(t); let tx = -rx * Math.sin(t) * sg, ty = ry * Math.cos(t) * sg; const m = Math.hypot(tx, ty) || 1; tx /= m; ty /= m;
+      c.beginPath(); c.moveTo(px + tx * 8, py + ty * 8); c.lineTo(px - tx * 4 - ty * 6, py - ty * 4 + tx * 6); c.lineTo(px - tx * 4 + ty * 6, py - ty * 4 - tx * 6); c.closePath(); c.fill(); });
+    if (inset) { const ux0 = cx + rs * pm, uy0 = cy - rd * pm * 0.32; c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.arc(ux0, uy0, 5, 0, 7); c.fill(); c.stroke(); }
+    c.globalAlpha = 1; c.font = '700 12px Barlow'; c.textAlign = 'center'; haloText(c, right ? '↻ right turn' : '↺ left turn', clamp(cx, L0 + 40, Wd - 40), Math.min(H - 30, cy + ry + 15), css('--sink'), card);
+  }
   if (view === 'head') { c.lineCap = 'round'; c.strokeStyle = card; c.lineWidth = 7; c.beginPath(); c.moveTo(gx - 14, gy + 4); c.quadraticCurveTo(gx, gy - 8, gx + 14, gy + 4); c.stroke(); c.strokeStyle = ink; c.lineWidth = 4; c.stroke(); c.lineWidth = 1.5; c.beginPath(); c.moveTo(gx - 10, gy + 2); c.lineTo(gx, gy + 12); c.lineTo(gx + 10, gy + 2); c.stroke(); }
   else { c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(gx + 11 * sgn, gy); c.lineTo(gx - 11 * sgn, gy + 5); c.lineTo(gx - 11 * sgn, gy - 5); c.closePath(); c.fill(); c.stroke(); }
   // labels
