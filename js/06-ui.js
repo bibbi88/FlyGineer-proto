@@ -827,7 +827,8 @@ function renderWidgets() {
       if (wl.children[1].textContent !== (el._sub || '')) wl.children[1].textContent = el._sub || '';
       return;
     }
-    const d = wData(E, b); const lab = esc(E.cfg.label || d.l || ''); el.classList.toggle('void', !!d.hide && !wEdit); // nothing to show (warning, thermal mode chip): invisible and lets taps through
+    let d; try { d = wData(E, b); } catch (err) { if (!(err instanceof ReferenceError)) throw err; d = { l: T.n, v: '--' }; } // boot() (09) draws before files 10–30 have loaded: their widgets fill in on the next draw
+    const lab = esc(E.cfg.label || d.l || ''); el.classList.toggle('void', !!d.hide && !wEdit); // nothing to show (warning, thermal mode chip): invisible and lets taps through
     const mul = E.cfg.size === 'auto' || !E.cfg.size ? 1 : +E.cfg.size;
     // small boxes (phones, tight layouts): the value gets the room first; the sub line goes below ~70 px, the title below ~48 px (kept while editing)
     const lh = Math.round(sN('wLab', 12) * 1.3), noSub = !d.html && b.h < 70, showT = showL && (wEdit || d.html || b.h >= 48); if (noSub) d.s = '';
@@ -1434,7 +1435,9 @@ function placeSbar() {
   const b = $('sbar'); if (!b) return; b.classList.toggle('off', S.sbShow === false || S.sbShow === 'false'); const g = 'calc(env(safe-area-inset-top,0px) + 6px)';
   const set = (o) => Object.assign(b.style, { top: g, bottom: '', left: '', right: '' }, o), r = b.getBoundingClientRect();
   if (S.sbXY) return set({ left: clamp(S.sbXY.x * innerWidth, 0, Math.max(0, innerWidth - r.width)) + 'px', top: clamp(S.sbXY.y * innerHeight, 0, Math.max(0, innerHeight - r.height)) + 'px', right: 'auto' });
-  const p = S.cornerPos || 'tr', nav = navPx().w; set({ right: (p === 'tr' ? nav + 18 : 8) + 'px' });
+  const p = S.cornerPos || 'tr', nav = navPx().w, c = $('corner').getBoundingClientRect();
+  if (p === 'free' && c.width && c.top < 80 && c.left > innerWidth / 2) return set({ top: Math.max(4, c.top) + 'px', right: Math.round(innerWidth - c.left + 8) + 'px' }); // a moved menu button near the top right: just left of it
+  set({ right: (p === 'tr' ? nav + 18 : 8) + 'px' });
 }
 // drag the menu button or the status bar while editing a page (> 8 px; a plain tap still works, the release after a drag is not a tap)
 function floatDrag(c, drop) {

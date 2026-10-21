@@ -18,21 +18,26 @@ function css(v) { const k = document.body.className + '|' + v; if (cssC[k]) retu
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 /* ================= settings ================= */
-// defaults = the owner's own export of 2026-10-18 (bora-settings-20261018.json; callsign and radio message left generic), padding tight (2 / 1 px)
+// defaults = the owner's own export of 2026-10-21 (before: 2026-10-18; callsign and radio message left generic)
 const DEF = {
-  uVario: 'm/s', uAlt: 'm', uSpd: 'km/h', avgS: 5, wingLD: 9.0, rotDefault: 'north', taOrient: 'wind',
-  layer: 'sat', poiRadius: 20, poiKinds: { town: true, airport: true, peak: false }, cylR: 400, safety: 150,
-  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 1, rateT: 0.5, ctlSmall: 320, navSz: 52, navCw: 4, navCh: 4, sbShow: true, qnh: 1013.25, baroTau: 1, baroNoise: 0.3, wGap: 4, wPadX: 2, wPadY: 1, wLab: 12, wRad: 4, modeAuto: true, modeEnter: 6, modeHold: 20, modeClimbOn: false, modeClimb: 0.3, toSpd: 14.4, toTime: 3, cirRate: 7, cirWin: 8, cirSpd: 7.2, thRec: 30, thJoin: 30, windAvg: 120, towWin: 20, towRelV: 0.3, towRelT: 8, xcOut: 2, xcBack: 75, xcTri: 15, thermPage: 'pThermal', thermBack: 'pMap', modeChip: true, autoRules: [{ id: 'arDef1', on: true, event: 'towStart', delay: 0, action: 'soundOff', text: '' }], notamProxy: '', notamRadius: 50, sound: true, volume: 0.3, volPct: 30, fai: false,
+  uVario: 'm/s', uAlt: 'm', uSpd: 'km/h', avgS: 5, wingLD: 10, rotDefault: 'north', taOrient: 'wind',
+  layer: 'sat', poiRadius: 20, poiKinds: { town: true, airport: true, peak: false }, cylR: 400, safety: 100,
+  theme: 'light', navMode: 'auto', trig: 2, flykUrl: '', rate: 0.3, rateT: 0.1, ctlSmall: 320, navSz: 52, navCw: 7, navCh: 7, sbShow: true, qnh: 1013.25, baroTau: 0.5, baroNoise: 0.05, wGap: 1, wPadX: 1, wPadY: 1, wLab: 10, wRad: 3, modeAuto: true, modeEnter: 6, modeHold: 20, modeClimbOn: false, modeClimb: 0.3, toSpd: 14.4, toTime: 3, cirRate: 7, cirWin: 8, cirSpd: 7.2, thRec: 30, thJoin: 30, windAvg: 120, towWin: 60, towRelV: 0.3, towRelT: 10, xcOut: 2, xcBack: 75, xcTri: 15, thermPage: 'pThermal', thermBack: 'pMap', modeChip: true, autoRules: [], notamProxy: '', notamRadius: 50, sound: true, volume: 0.3, volPct: 30, fai: false,
   // acoustic vario: lift tone from vLift m/s, sink alarm below vSink, pitch vF0 + vFk per m/s, beep speed, waveform, near-lift buzzer, sound damping
-  vLift: 0.2, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
+  vLift: 0.4, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
   // voice messages (speech synthesis)
   voice: false, voiceVol: 100, voiceRate: 1, voiceLang: 'auto', vcTherm: false, vcSum: true, vcTp: true, vcAir: true, vcAlt: 0, vcTow: true, vcTraffic: true, lands: [], landAir: true, gateN: 1, gateGap: 15, mc: 0, usePolar: false, saver: 'auto', saverAt: 25, gWarnOn: true, gWarn: 2.5, spSink: -8, sunWarn: 30, vcSun: true, stnGust: 8, syncProv: 'off', syncFlights: true, syncRb: true, syncSet: true, syncInbox: true, syncRoutes: true, rbR: 800, rbMinGain: 100, rbAuto: true, vcRb: true, hdgSrc: 'wind', hdgMount: 'upright', hdgOff: 0, trWarn: true, trTone: true, trLvl: 2, trNear: 2000,
   towDetect: true, towMin: 1, corner: 'auto', wake: true, autoImport: true, openaipKey: '', airCountries: ['fi'], airUpd: '', airMaxAlt: 2895, callsign: 'Paraglider', radioAlt: 'ft', radioLang: 'en', radioTpl: '', warnBar: true, warnDist: 2000, customUrl: '',
+  wingSpd: 35, // trim speed km/h (export of 2026-10-21)
   widgets: ['vario', 'avg', 'alt', 'agl', 'gs', 'ld', 'next', 'thermal', 'flight', 'utc'],
   hidden: []
 };
 const FRESH = !localStorage.getItem('bora.settings'); // first start on this device (no stored settings yet)
+// screen places from the owner's export of 2026-10-21 (menu button just left of the top-right corner, replay bar folded): only on a first start,
+// so a device that never moved them keeps them where they were
+const FRESH_PLACE = { cornerPos: 'free', cornerXY: { x: 0.9219681301837414, y: 0.00742112062933441 }, rpPos: { x: 0.1900218258321167, y: 0.21525157350867044 }, rpMin: true };
 let S = Object.assign({}, DEF, JSON.parse(localStorage.getItem('bora.settings') || '{}'));
+if (FRESH) Object.assign(S, JSON.parse(JSON.stringify(FRESH_PLACE)));
 if (!S.airFl95Mig) { if (S.airMaxAlt === 3000) S.airMaxAlt = 2895; S.airFl95Mig = true; } // the default became FL95 (2895 m) on 2026-10-16
 function save() { localStorage.setItem('bora.settings', JSON.stringify(S)); }
 const fVario = (ms) => ms == null || isNaN(ms) ? '--' : (S.uVario === 'kt' ? (ms * 1.94384).toFixed(1) : S.uVario === 'fpm' ? Math.round(ms * 196.85 / 10) * 10 : ms.toFixed(1)).toString().replace(/^(?!-)/, ms >= 0 ? '+' : '');

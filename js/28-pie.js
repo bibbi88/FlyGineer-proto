@@ -11,7 +11,7 @@ function piePages(C) {
 }
 function pieWData(W) {
   const t = document.querySelector(`.tab[data-page="${curPage}"]`), sw = (effCfg(W).tapDo || 'switch') === 'switch';
-  if (sw) return { l: 'Pages', v: pageKey() === 'thermal' ? 'MAP' : 'THERMAL', s: 'hold: all pages', center: true }; // like the Map / Thermal button: where a tap takes you
+  if (sw) return { l: 'Pages', v: pageKey() === 'thermal' ? 'MAP' : 'THERMAL', s: 'hold: all pages', center: true, btn: true }; // btn: capitals sized like a button label // like the Map / Thermal button: where a tap takes you
   return { l: 'Pages', v: (t ? t.textContent.trim() : curPage === 'pSet' ? 'Settings' : '--'), s: 'hold & slide · or tap', center: true };
 }
 // where the ring fits: centred on your finger; near an edge or in a corner the pages spread over the widest open arc (a fan away from the
