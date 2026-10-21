@@ -502,7 +502,7 @@ function optRow(key, name, opts, cur) { if (key === 'tap') return tapRow(key, na
   if (opts === 'TEXT') return `<div class="opt"><label class="lbl" for="wsT_${key}">${name}</label><input type="text" id="${key === 'infoText' ? 'wsInfoText' : 'wsT_' + key}" data-txt="${key}" value="${esc(cur || '')}" placeholder="${key === 'infoText' ? 'Optional text shown on top, e.g. radio channel' : 'Leave empty for the default'}"></div>`; if (!Array.isArray(opts)) return numRow(key, name, opts, cur); return `<div class="opt"><span class="lbl">${name}</span><div class="row">${opts.map(([v, n]) => `<button class="pill" data-ok="${key}" data-ov="${v}" aria-pressed="${String(cur) === String(v)}">${n}</button>`).join('')}</div></div>`; }
 /* edit sheet layout: the widget's own options first, then related ones in folding sections (closed until opened, remembered while
    the app runs: st.sheetOpen), and runs of on/off options merged into one row of toggle chips. Every option stays reachable. */
-const SHEET_SEC = [[/^(track|trackMin|heading|start|gsize)$/, 'Track and glider'], [/^(task|taskCol|taskStyle|taskW|taskOpt|towp|towpCol|towpStyle|towpW)$/, 'Task'],
+const SHEET_SEC = [[/^action$/, 'Action'], [/^(track|trackMin|heading|start|gsize)$/, 'Track and glider'], [/^(task|taskCol|taskStyle|taskW|taskOpt|towp|towpCol|towpStyle|towpW)$/, 'Task'],
   [/^home/, 'Line back to start'], [/^(air|notam)$/, 'Airspace'], [/^(places|pl[A-Z])/, 'Places'], [/^traffic/, 'Air traffic'], [/^reach/, 'Glide reach'], [/^scoreLine$/, 'XC score'], [/^rb$/, 'Route book'], [/^land/, 'Landing fields'], [/^windA/, 'Wind arrow at you'],
   [/^(ctl|btnSz|ctlShow|me|ptr)$/, 'Buttons and position'], [/^(vis|towKeep|visDelay)$/, 'When shown'], [/^(tap|hold|infoItems|infoText)$/, 'Tap and hold'], [/^(size|bg|pad|showLabel)$/, 'Look']];
 const isBoolOpt = (o) => Array.isArray(o) && o.length === 2 && o.every((x) => typeof x[0] === 'boolean');
@@ -521,7 +521,7 @@ function sheetGroups(list) {
   const main = [], secs = SHEET_SEC.map(([, t]) => [t, []]);
   list.forEach((r) => { const i = SHEET_SEC.findIndex(([re]) => re.test(r[0])); (i < 0 ? main : secs[i][1]).push(r); });
   const open = st.sheetOpen || (st.sheetOpen = new Set());
-  return optRows(main) + secs.filter(([, l]) => l.length).map(([t, l]) => `<details class="wsSec" data-sec="${esc(t)}"${open.has(t) ? ' open' : ''}><summary>${esc(t)} <span class="muted">${l.length}</span></summary>${optRows(l)}</details>`).join('');
+  return optRows(main) + secs.filter(([, l]) => l.length).map(([t, l]) => `<details class="wsSec" data-sec="${esc(t)}"${open.has(t) ? ' open' : ''}><summary>${esc(t)} <span class="muted">${l.length === 1 && Array.isArray(l[0][2]) ? esc(((l[0][2].find((x) => String(x[0]) === String(l[0][3])) || [])[1]) || '') : l.length}</span></summary>${optRows(l)}</details>`).join('');
 }
 let sheetMode = 'normal', sheetFor = null;
 function sheetSide(W) { const side = S.sheetSide || ((W.x + W.w / 2) / GC > 0.5 ? 'left' : 'right'); $('wSheet').classList.toggle('left', side === 'left'); }
