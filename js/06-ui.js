@@ -434,24 +434,14 @@ function sideDraw(cv, W, el) {
       const ux2 = dx / m, uy2 = dy / m, x0 = X(b.s), y0 = Y(b.alt), al = nf ? 0.35 + 0.45 * (kn(b) + 1) / 2 : 0.7; if (Math.hypot(x0 - X(0), y0 - Y(alt)) < 22) continue; c.globalAlpha = al; c.strokeStyle = ink; c.lineWidth = 1.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(x0 - ux2 * 7 - uy2 * 4, y0 - uy2 * 7 + ux2 * 4); c.lineTo(x0, y0); c.lineTo(x0 - ux2 * 7 + uy2 * 4, y0 - uy2 * 7 - ux2 * 4); c.stroke(); c.globalAlpha = 1; } }
   // you: a glider pointing the way you move along this axis
   const dir = f.trk != null ? Math.cos((f.trk - ax) * D2R) : 1, gx = X(0), gy = Y(alt), sgn = dir >= 0 ? 1 : -1;
-  // turn ring (cfg.orbit, on; side / front views while circling): your circle as if seen a little from above (far half up and dashed, near half
-  // solid), you on it, arrowheads the way you turn and "↻ right turn" / "↺ left turn". Clockwise seen from above stays clockwise here,
-  // because the view's right is 90° right of the way you look into it (face = ax − 90)
-  if (view !== 'head' && W.cfg.orbit !== false && W.cfg.orbit !== 'false' && st.circling && f.trk != null && st.turnRate) {
-    const right = st.turnRate > 0, tk = f.trk * D2R, rxv = Math.cos(tk), ryv = -Math.sin(tk), R = r0, sg = right ? 1 : -1;
-    const ox = -R * rxv * sg, oy = -R * ryv * sg, rs = proj(ox, oy), rd = dep(ox, oy); // you relative to the circle's centre
-    const inset = R * mpx < 22 || Wd < 165; // too small at this scale: a fixed-size turn indicator in the bottom-left corner instead, with you as a dot on it
-    const rx = inset ? clamp(Wd * 0.12, 18, 30) : R * mpx, pm = rx / R, ry = rx * 0.32, cx = inset ? L0 + rx + 8 : gx - rs * pm, cy = inset ? H - 34 - ry - 14 : gy + rd * pm * 0.32;
-    if (inset) { c.fillStyle = card; c.globalAlpha = 0.85; c.beginPath(); c.ellipse(cx, cy, rx + 8, ry + 8, 0, 0, 7); c.fill(); c.globalAlpha = 1; }
-    c.lineWidth = 2; c.strokeStyle = css('--sink'); c.globalAlpha = 0.9; c.setLineDash([4, 4]); c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, Math.PI, 2 * Math.PI); c.stroke(); c.setLineDash([]);
-    c.lineWidth = 3; c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, 0, Math.PI); c.stroke();
-    c.fillStyle = css('--sink'); [0, Math.PI / 2, Math.PI].forEach((t) => { const px = cx + rx * Math.cos(t), py = cy + ry * Math.sin(t); let tx = -rx * Math.sin(t) * sg, ty = ry * Math.cos(t) * sg; const m = Math.hypot(tx, ty) || 1; tx /= m; ty /= m;
-      c.beginPath(); c.moveTo(px + tx * 8, py + ty * 8); c.lineTo(px - tx * 4 - ty * 6, py - ty * 4 + tx * 6); c.lineTo(px - tx * 4 + ty * 6, py - ty * 4 - tx * 6); c.closePath(); c.fill(); });
-    if (inset) { const ux0 = cx + rs * pm, uy0 = cy - rd * pm * 0.32; c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.arc(ux0, uy0, 5, 0, 7); c.fill(); c.stroke(); }
-    c.globalAlpha = 1; c.font = '700 12px Barlow'; c.textAlign = 'center'; haloText(c, right ? '↻ right turn' : '↺ left turn', clamp(cx, L0 + 40, Wd - 40), Math.min(H - 30, cy + ry + 15), css('--sink'), card);
-  }
   if (view === 'head') { c.lineCap = 'round'; c.strokeStyle = card; c.lineWidth = 7; c.beginPath(); c.moveTo(gx - 14, gy + 4); c.quadraticCurveTo(gx, gy - 8, gx + 14, gy + 4); c.stroke(); c.strokeStyle = ink; c.lineWidth = 4; c.stroke(); c.lineWidth = 1.5; c.beginPath(); c.moveTo(gx - 10, gy + 2); c.lineTo(gx, gy + 12); c.lineTo(gx + 10, gy + 2); c.stroke(); }
-  else { c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.beginPath(); c.moveTo(gx + 11 * sgn, gy); c.lineTo(gx - 11 * sgn, gy + 5); c.lineTo(gx - 11 * sgn, gy - 5); c.closePath(); c.fill(); c.stroke(); }
+  else { // side / front (2026-10-21): an arrow pointing the way you really fly, seen a little from above like the shading: right / left along the
+    // view, tilted up when you fly away from the viewer (into the screen), down when you come towards it, shorter the more you fly straight in or
+    // out of the screen, a little bigger when coming towards it; without a GPS bearing the old flat arrow along the axis
+    let vx = sgn, vy = 0, near = 0; if (f.trk != null) { const hx = Math.sin(f.trk * D2R), hy = Math.cos(f.trk * D2R), dd = dep(hx, hy); vx = proj(hx, hy); vy = -dd * 0.6; near = -dd; }
+    const m = Math.hypot(vx, vy) || 1, ex = vx / m, ey = vy / m, px = -ey, py = ex, Lh = 15 * (0.5 + 0.5 * Math.min(1, m)) * (1 + 0.15 * near), wv2 = 8 * (1 + 0.15 * near);
+    c.fillStyle = ink; c.strokeStyle = card; c.lineWidth = 2; c.lineJoin = 'round'; c.beginPath();
+    c.moveTo(gx + ex * Lh, gy + ey * Lh); c.lineTo(gx - ex * Lh * 0.7 + px * wv2, gy - ey * Lh * 0.7 + py * wv2); c.lineTo(gx - ex * Lh * 0.3, gy - ey * Lh * 0.3); c.lineTo(gx - ex * Lh * 0.7 - px * wv2, gy - ey * Lh * 0.7 - py * wv2); c.closePath(); c.fill(); c.stroke(); }
   // labels
   c.textAlign = 'left'; c.font = '700 12px Barlow';
   const head = cur ? (lean ? `leans ${Math.round(Math.abs(lean.k) * 100)} m/100 m ${view === 'along' ? (lean.k >= 0 ? 'downwind' : 'upwind') : (lean.k >= 0 ? 'right' : 'left')}` : 'thermal · first circles…') : view === 'head' ? `heading ${pad3(hd)}° · ${ahead >= 1000 ? (ahead / 1000).toFixed(1) + ' km' : ahead + ' m'} ahead${hold && st.circling ? ' · held' : ''}` : hasWind ? `last ${Math.round(hist / 60000)} min` : 'no wind yet';
