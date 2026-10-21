@@ -18,6 +18,7 @@ function tick() {
 function boot() {
   if (S.theme === 'dark') document.body.classList.add('dark');
   if (S.navMode === 'pinned') document.body.classList.add('pinned');
+  if (!S.navCMig) { const cw = innerWidth / 96, ch = innerHeight / 64; if (+S.navSz !== 52 || S.navH != null) { S.navCw = clamp(Math.round(sN('navSz', 52) / cw), 3, 17); S.navCh = clamp(Math.round(sN('navH', sN('navSz', 52)) / ch), 3, 10); } S.navCMig = true; save(); } // menu button size in grid cells (2026-10-21), was px
   if (!S.radMig) { if (+S.wRad === 10) S.wRad = 4; S.radMig = true; save(); } // smaller default corner rounding (2026-10-20); an own value stays
   if (!S.sbMig) { if (S.corner === 'menu') S.sbShow = false; S.sbMig = true; save(); } // "menu only" before: the status bar stays hidden
   cornerMode(); wStyle(); placeCorner(); placeSbar();
