@@ -875,7 +875,7 @@ function updateBackOverlay(layer) {
   }
   ov.style.bottom = '18px';
 }
-function saveLayout() { save(); renderWidgets(); }
+function saveLayout() { if (typeof linkSync === 'function') linkSync(); save(); renderWidgets(); } // 30: linked copies on other pages follow
 function enterEdit(selId) { wEdit = true; document.body.classList.add('wedit'); wSel = selId || null; $('wbName').textContent = pageTitle(pageKey()); setNav(false); renderWidgets(); bannerAvoid($('corner')); if (!$('sbar').classList.contains('off')) bannerAvoid($('sbar')); if (selId) openSheet(selId); } // the edit bar moves away from the menu buttons
 function exitEdit() { if (typeof MS !== 'undefined' && MS.on) msToggle(false); wEdit = false; wSel = null; document.body.classList.remove('wedit'); $('wSheet').classList.remove('on'); if (st.sheetForce) { st.force = false; st.sheetForce = false; updateMode(); } sheetFor = null; saveLayout(); }
 

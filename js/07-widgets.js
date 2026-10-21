@@ -5,7 +5,7 @@ const UG = 1; // the grid you see and size in: 1 fine unit = 96 × 64 cells, who
 /* widgets don't overlap by default: moving one stops edge to edge against its neighbours, resizing stops at them; pushing well past
    shows it red and asks on release (then cfg.overlap = allowed for that widget). Maps and floating chips (Thermal mode, Airspace warning)
    may always lie under / over others, and widgets that are never shown together (thermalling / stopped thermalling) don't count. */
-const OV_FREE = new Set(['map', 'thchip', 'airwarn']);
+const OV_FREE = new Set(['map', 'asmap', 'thchip', 'airwarn']);
 function wClash(W, r, L) {
   if (OV_FREE.has(W.type) || W.cfg.overlap) return null; const v = W.cfg.vis || 'always';
   return L.find((o) => o !== W && !OV_FREE.has(o.type) && !((v === 'thermal' && o.cfg.vis === 'glide') || (v === 'glide' && o.cfg.vis === 'thermal')) && r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y) || null;
@@ -537,7 +537,7 @@ function openSheet(id) {
   let body;
   if (!tm) body = `<div class="opt"><label class="lbl" for="wsType">Widget</label><select id="wsType">${typeOpts}</select></div>
     <div class="opt"><label class="lbl" for="wsLabel">Title</label><div class="row wsTitle"><input type="text" id="wsLabel" value="${esc(W.cfg.label || '')}" placeholder="${esc(T.n)}"><button class="pill" data-ok="showLabel" data-ov="true" aria-pressed="${W.cfg.showLabel !== false && W.cfg.showLabel !== 'false'}">Show</button><button class="pill" data-ok="showLabel" data-ov="false" aria-pressed="${!(W.cfg.showLabel !== false && W.cfg.showLabel !== 'false')}">Hide</button></div></div>
-    ${optsH}
+    ${optsH}${linkRowHTML(W)}
     <div class="opt"><span class="lbl">Size · grid cells (whole numbers), drag the widget to move it</span>${[['w', 'Width'], ['h', 'Height']].map(([k, n]) => `<div class="row wsSize"><span class="wsK">${n}</span><button class="pill step" data-wsz="${k}-" aria-label="${n} less">−</button><input type="number" class="numin" inputmode="numeric" data-wsi="${k}" value="${Math.round(W[k] / UG)}" step="1" aria-label="${n}, grid cells"><button class="pill step" data-wsz="${k}+" aria-label="${n} more">+</button></div>`).join('')}</div>
     <div class="row" style="flex-wrap:wrap;margin-top:6px"><button class="btn" id="wsDup">Duplicate</button><button class="btn" id="wsFront">Bring to front</button><button class="btn warn" id="wsDel">Delete</button></div>`;
   else body = `<div class="muted" style="line-height:1.4">Shown live on the page now. These settings replace the normal ones only while thermaling is detected; everything you leave alone stays as in Normal.</div>
@@ -557,7 +557,10 @@ function openSheet(id) {
   if ($('wsLabel')) $('wsLabel').oninput = (e) => { W.cfg.label = e.target.value; saveLayout(); };
   if ($('wsDup')) $('wsDup').onclick = () => { const n = JSON.parse(JSON.stringify(W)); n.id = newW(W.type).id; n.x = Math.min(GC - n.w, n.x + GSC); n.y = Math.min(GR - n.h, n.y + GSC); { const f = wFreeSpot(n, n.x, n.y, n.w, n.h, S.layout); if (f) { n.x = f.x; n.y = f.y; } } S.layout.push(n); saveLayout(); openSheet(n.id); toast('Widget duplicated · drag the copy where you want it'); };
   if ($('wsFront')) $('wsFront').onclick = () => { S.layout = S.layout.filter((x) => x !== W).concat(W); saveLayout(); };
-  if ($('wsDel')) $('wsDel').onclick = () => { S.layout = S.layout.filter((x) => x !== W); closeSheet(); saveLayout(); toast('Widget deleted', [['Undo', () => { S.layout.push(W); saveLayout(); }]]); };
+  if ($('wsDel')) $('wsDel').onclick = () => linkDelete(W, (also) => { // 30: asks first for page selectors and widgets shown on several pages
+    const pk = pageKey(); S.layout = S.layout.filter((x) => x !== W); also.forEach(([k, o]) => (S.layouts[k] = S.layouts[k].filter((x) => x !== o))); closeSheet(); saveLayout();
+    toast(also.length ? 'Deleted on ' + (also.length + 1) + ' pages' : 'Widget deleted', [['Undo', () => { S.layouts[pk].push(W); also.forEach(([k, o]) => S.layouts[k].push(o)); saveLayout(); }]]); });
+  q('[data-lkp]', (b) => (b.onclick = () => { linkToggle(W, b.dataset.lkp); openSheet(W.id); }));
   const spec = (k) => (T.o.find((x) => x[0] === k) || [])[2];
   q('[data-nv]', (b) => (b.onclick = () => { const raw = b.dataset.nval; D[b.dataset.nv] = raw !== '' && !isNaN(+raw) ? +raw : raw; saveLayout(); openSheet(W.id); }));
   q('[data-ns]', (b) => (b.onclick = () => { const k = b.dataset.ns, sp = spec(k), c = D[k] ?? W.cfg[k] ?? dflt(k, sp), base = typeof c === 'number' ? c : sp.def ?? sp.min; D[k] = snapNum(sp, base + (+b.dataset.dir) * sp.step); saveLayout(); openSheet(W.id); }));
