@@ -1,7 +1,7 @@
 'use strict';
 /* ================= XCTrack-style widget layout ================= */
 const GSC = 4, GC = 24 * GSC, GR = 16 * GSC; // fine grid: quarter-size steps
-const UG = 2; // the grid you see and size in (2026-10-20): 2 fine units = 48 × 32 cells, whole numbers only (sizes used to be GSC cells in 0.5 steps)
+const UG = 1; // the grid you see and size in: 1 fine unit = 96 × 64 cells, whole numbers only (2026-10-21; was 2 = 48 × 32 on 10-20, before that GSC cells in 0.5 steps). Layouts are stored in fine units, so nothing moved
 /* widgets don't overlap by default: moving one stops edge to edge against its neighbours, resizing stops at them; pushing well past
    shows it red and asks on release (then cfg.overlap = allowed for that widget). Maps and floating chips (Thermal mode, Airspace warning)
    may always lie under / over others, and widgets that are never shown together (thermalling / stopped thermalling) don't count. */
@@ -566,7 +566,7 @@ function openSheet(id) {
   q('[data-mk]', (b) => (b.onclick = () => { const k = b.dataset.mk, sp = spec(k), cur = (Array.isArray(D[k]) ? D[k] : Array.isArray(W.cfg[k]) ? W.cfg[k] : sp.def).slice(), v = b.dataset.mv, nx = cur.includes(v) ? cur.filter((x) => x !== v) : cur.concat(v); if (!nx.length) { toast('Keep at least one'); return; } D[k] = sp.multi.map(([x]) => x).filter((x) => nx.includes(x)); saveLayout(); openSheet(W.id); }));
   q('[data-txt]', (e) => (e.oninput = () => { D[e.dataset.txt] = e.value.slice(0, 120); saveLayout(); }));
   q('[data-ok]', (b) => (b.onclick = () => { const raw = b.dataset.ov; D[b.dataset.ok] = raw === 'true' ? true : raw === 'false' ? false : raw !== '' && !isNaN(+raw) ? +raw : raw; saveLayout(); openSheet(W.id); }));
-  q('[data-wsz]', (b) => (b.onclick = () => { const k = b.dataset.wsz; if (k === 'w+') W.w = Math.min(GC - W.x, W.w + 2); if (k === 'w-') W.w = Math.max(6, W.w - 2); if (k === 'h+') W.h = Math.min(GR - W.y, W.h + 2); if (k === 'h-') W.h = Math.max(4, W.h - 2); saveLayout(); openSheet(W.id); }));
+  q('[data-wsz]', (b) => (b.onclick = () => { const k = b.dataset.wsz; if (k === 'w+') W.w = Math.min(GC - W.x, W.w + UG); if (k === 'w-') W.w = Math.max(6, W.w - UG); if (k === 'h+') W.h = Math.min(GR - W.y, W.h + UG); if (k === 'h-') W.h = Math.max(4, W.h - UG); saveLayout(); openSheet(W.id); }));
   q('[data-wsi]', (i) => (i.onchange = () => { const k = i.dataset.wsi, v = parseFloat(String(i.value).replace(',', '.')); if (isFinite(v)) { const n = Math.round(v) * UG; if (k === 'w') W.w = clamp(n, 6, GC - W.x); else W.h = clamp(n, 4, GR - W.y); } saveLayout(); openSheet(W.id); }));
 }
 // the Add widget list, grouped by topic; thermal widgets near the top
@@ -637,7 +637,7 @@ function openAdd() {
         if (wClash(W, r, L0) && !wClash(W, { x: drag.ox, y: drag.oy, w: drag.ow, h: drag.oh }, L0)) { // stop at the neighbour's edge (one cell at a time back towards where it started)
           let best = null; const nx = Math.ceil(Math.abs(dx) / UG), ny = Math.ceil(Math.abs(dy) / UG);
           for (let s = 0; s <= nx + ny && !best; s++) for (let i = 0; i <= Math.min(s, nx) && !best; i++) { const j = s - i; if (j > ny) continue; const r2 = rect(dx - Math.sign(dx) * i * UG, dy - Math.sign(dy) * j * UG); if (!wClash(W, r2, L0)) best = { r: r2, s }; }
-          if (best && best.s * UG <= 8) r = best.r; else drag.clash = true; // pushed more than 4 cells past it: overlap, asked on release
+          if (best && best.s * UG <= 8) r = best.r; else drag.clash = true; // pushed more than 8 fine units (≈ 110 px) past it: overlap, asked on release
         }
         Object.assign(W, r);
       }

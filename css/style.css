@@ -146,7 +146,7 @@ body.wedit .wg.locked{cursor:default;outline-style:solid;outline-color:color-mix
 body.wedit .wg.locked .wh{display:none}
 body.wedit .wg.locked .wlk{background:var(--sink);color:#fff;opacity:1}
 .wg.locked .wlk::before{content:"🔒 Frozen"}
-body.wedit .wLayer{background-image:linear-gradient(to right,rgba(30,80,200,.10) 1px,transparent 1px),linear-gradient(to bottom,rgba(30,80,200,.10) 1px,transparent 1px);background-size:calc(100%/48) calc(100%/32)}
+body.wedit .wLayer{background-image:linear-gradient(to right,rgba(30,80,200,.10) 1px,transparent 1px),linear-gradient(to bottom,rgba(30,80,200,.10) 1px,transparent 1px);background-size:calc(100%/96) calc(100%/64)}
 #wBanner{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 8px);transform:translateX(-50%);z-index:2150;display:none;align-items:center;gap:8px;padding:6px 6px 6px 14px;border-radius:14px;background:#111418;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap}
 body.wedit #wBanner{display:flex}
 #wBanner.bottom{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 8px)}
