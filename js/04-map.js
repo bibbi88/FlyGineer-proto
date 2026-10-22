@@ -94,8 +94,16 @@ function drawPlacesInto(g, f, C) {
     mk.on('click', (e) => { L.DomEvent.stopPropagation(e); st.tapGuard = Date.now(); openPoiInfo(p, C.plRel); });
   });
 }
-/* ADS-B traffic (adsb.fi open data, personal non-commercial use, attribution required) */
+/* ADS-B traffic over the internet, all free community feeds with the same (ADSBExchange v2 style) JSON: adsb.fi first, then adsb.lol,
+   then airplanes.live when one fails (e.g. a browser refusing it without CORS headers, or HTTP 429). Personal non-commercial use, the
+   attribution of the feed in use is shown in the map credit and must stay. The feed that worked is tried first next time (st.trafficFrom). */
 st.traffic = []; st.trafficAt = 0;
+const TRAFFIC_SRC = [
+  { k: 'adsbfi', n: 'adsb.fi', home: 'https://adsb.fi', url: (la, lo, nm) => `https://opendata.adsb.fi/api/v3/lat/${la}/lon/${lo}/dist/${nm}` },
+  { k: 'adsblol', n: 'adsb.lol', home: 'https://adsb.lol', url: (la, lo, nm) => `https://api.adsb.lol/v2/point/${la}/${lo}/${nm}` },
+  { k: 'aplive', n: 'airplanes.live', home: 'https://airplanes.live', url: (la, lo, nm) => `https://api.airplanes.live/v2/point/${la}/${lo}/${nm}` }
+];
+const trafficSrcName = () => (TRAFFIC_SRC.find((s) => s.k === st.trafficFrom) || TRAFFIC_SRC[0]).n;
 const HELI_T = /^(R22|R44|R66|EC\d|H\d{2,3}|AS\d|B06|B407|B412|B429|A109|A119|A139|A169|AW\d|S76|S92|S61|MD5|MD6|EH10|NH90|KA\d|BK17|B105|H60|H47|CH47|UH|AH6|MI\d|G2CA|GAZL|LAMA|TIGR|EXEC|SCOU|ALO\d)/i, BIG_T = /^(A3\d\d|A2\d\d|A4\d\d|B7\d\d|B3\d\d|B38|E1\d\d|E2\d\d|E75|CRJ|DH8D|AT7|MD8|MD9|C17|C130|A400|IL76|AN\d)/i;
 function trafficKind(a) { const c = a.category || '', t = a.t || ''; if (c === 'A7' || HELI_T.test(t)) return 'heli'; if (/^A[3-6]$/.test(c)) return 'big'; if (!c && BIG_T.test(t)) return 'big'; return 'small'; }
 const trafficOn = (C) => C.traffic === true || C.traffic === 'true', trafficNet = (C) => trafficOn(C) && C.trafficSrc !== 'vario', trafficVario = (C) => trafficOn(C) && C.trafficSrc !== 'net';
@@ -106,11 +114,17 @@ async function loadTraffic() {
   const km = Math.max(rk, ...ws.map((W) => +effCfg(W).trafficR || 25)), nm = Math.min(250, Math.max(3, Math.ceil(km / 1.852)));
   st.trafficBusy = true;
   try {
-    const r = await fetch(`https://opendata.adsb.fi/api/v3/lat/${f.lat.toFixed(4)}/lon/${f.lon.toFixed(4)}/dist/${nm}`); if (!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json(); const arr = j.aircraft || j.ac || [];
+    const order = TRAFFIC_SRC.slice().sort((a, b) => (b.k === st.trafficFrom) - (a.k === st.trafficFrom)), errs = []; let j = null;
+    for (const T of order) {
+      try { const ac = new AbortController(), to = setTimeout(() => ac.abort(), 7000), r = await fetch(T.url(f.lat.toFixed(4), f.lon.toFixed(4), nm), { signal: ac.signal }); clearTimeout(to);
+        if (!r.ok) throw new Error('HTTP ' + r.status); j = await r.json(); if (!j || !(j.aircraft || j.ac)) throw new Error('unexpected answer'); st.trafficFrom = T.k; break;
+      } catch (e) { errs.push(T.n + ': ' + (e.name === 'AbortError' ? 'no answer' : e instanceof TypeError ? 'refused by the browser (CORS) or no connection' : e.message)); }
+    }
+    st.trafficErrs = errs; if (!j) throw new Error(errs.join(' · '));
+    const arr = j.aircraft || j.ac || [];
     st.traffic = arr.filter((a) => a.lat != null && a.lon != null && a.alt_baro !== 'ground' && typeof a.alt_baro === 'number').map((a) => ({ hex: a.hex, call: (a.flight || '').trim() || a.r || a.hex, lat: a.lat, lon: a.lon, altM: a.alt_baro * 0.3048, gs: a.gs || 0, trk: a.track != null ? a.track : (a.true_heading ?? 0), kind: trafficKind(a), type: a.t || '', seen: a.seen_pos || 0 }));
     st.trafficAt = Date.now(); st.trafficErr = false; st.trafficMsg = ''; markDirty();
-  } catch (e) { st.traffic = []; st.trafficMsg = e.message || 'blocked'; st.trafficFailAt = Date.now(); if (!st.trafficErr) toast('Air traffic not available (' + (e.message || 'blocked') + '). adsb.fi may refuse requests from this page.'); st.trafficErr = true; }
+  } catch (e) { st.traffic = []; st.trafficMsg = e.message || 'blocked'; st.trafficFailAt = Date.now(); if (!st.trafficErr) toast('Air traffic not available. ' + (e.message || 'blocked')); st.trafficErr = true; }
   st.trafficBusy = false;
 }
 setInterval(loadTraffic, 8000);
@@ -124,13 +138,13 @@ function trafficStatus() {
   if (st.trafficErr) return ['not working: ' + esc(st.trafficMsg || 'blocked'), false];
   if (!st.trafficAt) return ['loading…', undefined];
   const ag = (Date.now() - st.trafficAt) / 1000;
-  return [st.traffic.length + ' aircraft · updated ' + ag.toFixed(0) + ' s ago', ag < 30];
+  return [st.traffic.length + ' aircraft · ' + trafficSrcName() + ' · updated ' + ag.toFixed(0) + ' s ago', ag < 30];
 }
 const TR_SVG = { pg: '<path d="M4 15 Q20 3 36 15 L34 19.5 Q20 9.5 6 19.5 Z"/><path d="M6.5 19 L20 30 L33.5 19" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="20" cy="31" r="4"/>', glider: '<path d="M20 7 L21.6 16.5 L38.5 18.5 L38.5 21 L21.6 21 L21 31 L25.5 32.5 L25.5 34.5 L20 34 L14.5 34.5 L14.5 32.5 L19 31 L18.4 21 L1.5 21 L1.5 18.5 L18.4 16.5 Z"/>', small: '<path d="M20 3 L22 14 L36 22 L36 25 L22 21 L22 31 L27 34 L27 36.5 L20 35 L13 36.5 L13 34 L18 31 L18 21 L4 25 L4 22 L18 14 Z"/>', big: '<path d="M20 1 L22.5 11 L38 24 L38 28 L22.5 23 L22 31 L27.5 35 L27.5 38 L20 36.5 L12.5 38 L12.5 35 L18 31 L17.5 23 L2 28 L2 24 L17.5 11 Z"/><circle cx="12" cy="22" r="2" fill="#fff" stroke="none"/><circle cx="28" cy="22" r="2" fill="#fff" stroke="none"/>', heli: '<ellipse cx="20" cy="18" rx="5.5" ry="8"/><path d="M18.8 25 H21.2 V35 H18.8Z"/><path d="M15 36 H25" fill="none" stroke-width="3" stroke-linecap="round"/><path d="M4 18 H36 M20 2 V34" fill="none" stroke-width="2" stroke-linecap="round" opacity=".85"/>' };
 const trafficIcon = (kind, col, lab) => L.divIcon({ className: '', html: `<div style="width:60px;text-align:center;font:700 12px Barlow Condensed,sans-serif;color:${col};text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff"><svg viewBox="0 0 40 40" width="${kind === 'big' ? 50 : 42}" height="${kind === 'big' ? 50 : 42}" style="display:block;margin:0 auto;overflow:visible"><g class="trg" fill="${col}" stroke="#fff" stroke-width="2" stroke-linejoin="round">${TR_SVG[kind]}</g></svg>${esc(lab)}</div>`, iconSize: [60, 66], iconAnchor: [30, 25] });
 function trafficDraw(I, C, mb, f) {
   const g = I.g.traffic, tm = I.tmk || (I.tmk = new Map());
-  { const ATTR = 'Air traffic: <a href="https://adsb.fi" target="_blank" rel="noopener">adsb.fi</a>', want = trafficNet(C); if (!!I.trAttr !== want) { I.trAttr = want; const ac = I.m.attributionControl; if (ac) want ? ac.addAttribution(ATTR) : ac.removeAttribution(ATTR); } }
+  { const T = TRAFFIC_SRC.find((s) => s.k === st.trafficFrom) || TRAFFIC_SRC[0], ATTR = trafficNet(C) ? `Air traffic: <a href="${T.home}" target="_blank" rel="noopener">${T.n}</a>` : ''; if ((I.trAttr || '') !== ATTR) { const ac = I.m.attributionControl; if (ac) { if (I.trAttr) ac.removeAttribution(I.trAttr); if (ATTR) ac.addAttribution(ATTR); } I.trAttr = ATTR; } }
   if (!trafficOn(C) || !f) { if (tm.size) { g.clearLayers(); tm.clear(); } return; }
   const R = (+C.trafficR || 25) * 1000, band = C.trafficA === undefined ? 1500 : +C.trafficA, now = Date.now(), seen = new Set();
   // FLARM-port traffic from the vario first (fresher, and it sees what the internet does not); the same ICAO address from adsb.fi is left out

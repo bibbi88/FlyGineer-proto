@@ -243,6 +243,7 @@ function startGPS() {
   if (gpsWatch != null) return;
   gpsWatch = navigator.geolocation.watchPosition((p) => {
     const c = p.coords; st.gpsPos = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, t: Date.now() }; // the real device position, also during a demo or replay
+    { const T = (st.gpsTs = st.gpsTs || []), now = Date.now(); T.push(now); while (T.length && T[0] < now - 10000) T.shift(); } // update times over 10 s (Connection info: the tablet's GPS rate)
     if (st.sim || st.replay) return;
     onFix({ t: p.timestamp || Date.now(), lat: c.latitude, lon: c.longitude, alt: c.altitude, spd: c.speed, trk: c.heading != null && !isNaN(c.heading) && c.speed > 1 ? c.heading : null, acc: c.accuracy });
   }, (e) => { st.gpsOk = false; toast('GPS: ' + e.message); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
