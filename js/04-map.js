@@ -256,11 +256,12 @@ function smoothUp(I, rot, target, level, dWp) {
 }
 function trackPts(len) { const now = nowT(); let a = st.log.filter((p) => p.lat != null && (!len || p.t > now - len * 60000)); const step = Math.max(1, Math.ceil(a.length / 500)); return a.filter((p, i) => i % step === 0 || i === a.length - 1); }
 const LAYER_ICON = '<svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><path d="M13 3l11 6-11 6L2 9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M2 13.5l11 6 11-6M2 18l11 6 11-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
-function mapCtl(I, lk, rot, mb) {
+function mapCtl(I, lk, rot, mb, fai) { // fai: show the FAI sectors on / off button (cfg.faiBtn, default on), pressed while S.fai is on
   const name = LAYERS[lk].name, r5 = Math.round(mb / 5) * 5;
   const menu = I.menu ? `<div class="mmenu" role="listbox">${Object.entries(LAYERS).map(([k, l]) => `<button class="mi" role="option" data-act="mlayer:${k}" aria-selected="${k === lk}"><span class="sw" style="background:${l.sw[0]};border-color:${l.sw[1]}"></span>${l.name}</button>`).join('')}</div>` : '';
   const left = `<div class="row"><button class="wcb big wide" data-act="mmenu" aria-haspopup="listbox" aria-expanded="${I.menu}" aria-label="Map style: ${name}">${LAYER_ICON}<span style="margin-left:8px;font-size:15px">${name}</span></button><button class="wcb big" data-act="mrot" aria-label="Orientation: ${ROT[rot]}. Tap to change"><svg width="32" height="32" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2"/><g transform="rotate(${r5} 18 18)"><path d="M18 4l5 14H13z" fill="#B42318"/><path d="M18 32l5-14H13z" fill="currentColor" opacity=".45"/></g></svg><b class="rbadge">${ROT_BADGE[rot] || 'N'}</b></button></div>${menu}`;
-  const right = `<button class="wcb big" data-act="mzin" aria-label="Zoom in">+</button><button class="wcb big" data-act="mzout" aria-label="Zoom out">−</button><button class="wcb big" data-act="mfollow" aria-pressed="${I.follow}" aria-label="Follow my position"><svg width="24" height="24" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="11" cy="11" r="2" fill="currentColor"/><path d="M11 1v4M11 17v4M1 11h4M17 11h4" stroke="currentColor" stroke-width="2"/></svg></button>`;
+  const right = `<button class="wcb big" data-act="mzin" aria-label="Zoom in">+</button><button class="wcb big" data-act="mzout" aria-label="Zoom out">−</button><button class="wcb big" data-act="mfollow" aria-pressed="${I.follow}" aria-label="Follow my position"><svg width="24" height="24" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="11" cy="11" r="2" fill="currentColor"/><path d="M11 1v4M11 17v4M1 11h4M17 11h4" stroke="currentColor" stroke-width="2"/></svg></button>`
+    + (fai ? `<button class="wcb big" data-act="mfai" aria-pressed="${!!S.fai}" aria-label="FAI sectors ${S.fai ? 'on: tap to hide' : 'off: tap to show'}"><svg width="26" height="22" viewBox="0 0 26 22" aria-hidden="true"><path d="M3 19L13 3l10 16z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg><b class="rbadge">FAI</b></button>` : '');
   return [left, right];
 }
 function mapDraw(cv, E, el, b) {
@@ -332,7 +333,7 @@ function mapDraw(cv, E, el, b) {
       const cur = m.getCenter(); if (Math.abs(cur.lat - c[0]) > 1e-7 || Math.abs(cur.lng - c[1]) > 1e-7) m.setView(c, m.getZoom(), { animate: false });
     }
   }
-  const ctl = on(C.ctl) ? mapCtl(I, lk, mode === 'auto' ? 'auto' : rot, mb) : ['', ''], cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
+  const ctl = on(C.ctl) ? mapCtl(I, lk, mode === 'auto' ? 'auto' : rot, mb, on(C.faiBtn)) : ['', ''], cl = el.querySelector('.wctl.l'), cr = el.querySelector('.wctl.r');
   if (cl._h !== ctl[0]) { cl.innerHTML = ctl[0]; cl._h = ctl[0]; } if (cr._h !== ctl[1]) { cr.innerHTML = ctl[1]; cr._h = ctl[1]; }
   const bs = clamp(+C.btnSz || 56, 36, 120) + 'px'; if (el._bs !== bs) { el._bs = bs; el.style.setProperty('--mb', bs); } // on-map button size
   ptrUpdate(I); edgeUpdate(I, C);

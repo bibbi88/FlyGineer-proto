@@ -942,6 +942,7 @@ function widgetAct(W, act) {
     case 'mzin': if (I) I.m.zoomIn(); return;
     case 'mzout': if (I) I.m.zoomOut(); return;
     case 'mfollow': if (I) { I.follow = true; I.panAt = 0; } renderWidgets(); return;
+    case 'mfai': S.fai = !S.fai; save(); renderWidgets(); toast(S.fai ? 'FAI sectors on: where the 3rd point must be' : 'FAI sectors off'); return; // the map's own FAI button (04 mapCtl)
     case 'forecast': loadForecast(); return;
     case 'trigm': S.trig = Math.max(0, +((S.trig ?? 2) - 0.5).toFixed(1)); break;
     case 'trigp': S.trig = Math.min(8, +((S.trig ?? 2) + 0.5).toFixed(1)); break;
