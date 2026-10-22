@@ -132,7 +132,8 @@ const DEFS = {
     ['avg', 0, 8, 8, 6, { win: 1 }],
     ['button', 88, 49, 8, 7, { bg: 100, showLabel: false, action: 'mute', color: 'orange', tap: 'none', lock: true }],
     ['ta', 0, 47, 15, 17, { bg: 85, orient: 'wind', hist: 120, style: 'trail', bgMap: false, trail: true, legend: true, zoom: 1 }],
-    ['coord', 88, 36, 8, 7],
+    ['wind', 88, 36, 8, 6, { size: 1.35 }],
+    ['coord', 88, 42, 8, 7],
     ['xcscore', 35, 56, 11, 8],
     ['thchip', 71, 4, 14, 7, { bg: 0, showLabel: false }],
   ],
@@ -205,7 +206,7 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
 {
   const old = Array.isArray(S.layout) ? S.layout : null; delete S.layout;
   // a fresh install starts with the default layouts as they are: the one-time migrations below are for older stored layouts only
-  if (FRESH) Object.assign(S, { mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true, fullBtnMig: true, muteBtnMig: true, avgMig: true, padMig: true });
+  if (FRESH) Object.assign(S, { windMapMig: true, mapMigrated: true, navBtnMig: true, tcrossMig: true, t3dMig: true, taTrailMig: true, infoWMig: true, xcMig: true, xcMig2: true, faiBtnMig: true, poiMig: true, radioMig: true, fullBtnMig: true, muteBtnMig: true, avgMig: true, padMig: true });
   if (!S.layouts || typeof S.layouts !== 'object') S.layouts = {};
   if (old && !S.layouts.map) { const k = GSC / (S.layoutGrid || 1); S.layouts.map = old.map((W) => Object.assign({}, W, { x: Math.round(W.x * k), y: Math.round(W.y * k), w: Math.round(W.w * k), h: Math.round(W.h * k) })); }
   Object.keys(LAYERID).forEach((pk) => { if (!Array.isArray(S.layouts[pk]) || !S.layouts[pk].length) S.layouts[pk] = defLayout(pk); S.layouts[pk] = S.layouts[pk].filter((W) => WT[W.type]); });
@@ -220,6 +221,10 @@ const defLayout = (pk) => isUserPage(pk) ? [] : (DEFS[pk || pageKey()] || DEFS.m
   if (!S.avgMig) { S.avgMig = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'avg' && !(+W.cfg.win > 0)) W.cfg.win = +S.avgS || 30; })); }
   if (!S.fullBtnMig) { S.fullBtnMig = true; S.layouts.map = S.layouts.map.filter((W) => !(W.type === 'button' && W.cfg.action === 'fullscreen')); } // full screen is in the hamburger menu now (2026-10-17)
   // a mute button where the Full screen button was (2026-10-17), if that spot is free
+  // 2026-10-22: Wind under GPS speed on the Map page, Position moved down into the free rows below it; only when that column is exactly as
+  // in the owner's 2026-10-21 setup (Position at 88,36 8×7, nothing else in rows 42–49 of it, no Wind on the page)
+  if (!S.windMapMig) { S.windMapMig = true; const L = S.layouts.map || [], co = L.find((W) => W.type === 'coord' && W.x === 88 && W.y === 36 && W.w === 8 && W.h === 7);
+    if (co && !L.some((W) => W.type === 'wind') && !L.some((W) => W !== co && !OV_FREE.has(W.type) && W.x < 96 && W.x + W.w > 88 && W.y < 49 && W.y + W.h > 42)) { co.y = 42; L.push(newW('wind', 88, 36, 8, 6)); L[L.length - 1].cfg.size = 1.35; } }
   if (!S.muteBtnMig) { S.muteBtnMig = true; const L = S.layouts.map, free = !L.some((W) => W.type !== 'map' && W.x < 96 && W.x + W.w > 87 && W.y < 63 && W.y + W.h > 56); if (free && !L.some((W) => W.type === 'button' && W.cfg.action === 'mute')) { const B = newW('button', 87, 56, 9, 7); Object.assign(B.cfg, { action: 'mute', color: 'plain', bg: 100, showLabel: false, tap: 'none' }); L.push(B); } }
   if (!S.faiBtnMig) { S.faiBtnMig = true; S.layouts.map = S.layouts.map.filter((W) => !(W.type === 'button' && W.cfg.action === 'fai')); } // the FAI switch is in the XC flight popup now
   if (!S.xcMig2) { S.xcMig2 = true; Object.keys(LAYERID).forEach((pk) => S.layouts[pk].forEach((W) => { if (W.type === 'fai' && (W.cfg.tap === 'xcmode' || W.cfg.tap === 'fai')) W.cfg.tap = 'details'; })); }
