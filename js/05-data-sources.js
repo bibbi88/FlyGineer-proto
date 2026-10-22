@@ -2,58 +2,32 @@
 /* ================= airspace ================= */
 const UNIT = { 0: 1, 1: 0.3048, 6: 30.48 };
 function fmtLim(l) { if (!l) return '?'; if (l.gnd) return 'GND'; if (l.fl) return 'FL' + l.fl; return fAlt(l.m) + (S.uAlt === 'ft' ? ' ft' : ' m') + (l.agl ? ' AGL' : ''); }
-async function loadOpenAIP() {
-  const f = st.fix; if (!S.openaipKey) { toast('Add your OpenAIP API key in Settings first'); return; }
-  if (!f) { toast('Waiting for a GPS position'); return; }
-  try {
-    const r = await fetch(`https://api.core.openaip.net/api/airspaces?pos=${f.lat},${f.lon}&dist=120000&limit=1000`, { headers: { 'x-openaip-api-key': S.openaipKey } });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json();
-    const lim = (x) => { if (!x) return null; const m = x.value * (UNIT[x.unit] ?? 1); return { m, agl: x.referenceDatum === 0, gnd: x.referenceDatum === 0 && x.value === 0, fl: x.unit === 6 ? x.value : null }; };
-    st.airspaces = (j.items || []).filter((a) => a.geometry && a.geometry.type === 'Polygon').map((a) => ({
-      name: a.name, cls: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'SUA', ''][a.icaoClass] ?? '', type: a.type,
-      lo: lim(a.lowerLimit), hi: lim(a.upperLimit), poly: a.geometry.coordinates[0].map((c) => [c[1], c[0]]),
-      freq: (a.frequencies || []).map((q) => ({ v: q.value, n: q.name || a.name }))
-    }));
-    S.airSrc = 'own'; save(); localStorage.setItem('bora.air', JSON.stringify(st.airspaces)); drawAirspaces(); toast(st.airspaces.length + ' airspaces loaded from OpenAIP');
-  } catch (e) { toast('OpenAIP: ' + e.message + ' · check the key'); }
-}
-/* built-in airspace: OpenAir files from XCSoar's data repository, kept in data/airspace/ by a GitHub workflow (.github/workflows/airspace.yml).
-   S.airSrc 'xcsoar' (these files, countries S.airCountries, loaded again when the files change) or 'own' (OpenAIP or a file you picked) */
-const AIR_NAMES = { fi: 'Finland (your XContest file)', fi_oaip: 'Finland (OpenAIP)', se: 'Sweden', no: 'Norway', ee: 'Estonia' };
-// your own XContest airspace export (airspace.xcontest.org), kept only on this device ('bora.airXc' = { txt, name, t, n }); the
-// built-in key 'fi' (index.json "local": true) means this file. It is never uploaded or published (their data, your personal use).
+/* Airspace comes only from a file you load (2026-10-22: no automatic downloads any more, no XCSoar / OpenAIP copies): your XContest export
+   (airspace.xcontest.org, recommended) or any other OpenAir file. The file is kept only on this tablet ('bora.airXc' = { txt, name, t, n }) and
+   never uploaded (XContest's data, your personal use); parsed into st.airspaces ('bora.air'). Radio frequencies the file lacks (the XContest
+   export has none) are filled in by name from data/airspace/freq.json, a fixed list that comes with the app. */
 const xcFile = () => { try { const x = JSON.parse(localStorage.getItem('bora.airXc') || 'null'); return x && typeof x.txt === 'string' ? x : null; } catch (e) { return null; } };
 const XC_OLD_DAYS = 28; // an AIRAC cycle: after that the file may be out of date
-function xcFileSet(txt, name) {
-  const n = parseOpenAir(txt).length; if (n < 3) { toast('That file has no airspaces in OpenAir format'); return false; }
-  try { localStorage.setItem('bora.airXc', JSON.stringify({ txt, name: name || 'XContest export', t: Date.now(), n })); } catch (e) { toast('Could not store the file: ' + e.message); return false; }
-  if (!(S.airCountries || []).includes('fi')) S.airCountries = ['fi'].concat((S.airCountries || []).filter((c) => c !== 'fi_oaip'));
-  S.airSrc = 'xcsoar'; save(); loadXcsoarAir(true); return true;
+async function airFromFile(x) {
+  const all = parseOpenAir(x.txt); let fq = {}; try { fq = await (await fetch('data/airspace/freq.json')).json(); } catch (e) { }
+  all.forEach((a) => { if (!a.freq.length && fq[a.name]) a.freq = fq[a.name].map((q) => ({ v: q.v, n: q.n || a.name })); });
+  st.airspaces = all; try { localStorage.setItem('bora.air', JSON.stringify(all)); } catch (e) { } S.airUpd = 'x' + x.t; S.airOld = false; save(); drawAirspaces();
+  if (typeof renderSettings === 'function' && curPage === 'pSet' && setSec === 'air') renderSettings();
+  return all.length;
 }
-async function loadXcsoarAir(force) {
-  if (S.airSrc !== 'xcsoar') return;
-  try {
-    const idx = await (await fetch('data/airspace/index.json', { cache: 'no-store' })).json(); st.airIdx = idx;
-    const xc = xcFile(), local = (c) => idx.countries[c] && idx.countries[c].local;
-    let cs = (S.airCountries || []).filter((c) => idx.countries[c]);
-    // no XContest file yet: keep what is already loaded from the old built-in copy, else fall back to OpenAIP Finland
-    if (cs.some(local) && !xc) {
-      if (!st.xcAsk) { st.xcAsk = true; toast('Load your XContest airspace file: Settings → Airspace data', [['Open', () => openSettings('air')]]); }
-      if (/(^|,)fi:2026-10-15/.test(S.airUpd || '') && st.airspaces.length && !force) return;
-      cs = cs.filter((c) => !local(c)); if (!cs.includes('fi_oaip') && idx.countries.fi_oaip) cs.unshift('fi_oaip');
-    }
-    if (xc && cs.some(local) && Date.now() - xc.t > XC_OLD_DAYS * 864e5 && !st.xcOld) { st.xcOld = true; const d = Math.floor((Date.now() - xc.t) / 864e5); setTimeout(() => toast(`Your XContest airspace is ${d} days old · download a new one`, [['How', () => openSettings('air')]]), 4000); }
-    const key = cs.map((c) => c + ':' + (local(c) ? 'x' + xc.t : idx.countries[c].update)).join(',') + '|f1'; // f1: radio frequencies added from freq.json
-    if (!force && key === S.airUpd && st.airspaces.length) return;
-    if (!cs.length) { if (S.airUpd) { st.airspaces = []; localStorage.removeItem('bora.air'); S.airUpd = ''; save(); drawAirspaces(); } return; }
-    let all = [], fq = {}; try { fq = await (await fetch('data/airspace/freq.json', { cache: 'no-store' })).json(); } catch (e) { }
-    for (const c of cs) { if (local(c)) { all = all.concat(parseOpenAir(xc.txt)); continue; } const r = await fetch('data/airspace/' + idx.countries[c].file, { cache: 'no-store' }); if (!r.ok) throw new Error(c + ': HTTP ' + r.status); all = all.concat(parseOpenAir(await r.text())); }
-    all.forEach((a) => { if (!a.freq.length && fq[a.name]) a.freq = fq[a.name].map((q) => ({ v: q.v, n: q.n || a.name })); }); // e.g. the XContest export has no frequencies
-    st.airspaces = all; localStorage.setItem('bora.air', JSON.stringify(all)); S.airUpd = key; save(); drawAirspaces();
-    toast(all.length + ' airspaces loaded (' + cs.map((c) => (local(c) ? 'your XContest file' : idx.countries[c].name)).join(', ') + ')');
-    if (typeof renderSettings === 'function' && curPage === 'pSet' && setSec === 'air') renderSettings();
-  } catch (e) { if (force) toast('Airspace update failed: ' + e.message + (st.airspaces.length ? ' · keeping the stored ones' : '')); }
+async function xcFileSet(txt, name) {
+  const n = parseOpenAir(txt).length; if (n < 3) { toast('That file has no airspaces in OpenAir format'); return false; }
+  const x = { txt, name: name || 'Airspace file', t: Date.now(), n };
+  try { localStorage.setItem('bora.airXc', JSON.stringify(x)); } catch (e) { toast('Could not store the file: ' + e.message); return false; }
+  await airFromFile(x); toast(n + ' airspaces loaded from ' + x.name); return true;
+}
+function xcFileDel() { localStorage.removeItem('bora.airXc'); localStorage.removeItem('bora.air'); st.airspaces = []; S.airUpd = ''; S.airOld = false; save(); drawAirspaces(); }
+// at start: the file is the only source; remind when it is old or missing
+function airBoot() {
+  const x = xcFile();
+  if (x && S.airUpd !== 'x' + x.t) airFromFile(x); // e.g. stored airspace from the old built-in files mixed in: rebuild from your file alone
+  if (x && Date.now() - x.t > XC_OLD_DAYS * 864e5) { const d = Math.floor((Date.now() - x.t) / 864e5); setTimeout(() => toast(`Your airspace file is ${d} days old · download a new one`, [['How', () => openSettings('air')]]), 4000); }
+  if (!x) setTimeout(() => toast(st.airspaces.length ? 'Airspace from an earlier download is no longer updated · load your XContest file' : 'No airspace loaded · load your XContest file', [['Open', () => openSettings('air')]]), 4000);
 }
 function parseOpenAir(txt) {
   const out = []; let cur = null, ctr = null, dir = 1;

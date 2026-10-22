@@ -24,8 +24,8 @@ function boot() {
   cornerMode(); wStyle(); placeCorner(); placeSbar();
   try { const c = JSON.parse(localStorage.getItem('bora.notams') || 'null'); if (c) { NOTAMS = c.list; st.notamAt = c.at; } } catch (e) { }
   try { st.airspaces = JSON.parse(localStorage.getItem('bora.air') || '[]'); } catch (e) { st.airspaces = []; }
-  if (!S.airSrc) { S.airSrc = st.airspaces.length ? 'own' : 'xcsoar'; save(); } // airspace you loaded before stays yours
-  setTimeout(() => loadXcsoarAir(), 1500);
+  if (!S.airManMig) { if (!xcFile() && st.airspaces.length) S.airOld = true; delete S.openaipKey; delete S.airCountries; delete S.airSrc; S.airManMig = true; save(); } // 2026-10-22: airspace only from your own file; stored airspace stays until you load one
+  setTimeout(airBoot, 1500);
   if (typeof L === 'undefined') { document.querySelector('main').innerHTML = '<div style="padding:30px;font-size:18px">The map library could not load. Connect to the internet and reload.</div>'; return; }
   drawNotamAreas(); renderNotams();
   startGPS();

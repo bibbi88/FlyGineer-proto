@@ -1104,26 +1104,18 @@ function setSecHTML() { // the HTML of section setSec
     <div class="field"><label for="radioTpl">Message</label><input type="text" id="radioTpl" maxlength="160" value="${esc(S.radioTpl || RADIO_TPL)}" style="flex:1;min-width:240px"><button class="btn" id="radioTplReset">Default</button></div>
     <div class="muted">Words in braces are filled in: {callsign} {where} (e.g. 2.3 kilometres north-west of X, or overhead X) {dist} {km} {dir} {place} {alt} {ft} {m} {thermal} (“, thermalling” while in thermal mode). Default puts the standard message back.</div>
     <div class="field"><span class="k">Example</span><div class="card" style="font-size:18px;padding:10px 12px;flex:1" id="radioEx">${st.fix ? esc(radioCall(ex)) : 'needs a position'}</div><button class="btn" id="radioSay">🔊 Say it</button></div></div>`; }
-  if (setSec === 'air') { const ix = st.airIdx && st.airIdx.countries, xc = S.airSrc === 'xcsoar';
+  if (setSec === 'air') { const x = xcFile(), age = x ? Math.floor((Date.now() - x.t) / 864e5) : 0;
     h = `<div class="card sec"><h2>Airspace data</h2>
-    <div class="field"><span class="k">Source</span><span class="row" style="flex-wrap:wrap"><button class="pill" id="asXc" aria-pressed="${xc}">Built in</button><button class="pill" id="asOwn" aria-pressed="${!xc}">My own (OpenAIP or file)</button></span></div>
-    ${xc ? `<div class="field"><span class="k">Countries</span><span class="row" style="flex-wrap:wrap">${Object.keys(ix || AIR_NAMES).map((c) => `<button class="pill" data-airc="${c}" aria-pressed="${(S.airCountries || []).includes(c)}">${esc((ix && ix[c] ? ix[c].name : AIR_NAMES[c]) || c.toUpperCase())}</button>`).join('')}</span></div>
-    <div class="field"><span class="k">Updated</span><span>${ix ? (S.airCountries || []).filter((c) => ix[c]).map((c) => esc(ix[c].name + ' ' + String(ix[c].update).slice(0, 10))).join(' · ') || '–' : 'not checked yet'}</span><button class="btn" id="asUpd">Update now</button></div>
-    <div class="muted">“Finland (your XContest file)” uses the file you load below. The others are the national files XCSoar offers (OpenAIP data), refreshed automatically. The app checks for newer files when it starts with internet and keeps the last ones for offline use.</div>` : ''}
-    ${xc ? (() => { const x = xcFile(), age = x ? Math.floor((Date.now() - x.t) / 864e5) : 0; return `<h2 style="margin-top:8px">XContest airspace (recommended)</h2>
-    <div class="muted">XContest keeps the most up-to-date airspace. Their data is for your own use, so the app keeps your file only on this tablet and never uploads it.</div>
+    <div class="muted">Airspace comes only from a file you load here; nothing is downloaded by itself. XContest keeps the most up-to-date airspace. Their data is for your own use, so the file stays on this tablet and is never uploaded. Any other OpenAir file works too.</div>
     <div class="field"><span class="k">1 · Download</span><a class="btn primary" href="https://airspace.xcontest.org/" target="_blank" rel="noopener">Open airspace.xcontest.org ↗</a><span class="muted">choose your countries, export as <b>OpenAir</b>, save the file</span></div>
     <div class="field"><label for="xcFileIn">2 · Load it</label><input type="file" id="xcFileIn" accept=".txt,.air,.openair,text/plain" style="min-height:48px"></div>
-    <div class="field"><span class="k">Your file</span>${x ? `<span><b>${esc(x.name)}</b> · ${x.n} airspaces · loaded ${new Date(x.t).toLocaleDateString()} <span style="${age > XC_OLD_DAYS ? 'color:var(--restr);font-weight:700' : ''}">(${age} day${age === 1 ? '' : 's'} ago${age > XC_OLD_DAYS ? ' · download a new one' : ''})</span></span><button class="btn" id="xcFileDel">Remove</button>` : '<span class="muted">none yet · until then Finland comes from OpenAIP</span>'}</div>`; })() : ''}
+    <div class="field"><span class="k">Your file</span>${x ? `<span><b>${esc(x.name)}</b> · ${x.n} airspaces · loaded ${new Date(x.t).toLocaleDateString()} <span style="${age > XC_OLD_DAYS ? 'color:var(--restr);font-weight:700' : ''}">(${age} day${age === 1 ? '' : 's'} ago${age > XC_OLD_DAYS ? ' · download a new one' : ''})</span></span><button class="btn" id="xcFileDel">Remove</button>` : S.airOld && st.airspaces.length ? `<span style="color:var(--restr)">none · ${st.airspaces.length} airspaces from an earlier download are still used but no longer updated</span><button class="btn" id="xcFileDel">Remove them</button>` : '<span style="color:var(--restr)">none loaded · no airspace on the maps and no warnings</span>'}</div>
+    <div class="muted">Radio frequencies missing from the file (the XContest export has none) are added by airspace name from a list that comes with the app.</div>
     <div class="field"><span class="k">Show</span><span class="row" style="flex-wrap:wrap">${AIR_KINDS.map(([k, n]) => `<button class="pill" data-airt="${k}" aria-pressed="${(S.airTypes || AIR_KIND_DEF).includes(k)}">${n} <span class="muted">${st.airspaces.filter((a) => airKind(a) === k).length}</span></button>`).join('')}</span></div>
     ${numField('airMaxAlt', +S.airMaxAlt > 0 ? '≈ FL' + Math.round(S.airMaxAlt / 30.48) : 'showing all')}
     <div class="muted">The warning bar is a widget: Airspace warning (edit a page → Add widget). The distance below is its default and is used by the Airspace button and voice.</div>
     ${numField('warnDist')}
-    <div class="field"><span class="k">Loaded</span><b>${airShown().length} shown of ${st.airspaces.length} airspaces</b>${st.airspaces.length ? '<button class="btn" id="oaClear">Clear</button>' : ''}</div>
-    <h2 style="margin-top:8px">My own airspace</h2>
-    <div class="field"><label for="oaKey">OpenAIP API key</label><input type="password" id="oaKey" value="${esc(S.openaipKey)}" placeholder="from openaip.net → API clients"></div>
-    <div class="field"><span class="k"></span><button class="btn primary" id="oaLoad">Load airspace around me</button></div>
-    <div class="field"><label for="oaFile">Or an OpenAir file</label><input type="file" id="oaFile" accept=".txt,.air,.openair,text/plain" style="min-height:48px"></div>
+    <div class="field"><span class="k">Loaded</span><b>${airShown().length} shown of ${st.airspaces.length} airspaces</b></div>
     <h2 style="margin-top:8px">NOTAM from ais.fi</h2>
     <div class="field"><label for="ntProxy">Proxy address (optional)</label><input type="url" id="ntProxy" value="${esc(S.notamProxy)}" placeholder="https://your-worker.workers.dev/?url="></div>
     <div class="muted">Browsers only let a page read ais.fi if ais.fi allows it. If loading fails, put a small proxy in front: a free Cloudflare Worker with this code, then paste its address ending in ?url= above.</div>
@@ -1219,15 +1211,8 @@ function renderSettings() {
   on('wingLD', 'onchange', (e) => { S.wingLD = +e.target.value; save(); st.lastPredFetch = 0; st.reach = null; });
   on('safety', 'onchange', (e) => { S.safety = +e.target.value; save(); st.reach = null; });
   on('wingSpd', 'onchange', (e) => { S.wingSpd = clamp(+e.target.value || 37, 15, 80); save(); st.reach = null; });
-  on('oaKey', 'onchange', (e) => { S.openaipKey = e.target.value.trim(); save(); });
-  on('oaLoad', 'onclick', async () => { S.openaipKey = $('oaKey').value.trim(); save(); await loadOpenAIP(); renderSettings(); });
-  on('oaFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; const a = parseOpenAir(await fl.text()); S.airSrc = 'own'; save(); st.airspaces = a; localStorage.setItem('bora.air', JSON.stringify(a)); drawAirspaces(); toast(a.length + ' airspaces loaded from file'); renderSettings(); });
   on('ntProxy', 'onchange', (e) => { S.notamProxy = e.target.value.trim(); save(); });
   on('ntLoad', 'onclick', async () => { S.notamProxy = $('ntProxy').value.trim(); save(); await loadNotams(true); });
-  on('asXc', 'onclick', async () => { S.airSrc = 'xcsoar'; S.airUpd = ''; save(); renderSettings(); await loadXcsoarAir(true); renderSettings(); });
-  on('asOwn', 'onclick', () => { S.airSrc = 'own'; save(); renderSettings(); });
-  on('asUpd', 'onclick', async () => { await loadXcsoarAir(true); renderSettings(); });
-  document.querySelectorAll('[data-airc]').forEach((b) => (b.onclick = async () => { const c = b.dataset.airc, l = new Set(S.airCountries || []); l.has(c) ? l.delete(c) : l.add(c); S.airCountries = [...l]; save(); renderSettings(); await loadXcsoarAir(); renderSettings(); }));
   document.querySelectorAll('[data-airt]').forEach((b) => (b.onclick = () => { const l = new Set(S.airTypes || AIR_KIND_DEF), k = b.dataset.airt; l.has(k) ? l.delete(k) : l.add(k); S.airTypes = AIR_KINDS.map(([x]) => x).filter((x) => l.has(x)); save(); drawAirspaces(); renderSettings(); }));
   document.querySelectorAll('[data-pgname]').forEach((e) => (e.onchange = () => { pageRename(e.dataset.pgname, e.value); renderSettings(); }));
   document.querySelectorAll('[data-pgmove]').forEach((b) => (b.onclick = () => { pageMove(b.dataset.pgmove, +b.dataset.d); renderSettings(); }));
@@ -1240,9 +1225,9 @@ function renderSettings() {
   on('radioTpl', 'onchange', (e) => { const v = e.target.value.trim(); S.radioTpl = v === RADIO_TPL ? '' : v; save(); renderSettings(); }); // the default text is shown and editable; unchanged or emptied = default
   on('radioTplReset', 'onclick', () => { S.radioTpl = ''; save(); renderSettings(); });
   on('radioSay', 'onclick', () => { const t = $('radioEx') && $('radioEx').textContent; if (t && st.fix) say(t, true, radioLang()); });
-  on('xcFileIn', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; if (xcFileSet(await fl.text(), fl.name)) renderSettings(); });
-  on('xcFileDel', 'onclick', () => { localStorage.removeItem('bora.airXc'); S.airUpd = ''; save(); loadXcsoarAir(true); renderSettings(); toast('XContest file removed'); });
-  on('oaClear', 'onclick', () => { S.airSrc = 'own'; save(); st.airspaces = []; localStorage.removeItem('bora.air'); drawAirspaces(); renderSettings(); });
+  on('xcFileIn', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; if (await xcFileSet(await fl.text(), fl.name)) renderSettings(); });
+  on('xcFileDel', 'onclick', () => { const x = localStorage.getItem('bora.airXc'), a = localStorage.getItem('bora.air'), u = S.airUpd, o = S.airOld; xcFileDel(); renderSettings();
+    toast('Airspace removed', [['Undo', () => { if (x) localStorage.setItem('bora.airXc', x); if (a) { localStorage.setItem('bora.air', a); st.airspaces = JSON.parse(a); } S.airUpd = u; S.airOld = o; save(); drawAirspaces(); renderSettings(); }]]); });
   on('taskClear', 'onclick', () => { clearTask(); renderSettings(); });
   on('fxImp', 'onclick', () => { if (importFlyXC($('fxUrl').value)) renderSettings(); });
   on('bmCopy', 'onclick', async () => { try { await navigator.clipboard.writeText(bookmarklet()); toast('Bookmark code copied'); } catch (e) { toast('Select the code above and copy it'); } });
