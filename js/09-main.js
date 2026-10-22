@@ -30,7 +30,7 @@ function boot() {
   drawNotamAreas(); renderNotams();
   startGPS();
   const qp = new URLSearchParams(location.search); if (qp.get('p')) { importFlyXC('https://flyxc.app/?p=' + encodeURIComponent(qp.get('p'))); history.replaceState(null, '', location.pathname + (qp.has('demo') ? '?demo' : '')); }
-  if (qp.has('demo')) startDemoFlight();
+  if (qp.has('demo')) startDemoFlight(qp.get('demo') === '2' ? 2 : 1); // ?demo or ?demo=2
   loop();
 }
 boot();

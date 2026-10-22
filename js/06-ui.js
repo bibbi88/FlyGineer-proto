@@ -1072,7 +1072,8 @@ function setSecHTML() { // the HTML of section setSec
     <div class="field"><span class="k">GPS</span><b>${st.fix ? (st.sim ? 'demo position' : `fix, accuracy ${Math.round(st.fix.acc || 0)} m`) : 'waiting for position'}</b></div>
     <div class="field"><label for="igcFile">Replay an IGC flight</label><input type="file" id="igcFile" accept=".igc,.IGC,text/plain" style="min-height:48px">${st.replay ? '<button class="btn warn" id="igcStop">Stop replay</button>' : ''}</div>
     <div class="muted">Plays a recorded flight through every page: vario from the logged altitude, wind and thermals from the circles, glide and airspace along the track.${st.replay ? ' Now playing: ' + esc(st.replay.name) + '.' : ''}</div>
-    <div class="field"><span class="k">Demo flight</span>${isDemo() ? `<button class="btn warn" id="demoBtn">Stop demo flight</button>` : `<button class="btn primary" id="demoBtn">Start demo flight</button>`}</div>
+    <div class="field"><span class="k">Demo flight</span>${isDemo(1) ? `<button class="btn warn" id="demoBtn">Stop demo flight</button>` : `<button class="btn primary" id="demoBtn">Start demo flight</button>`}</div>
+    <div class="field"><span class="k">Demo flight 2 · 27 Jun 2026, 2 h</span>${isDemo(2) ? `<button class="btn warn" id="demoBtn2">Stop demo flight 2</button>` : `<button class="btn primary" id="demoBtn2">Start demo flight 2</button>`}</div>
     <div class="muted">A real paraglider flight recorded with XCTrack on 19 June 2026: 52 minutes, a climb to 1000 m and three long thermals. It plays through every page with your own layouts and settings; use the bar on the map to pause, jump or change speed.</div>
     <div class="field"><span class="k">Synthetic test flight</span>${st.sim ? `<button class="btn warn" id="simBtn">Stop test flight</button>` : `<button class="btn" id="simBtn">Start test flight</button>`}</div>
     <div class="muted">Simulated thermals with 12 km/h wind from 250°, for testing.</div>
@@ -1201,7 +1202,7 @@ function renderSettings() {
   on('impFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (fl) openImport(await fl.text(), fl.name); e.target.value = ''; });
   on('wEditBtn', 'onclick', () => { showPage('pMap'); setTimeout(() => enterEdit(), 80); });
   on('igcFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; try { startReplay(parseIGC(await fl.text()), fl.name.replace(/\.igc$/i, '')); } catch (err) { toast('Could not read the IGC file: ' + err.message); } });
-  on('igcStop', 'onclick', () => { stopReplay(); renderSettings(); }); on('simBtn', 'onclick', () => { st.sim ? stopSim() : startSim(); renderSettings(); }); on('demoBtn', 'onclick', () => { isDemo() ? stopReplay() : startDemoFlight(); renderSettings(); });
+  on('igcStop', 'onclick', () => { stopReplay(); renderSettings(); }); on('simBtn', 'onclick', () => { st.sim ? stopSim() : startSim(); renderSettings(); }); on('demoBtn', 'onclick', () => { isDemo(1) ? stopReplay() : startDemoFlight(1); renderSettings(); }); on('demoBtn2', 'onclick', () => { isDemo(2) ? stopReplay() : startDemoFlight(2); renderSettings(); });
   if (setSec === 'data' || q) baroWire(on);
   if (setSec === 'flights' || q) flightsWire(on);
   if (setSec === 'lands' || q) landsWire(on);

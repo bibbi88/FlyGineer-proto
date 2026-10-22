@@ -73,15 +73,18 @@ function finishIGC(pts, day, hdr) {
   return { pts, hdr, date: day };
 }
 /* the built-in demo flight: a real recorded paraglider flight, stored in data/demo-flight.js */
-function demoIGC() {
-  if (typeof DEMO_FLIGHT === 'undefined') throw new Error('this build has no demo flight');
-  const D = DEMO_FLIGHT, pts = []; let t = 0, la = 0, lo = 0, pa = 0, ga = 0;
+// built-in demo flights: 1 = data/demo-flight.js (2026-06-19), 2 = data/demo-flight2.js (2026-06-27, 2 h); ?demo or ?demo=2
+const demoData = (n) => (n === 2 ? (typeof DEMO_FLIGHT2 !== 'undefined' ? DEMO_FLIGHT2 : null) : typeof DEMO_FLIGHT !== 'undefined' ? DEMO_FLIGHT : null);
+const demoName = (n) => (n === 2 ? 'Demo flight 2' : 'Demo flight');
+function demoIGC(n = 1) {
+  const D = demoData(n); if (!D) throw new Error('this build has no demo flight' + (n === 2 ? ' 2' : ''));
+  const pts = []; let t = 0, la = 0, lo = 0, pa = 0, ga = 0;
   D.p.forEach((r) => { t += r[0]; la += r[1]; lo += r[2]; pa += r[3]; ga += r[4]; pts.push({ s: t, lat: la / 600000, lon: lo / 600000, palt: pa, galt: ga, valid: true }); });
   const [y, m, dd] = D.date.split('-').map(Number); const igc = finishIGC(pts, Date.UTC(y, m - 1, dd), { glider: D.glider }); igc.info = D; return igc;
 }
-const isDemo = () => !!(st.replay && st.replay.name === 'Demo flight');
-function startDemoFlight() {
-  try { const igc = demoIGC(); startReplay(igc, 'Demo flight'); }
+const isDemo = (n) => !!(st.replay && (n ? st.replay.name === demoName(n) : /^Demo flight( 2)?$/.test(st.replay.name)));
+function startDemoFlight(n = 1) {
+  try { const igc = demoIGC(n); startReplay(igc, demoName(n)); }
   catch (e) { toast('Demo flight: ' + e.message); }
 }
 function resetFlightState() { st.score = null; st.gPeak = null; st.windEst = []; st.toSince = 0; st.turnLog = []; st.tows = []; st.towEnd = 0; st.sideAx = null; st.log = []; st.thermals = []; st.winds = []; st.takeoffPos = null; st.fixes = []; st.varioHist = []; st.samples = []; st.wind = null; st.thermal = null; st.lastTurn = null; st.ld = null; st.circling = false; st.tempPts = []; st.takeoffT = null; st.gpsV = null; st.fix = null; st.baro = null; }

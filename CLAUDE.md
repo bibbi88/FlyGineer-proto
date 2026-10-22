@@ -10,6 +10,7 @@ Tablet-first (Samsung Galaxy Tab A9, 8.7", 1340 × 800, landscape) paragliding f
 - `index.html` – markup only, loads the files below in order.
 - `css/style.css` – all styles.
 - `data/demo-flight.js` – built-in demo flight (real XCTrack flight, delta-encoded). Start with `?demo` or from Settings.
+- `data/demo-flight2.js` – demo flight 2 (`DEMO_FLIGHT2`, the owner's XCTrack flight of 2026-06-27, 11:46–13:40 UTC, 6859 points, same encoding; pilot name, device and signature left out; made by the scratchpad `demo2/enc.py`, which reads the IGC's LAD/LOD extra digits). Start with `?demo=2` or Settings → Vario & GPS → Demo flight 2. 03 `demoIGC(n)` / `startDemoFlight(n)` / `demoName(n)` ('Demo flight' / 'Demo flight 2'), `isDemo(n)` (no n = either).
 - `js/` – classic scripts, loaded **in this order**, sharing one global scope (top-level `const`/`let`/functions are visible across files). Each file starts with `'use strict'`. Don't reorder; a file may only run top-level code that uses things from earlier files. Functions called later (from events or the main loop) can live anywhere.
   1. `01-core.js` helpers, settings `S` (saved), state `st`, data input
   2. `02-analysis.js` circling/wind/thermal/turn analysis, elevation and glide prediction, Bora over Bluetooth (Nordic UART, `$LK8EX1`), GPS
