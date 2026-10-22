@@ -238,6 +238,12 @@ function flarmList() { const now = Date.now(), out = []; st.flarm.forEach((a, k)
 
 /* ================= GPS ================= */
 let gpsWatch = null;
+// the tablet's GPS update rate from the real watchPosition callbacks of the last 10 s (st.gpsTs): {n, hz, dt (mean s apart), max (longest gap s), age (s since the last)}
+function gpsRate() {
+  const T = st.gpsTs || [], n = T.length, age = n ? (Date.now() - T[n - 1]) / 1000 : null; if (n < 3 || age > 5) return { n, age };
+  let mx = 0; for (let i = 1; i < n; i++) mx = Math.max(mx, T[i] - T[i - 1]); const sp = (T[n - 1] - T[0]) / 1000;
+  return { n, hz: (n - 1) / sp, dt: sp / (n - 1), max: mx / 1000, age };
+}
 function startGPS() {
   if (!navigator.geolocation) { toast('No GPS available in this browser'); return; }
   if (gpsWatch != null) return;

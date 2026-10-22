@@ -1069,7 +1069,6 @@ function setSecHTML() { // the HTML of section setSec
   if (setSec === 'data') h = `<div class="card sec"><h2>Vario & GPS</h2>
     <div class="field"><span class="k">Bora vario</span>${st.bora ? `<b>Connected: ${esc(st.bora.name)}</b>` : `<button class="btn primary" id="bleBtn">Connect over Bluetooth</button>`}</div>
     <div class="muted">Reads $LK8EX1 from the Nordic UART service: pressure, altitude, vario, temperature, battery. Works in Chrome on Android when this page is opened over https.</div>
-    <div class="field"><span class="k">GPS</span><b>${st.fix ? (st.sim ? 'demo position' : `fix, accuracy ${Math.round(st.fix.acc || 0)} m`) : 'waiting for position'}</b></div>
     <div class="field"><label for="igcFile">Replay an IGC flight</label><input type="file" id="igcFile" accept=".igc,.IGC,text/plain" style="min-height:48px">${st.replay ? '<button class="btn warn" id="igcStop">Stop replay</button>' : ''}</div>
     <div class="muted">Plays a recorded flight through every page: vario from the logged altitude, wind and thermals from the circles, glide and airspace along the track.${st.replay ? ' Now playing: ' + esc(st.replay.name) + '.' : ''}</div>
     <div class="field"><span class="k">Demo flight</span>${isDemo(1) ? `<button class="btn warn" id="demoBtn">Stop demo flight</button>` : `<button class="btn primary" id="demoBtn">Start demo flight</button>`}</div>
@@ -1077,6 +1076,10 @@ function setSecHTML() { // the HTML of section setSec
     <div class="muted">A real paraglider flight recorded with XCTrack on 19 June 2026: 52 minutes, a climb to 1000 m and three long thermals. It plays through every page with your own layouts and settings; use the bar on the map to pause, jump or change speed.</div>
     <div class="field"><span class="k">Synthetic test flight</span>${st.sim ? `<button class="btn warn" id="simBtn">Stop test flight</button>` : `<button class="btn" id="simBtn">Start test flight</button>`}</div>
     <div class="muted">Simulated thermals with 12 km/h wind from 250°, for testing.</div>
+    </div><div class="card sec">
+    <h2>Tablet GPS</h2>
+    <div class="row" id="gpsLive" style="flex-wrap:wrap;gap:8px;margin:6px 0">${gpsLiveHTML()}</div>
+    <div class="muted">Live from the tablet's own GPS (also during a demo or replay), over the last 10 s. The flight recorder stores at most one point per second whatever the rate; Android Chrome usually gives about one update a second.</div>
     </div>${baroSection()}`;
   if (setSec === 'widgets') h = `<div class="card sec"><h2>Page layouts</h2><div class="muted">Map, Thermal, Atmosphere, Airspace and your own pages are built from widgets you can move, resize, duplicate and configure.</div>
     <div class="field"><span class="k">Edit layout of</span><span class="row" style="flex-wrap:wrap"><button class="btn" data-edit="pMap">Map</button><button class="btn" data-edit="pThermal">Thermal</button><button class="btn" data-edit="pAtmos">Atmosphere</button><button class="btn" data-edit="pAir">Airspace</button>${S.pages.map((p) => `<button class="btn" data-edit="${p.id}">${esc(p.name)}</button>`).join('')}</span></div>
@@ -1314,6 +1317,14 @@ function baroSection() {
     <div class="field"><span class="k"></span><button class="btn" id="baroUseSd">Use the measured noise</button><button class="btn" id="baroCsv">Download the last 90 s (CSV)</button></div>
     <h2 style="margin-top:8px">Last lines from the vario</h2><pre class="raw" id="baroLines" style="max-height:220px;overflow:auto;font-size:12px">${esc((st.baroLines || []).join('\n')) || 'nothing received yet'}</pre></div>`;
 }
+// Settings → Vario & GPS: the tablet GPS live (02 gpsRate, st.gpsPos), refreshed every second while shown
+function gpsLiveHTML() {
+  const g = gpsRate(), p = st.gpsPos, box = (k, v, bad) => `<div class="card" style="padding:6px 10px;flex:1;min-width:120px"><div class="muted" style="font-size:12px">${k}</div><div style="font-size:18px;font-weight:700${bad ? ';color:var(--restr)' : ''}">${v}</div></div>`;
+  if (!p) return box('GPS', navigator.geolocation ? 'waiting for a position' : 'no GPS in this browser', true);
+  return box('Updates', g.hz ? g.hz.toFixed(1) + ' per second' : 'none in the last 5 s', !g.hz) + box('Interval', g.dt ? g.dt.toFixed(2) + ' s · longest ' + g.max.toFixed(1) + ' s' : '--') +
+    box('Accuracy', p.acc != null ? '±' + Math.round(p.acc) + ' m' : '--', p.acc > 30) + box('Last update', g.age != null ? g.age.toFixed(1) + ' s ago' : '--', g.age > 5) + (st.sim || st.replay ? box('Shown in flight', 'demo / replay position') : '');
+}
+setInterval(() => { const e = $('gpsLive'); if (e && curPage === 'pSet') e.innerHTML = gpsLiveHTML(); }, 1000);
 function baroLiveHTML() {
   const s = baroStats(), b = s.last, box = (k, v) => `<div class="card" style="padding:6px 10px;flex:1;min-width:120px"><div class="muted" style="font-size:12px">${k}</div><div style="font-size:18px;font-weight:700">${v}</div></div>`;
   if (!b) return box('Vario', st.bora ? 'connected, no pressure data yet' : 'not connected (Vario & GPS → Connect)');
