@@ -47,6 +47,15 @@ async function xcgStart() {
   ws.onerror = () => { XCG.err = 'no bridge at ' + ws.url; };
   ws.onclose = () => xcgRetry(g);
 }
+// start XC Guide (package indysoft.xc_guide): the Android app through TcpLine.launchApp, Chrome through an intent: link (needs a tap);
+// also turns the traffic input on. XC Guide comes to the front: switch back with the recent-apps button.
+const XCG_PKG = 'indysoft.xc_guide';
+async function xcgLaunch() {
+  if (!S.xcgOn) { S.xcgOn = true; save(); xcgStart(); }
+  const T = nativeTcp();
+  if (T) { try { await T.launchApp({ pkg: XCG_PKG }); toast('XC Guide started · come back with the recent-apps button'); } catch (e) { toast('XC Guide: ' + (e.message || 'not installed')); } return; }
+  location.href = 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=' + XCG_PKG + ';end';
+}
 // [text, ok] for the status rows
 function xcgStatus() {
   if (!S.xcgOn) return ['off', undefined];
@@ -66,6 +75,8 @@ function xcgSecHTML() {
     ${nat ? `<div class="field"><label for="xcgPort">XC Guide port</label><input type="number" id="xcgPort" value="${esc(String(S.xcgPort || 10110))}" min="1" max="65535" style="max-width:160px"></div>`
       : `<div class="field"><label for="xcgUrl">Bridge address</label><input type="text" id="xcgUrl" value="${esc(S.xcgUrl || 'ws://127.0.0.1:10111')}" spellcheck="false" autocapitalize="off"></div>`}
     <div class="field"><span class="k">Status</span><b id="xcgLive" style="${ok === false ? 'color:var(--restr)' : ''}">${tx}</b></div>
+    <div class="field"><span class="k"></span><button class="btn primary" id="xcgGo">▶ Start XC Guide</button></div>
+    <div class="muted">Opens XC Guide (and turns this on). Switch back with the recent-apps button. Also as a button widget: Add widget → Buttons → Start XC Guide button. Or let XC Guide start by itself: its Settings → System → Start on boot up + Start Minimized, and set its battery use to Unrestricted so Android does not stop it in flight.</div>
     <h2 style="margin-top:8px">Setting it up</h2>
     <div class="muted"><b>In XC Guide:</b> Settings → System → <b>Localhost server</b> on, “Flarm protocol to XCTrack”, Flarm emulation port <b>10110</b>. Choose the networks you want under Livetracking (OGN, SafeSky, OpenSky ADS-B …). Keep XC Guide running in the background while you fly.</div>
     ${nat ? '<div class="muted"><b>This app</b> connects to port 10110 on the tablet by itself; nothing else is needed.</div>'
@@ -74,6 +85,7 @@ pip install websockify</pre>and before each flight:<pre class="raw">websockify 1
   </div>`;
 }
 function xcgWire(on) {
+  on('xcgGo', 'onclick', () => xcgLaunch());
   on('xcgUrl', 'onchange', (e) => { S.xcgUrl = e.target.value.trim() || 'ws://127.0.0.1:10111'; save(); xcgStart(); });
   on('xcgPort', 'onchange', (e) => { S.xcgPort = clamp(Math.round(+e.target.value) || 10110, 1, 65535); save(); xcgStart(); });
 }

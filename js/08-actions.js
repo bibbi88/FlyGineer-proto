@@ -16,6 +16,7 @@ function runAction(a, text) {
   switch (a) {
     case 'message': toast(text || 'Automatic action'); break;
     case 'say': say(text || '', true); break;
+    case 'xcguide': if (typeof xcgLaunch === 'function') xcgLaunch(); break;
     case 'soundOn': if (!S.sound) applySet('sound', 'true'); toast('Vario sound on'); break;
     case 'soundOff': if (S.sound) applySet('sound', 'false'); toast('Vario sound off'); break;
     case 'titles': S.titles = S.titles === 'hide' ? 'each' : 'hide'; save(); renderWidgets(); toast(S.titles === 'hide' ? 'Widget titles hidden' : 'Widget titles shown'); break;

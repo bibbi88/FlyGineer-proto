@@ -57,6 +57,17 @@ public class TcpLinePlugin extends Plugin {
         }, "TcpLine").start();
     }
 
+    /** launchApp({pkg}): opens another installed app (XC Guide: indysoft.xc_guide); the package must be listed under <queries> in the manifest. */
+    @PluginMethod
+    public void launchApp(PluginCall call) {
+        String pkg = call.getString("pkg", "");
+        android.content.Intent i = getContext().getPackageManager().getLaunchIntentForPackage(pkg);
+        if (i == null) { call.reject("not installed"); return; }
+        i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(i);
+        call.resolve();
+    }
+
     @PluginMethod
     public void disconnect(PluginCall call) {
         synchronized (this) { gen++; closeSocket(); }

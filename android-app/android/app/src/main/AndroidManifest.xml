@@ -36,6 +36,11 @@
         </provider>
     </application>
 
+    <!-- apps the app may open (Android 11+ package visibility): XC Guide -->
+    <queries>
+        <package android:name="indysoft.xc_guide" />
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
