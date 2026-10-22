@@ -1,0 +1,11 @@
+{
+  "appId": "io.github.bibbi88.flygineer",
+  "appName": "FlyGineer",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#F4F5F2"
+  },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 0 }
+  }
+}

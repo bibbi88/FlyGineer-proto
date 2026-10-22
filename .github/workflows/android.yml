@@ -1,0 +1,51 @@
+# Builds the Android app (android-app/, Capacitor) ONLY on request: when a tag android-v<N> is pushed (e.g. android-v2), or by hand
+# from the Actions tab. Never on normal pushes: the installed app keeps its own copy of FlyGineer until a new APK is built and installed.
+# The APK is attached to a GitHub release named after the tag (open it on the tablet and install).
+name: Android app
+on:
+  push:
+    tags: ['android-v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Version
+        run: |
+          N="${GITHUB_REF_NAME#android-v}"; [ "$GITHUB_REF_TYPE" = tag ] || N="manual-${GITHUB_RUN_NUMBER}"
+          echo "VERSION_NAME=$N" >> "$GITHUB_ENV"; echo "VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+      - name: Web files into the app
+        working-directory: android-app
+        run: |
+          npm ci
+          node prepare-www.mjs
+          npx cap sync android
+      - name: Build the APK
+        working-directory: android-app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          mkdir -p ../out && cp app/build/outputs/apk/release/app-release.apk "../out/FlyGineer-${VERSION_NAME}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FlyGineer-${{ env.VERSION_NAME }}
+          path: android-app/out/*.apk
+      - name: Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: FlyGineer Android ${{ env.VERSION_NAME }}
+          files: android-app/out/*.apk
+          body: |
+            FlyGineer Android app, built from ${{ github.sha }} (web version in build.json, shown in Settings → App).
+            Install: open this page on the tablet, tap the .apk, allow installing from this source. It installs over the previous version and keeps settings and flights.
