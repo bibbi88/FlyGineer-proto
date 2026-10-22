@@ -4,8 +4,9 @@ The same FlyGineer as the web version, packed into an Android app. It carries **
 **never updates by itself**: a new version is built only on request.
 
 ## Getting a new version (on request)
-Push a tag `android-v<N>` (e.g. `android-v2`) on the commit you want; GitHub Actions (`.github/workflows/android.yml`)
-builds the APK and attaches it to a release named "FlyGineer Android <N>". On the tablet: open the release page, tap the
+Raise the number in `android-app/BUILD-REQUEST` (1 → 2 …) and push to `dev`, or push a tag `android-v<N>`; GitHub Actions
+(`.github/workflows/android.yml`) builds the APK from that commit and attaches it to a release "FlyGineer Android <N>"
+(tag `android-v<N>`). On the tablet: open the release page, tap the
 `.apk`, allow installing from that source. It installs over the previous one and keeps settings and flights (same key).
 Nothing else (pushes to `dev`, the web version's updates) changes the installed app.
 

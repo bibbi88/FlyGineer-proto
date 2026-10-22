@@ -1,9 +1,12 @@
-# Builds the Android app (android-app/, Capacitor) ONLY on request: when a tag android-v<N> is pushed (e.g. android-v2), or by hand
-# from the Actions tab. Never on normal pushes: the installed app keeps its own copy of FlyGineer until a new APK is built and installed.
+# Builds the Android app (android-app/, Capacitor) ONLY on request: when the number in android-app/BUILD-REQUEST changes on dev,
+# when a tag android-v<N> is pushed, or by hand from the Actions tab. Never on other pushes: the installed app keeps its own copy of
+# FlyGineer until a new APK is built and installed.
 # The APK is attached to a GitHub release named after the tag (open it on the tablet and install).
 name: Android app
 on:
   push:
+    branches: [dev]
+    paths: ['android-app/BUILD-REQUEST']
     tags: ['android-v*']
   workflow_dispatch:
 permissions:
@@ -22,7 +25,7 @@ jobs:
           node-version: '22'
       - name: Version
         run: |
-          N="${GITHUB_REF_NAME#android-v}"; [ "$GITHUB_REF_TYPE" = tag ] || N="manual-${GITHUB_RUN_NUMBER}"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then N="${GITHUB_REF_NAME#android-v}"; elif [ "$GITHUB_EVENT_NAME" = push ]; then N="$(tr -dc '0-9' < android-app/BUILD-REQUEST)"; else N="manual-${GITHUB_RUN_NUMBER}"; fi
           echo "VERSION_NAME=$N" >> "$GITHUB_ENV"; echo "VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
       - name: Web files into the app
         working-directory: android-app
@@ -41,9 +44,11 @@ jobs:
           name: FlyGineer-${{ env.VERSION_NAME }}
           path: android-app/out/*.apk
       - name: Release
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: android-v${{ env.VERSION_NAME }}
+          target_commitish: ${{ github.sha }}
           name: FlyGineer Android ${{ env.VERSION_NAME }}
           files: android-app/out/*.apk
           body: |
