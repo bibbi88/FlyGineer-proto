@@ -1080,7 +1080,7 @@ function setSecHTML() { // the HTML of section setSec
     <h2>Tablet GPS</h2>
     <div class="row" id="gpsLive" style="flex-wrap:wrap;gap:8px;margin:6px 0">${gpsLiveHTML()}</div>
     <div class="muted">Live from the tablet's own GPS (also during a demo or replay), over the last 10 s. The flight recorder stores at most one point per second whatever the rate; Android Chrome usually gives about one update a second.</div>
-    </div>${baroSection()}`;
+    </div>${typeof xcgSecHTML === 'function' ? xcgSecHTML() : ''}${baroSection()}`;
   if (setSec === 'widgets') h = `<div class="card sec"><h2>Page layouts</h2><div class="muted">Map, Thermal, Atmosphere, Airspace and your own pages are built from widgets you can move, resize, duplicate and configure.</div>
     <div class="field"><span class="k">Edit layout of</span><span class="row" style="flex-wrap:wrap"><button class="btn" data-edit="pMap">Map</button><button class="btn" data-edit="pThermal">Thermal</button><button class="btn" data-edit="pAtmos">Atmosphere</button><button class="btn" data-edit="pAir">Airspace</button>${S.pages.map((p) => `<button class="btn" data-edit="${p.id}">${esc(p.name)}</button>`).join('')}</span></div>
     <h2 style="margin-top:8px">Your own pages</h2>
@@ -1198,7 +1198,7 @@ function renderSettings() {
   on('wEditBtn', 'onclick', () => { showPage('pMap'); setTimeout(() => enterEdit(), 80); });
   on('igcFile', 'onchange', async (e) => { const fl = e.target.files[0]; if (!fl) return; try { startReplay(parseIGC(await fl.text()), fl.name.replace(/\.igc$/i, '')); } catch (err) { toast('Could not read the IGC file: ' + err.message); } });
   on('igcStop', 'onclick', () => { stopReplay(); renderSettings(); }); on('simBtn', 'onclick', () => { st.sim ? stopSim() : startSim(); renderSettings(); }); on('demoBtn', 'onclick', () => { isDemo(1) ? stopReplay() : startDemoFlight(1); renderSettings(); }); on('demoBtn2', 'onclick', () => { isDemo(2) ? stopReplay() : startDemoFlight(2); renderSettings(); });
-  if (setSec === 'data' || q) baroWire(on);
+  if (setSec === 'data' || q) { baroWire(on); if (typeof xcgWire === 'function') xcgWire(on); }
   if (setSec === 'flights' || q) flightsWire(on);
   if (setSec === 'lands' || q) landsWire(on);
   if (setSec === 'sync' || q) syncWire(on);
@@ -1356,6 +1356,7 @@ function applySet(key, raw) {
   if (key === 'wake') wake();
   if (key === 'cornerPos' || key === 'navCw' || key === 'navCh') { placeCorner(); placeSbar(); }
   if (key === 'sbShow') placeSbar();
+  if (key === 'xcgOn' && typeof xcgStart === 'function') xcgStart();
   if (/^w(Gap|PadX|PadY|Lab|Rad)$/.test(key)) { wStyle(); document.querySelectorAll('.wg').forEach((e) => { e._sk = null; e._last = null; }); }
   if (key === 'titles') renderWidgets();
   if (key === 'rate' || key === 'rateT') loop();

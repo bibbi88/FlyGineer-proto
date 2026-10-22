@@ -27,7 +27,7 @@ const DEF = {
   vLift: 0.4, vSinkOn: true, vSink: -2.5, vF0: 520, vFk: 110, vRate: 1, vWave: 'square', vBuzz: false, vDamp: 0,
   // voice messages (speech synthesis)
   voice: false, voiceVol: 100, voiceRate: 1, voiceLang: 'auto', vcTherm: false, vcSum: true, vcTp: true, vcAir: true, vcAlt: 0, vcTow: true, vcTraffic: true, lands: [], landAir: true, gateN: 1, gateGap: 15, mc: 0, usePolar: false, saver: 'auto', saverAt: 25, gWarnOn: true, gWarn: 2.5, spSink: -8, sunWarn: 30, vcSun: true, stnGust: 8, syncProv: 'off', syncFlights: true, syncRb: true, syncSet: true, syncInbox: true, syncRoutes: true, rbR: 800, rbMinGain: 100, rbAuto: true, vcRb: true, hdgSrc: 'wind', hdgMount: 'upright', hdgOff: 0, trWarn: true, trTone: true, trLvl: 2, trNear: 2000,
-  towDetect: true, towMin: 1, corner: 'auto', wake: true, autoImport: true, airUpd: '', airMaxAlt: 2895, callsign: 'Paraglider', radioAlt: 'ft', radioLang: 'en', radioTpl: '', warnBar: true, warnDist: 2000, customUrl: '',
+  towDetect: true, towMin: 1, corner: 'auto', wake: true, autoImport: true, airUpd: '', xcgOn: false, xcgUrl: 'ws://127.0.0.1:10111', xcgPort: 10110, airMaxAlt: 2895, callsign: 'Paraglider', radioAlt: 'ft', radioLang: 'en', radioTpl: '', warnBar: true, warnDist: 2000, customUrl: '',
   wingSpd: 35, // trim speed km/h (export of 2026-10-21)
   widgets: ['vario', 'avg', 'alt', 'agl', 'gs', 'ld', 'next', 'thermal', 'flight', 'utc'],
   hidden: []
