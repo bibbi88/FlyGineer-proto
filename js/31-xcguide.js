@@ -62,7 +62,7 @@ function xcgStatus() {
   if (XCG.state === 'up') {
     const ag = XCG.at ? (Date.now() - XCG.at) / 1000 : null, n = flarmList().length;
     if (st.replay || st.sim) return ['connected · paused during demo / replay', undefined];
-    return [ag == null ? 'connected · nothing received yet (XC Guide localhost server on?)' : `connected · ${n} aircraft · last line ${ag.toFixed(0)} s ago`, ag != null && ag < 30];
+    return [ag == null ? 'connected · nothing received yet (XC Guide localhost server on?)' : `connected · ${n} aircraft · last line ${ag.toFixed(0)} s ago${typeof trafficMapNote === 'function' ? trafficMapNote() : ''}`, ag != null && ag < 30];
   }
   if (XCG.state === 'connecting') return ['connecting…', undefined];
   return ['not connected' + (XCG.err ? ': ' + esc(XCG.err) : '') + ' · retrying', false];
